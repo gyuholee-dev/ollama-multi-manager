@@ -1,0 +1,272 @@
+<!doctype html>
+<html lang="ko">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<link rel="stylesheet" href="https://fonts.googleapis.com/icon?family=Material+Icons">
+<title>Ollama Multi Manager</title>
+<style>
+:root{color-scheme:light dark;--bg:light-dark(#ebebeb,#1c1c1c);--card:light-dark(#fff,#262626);--line:light-dark(#c8c8c8,#393939);--text:light-dark(#222,#eee);--sub:light-dark(#5a5a5a,#a1a1a1);--ok:light-dark(#2e7d32,#7fd085);--okbg:light-dark(#e6f3e7,#1f3a22);--warn:light-dark(#9a6700,#f0c14b);--warnbg:light-dark(#fbefd0,#3d3213);--err:light-dark(#c62828,#ff8a80);--errbg:light-dark(#fbe3e3,#401a1a);--off:light-dark(#e0e0e0,#333);--accent:light-dark(#2563eb,#6b9bff);--btn:light-dark(#d9d9d9,#363636);--field:light-dark(#d0d0d0,#101010);--surf:var(--bg);--ghost-hover:light-dark(#dcdcdc,#151515);--ghost-active:light-dark(#cdcdcd,#0d0d0d)}
+:root[data-theme=light]{color-scheme:light}:root[data-theme=dark]{color-scheme:dark}
+*{box-sizing:border-box}body{margin:0;height:100vh;height:100dvh;display:flex;flex-direction:column;overflow:hidden;font:.875rem system-ui,sans-serif;background:var(--bg);color:var(--text)}
+header,main{max-width:960px;margin:auto;padding:16px}main{max-width:none;margin:0;flex:1;min-height:0;overflow-y:auto;padding-inline:max(16px,calc((100% - 928px)/2))}header{max-width:none;margin:0}header{flex:none;height:62px;display:flex;justify-content:space-between;align-items:center}
+header i.material-icons{display:none}header button{height:30px}header .btns{margin-left:auto;flex:none}header button{white-space:nowrap}
+#srv{cursor:pointer;position:relative;top:2px;flex:0 100 auto;padding:2px 6px;margin:0 15px;display:flex;align-items:center;gap:8px;min-width:0;color:var(--sub);font-size:.75rem}#srv:hover{background:var(--ghost-hover)}#srv{border-radius:8px;transition:background-color .1s}#srv:active,#srv.pressed{background:var(--ghost-active)}#srv::before{content:"";width:8px;height:8px;border-radius:50%;background:var(--ok);flex:none}#srv .d{min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+@media(max-width:639px){header i.material-icons{display:inline-block;font-size:1.25rem}header button{width:30px;height:30px;padding:0;display:inline-flex;align-items:center;justify-content:center}header span{display:none}}
+footer{flex:none;height:30px;background:var(--bg);border-top:1px solid var(--line)}footer div{height:100%;padding:0 16px;display:flex;align-items:center;justify-content:space-between;gap:16px;font-size:.75rem;color:var(--sub)}footer .l{min-width:0;display:flex;align-items:center;gap:6px}footer .l .material-icons{flex:none}#status{min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}#ver{flex:none;color:inherit;text-decoration:none}#ver:hover{text-decoration:underline}
+#det:has(#pn) .box,#det:has(#mp) .box,#det:has(#dt) .box,#dlg .box{background:var(--bg);--surf:var(--bg)}
+#det:has(#pn) input,#det:has(#mp) input:not([type=checkbox]),#det:has(#mp) select,#dlg input:not(.sw),#dlg select{background:var(--field)}
+input.sw{appearance:none;flex:none;width:34px;height:20px;margin:0;padding:0;border-radius:10px;border:1px solid var(--line);background:var(--field);position:relative;cursor:pointer;transition:background-color .15s}input.sw::after{content:"";position:absolute;top:2px;left:2px;width:14px;height:14px;border-radius:50%;background:var(--sub);transition:transform .15s,background-color .15s}input.sw:checked{background:var(--accent);border-color:var(--accent)}input.sw:checked::after{transform:translateX(14px);background:#fff}input.sw:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.box{margin:0 0 12px;padding:14px;border-radius:12px}.box:last-child{margin-bottom:0}.pr{display:flex;gap:6px}.pr input{flex:1;width:auto;min-width:0}.pr button{white-space:nowrap}.f{margin:10px 0}.f:last-child{margin-bottom:0}.f>label{display:block;width:fit-content;margin-bottom:6px}.f.row{display:flex;align-items:center;justify-content:space-between;gap:8px}.f.row>label{margin:0}.cat{margin-bottom:12px}.cat:last-child{margin-bottom:0}.cat>b{display:block;margin-bottom:4px;font-weight:500;font-size:1rem}.box>b{display:block;margin-bottom:4px;font-weight:500;font-size:1rem}.sel{display:block;position:relative}.sel select{appearance:none;padding-right:30px}.sel .material-icons{position:absolute;right:8px;top:50%;margin-top:-8px;color:var(--sub);pointer-events:none}
+h3{margin:0;font-size:1.125rem;font-weight:500}h1{white-space:nowrap;flex:none;font-size:1.125rem;margin:0;font-weight:500}.sub{color:var(--sub);font-size:.75rem}
+button,input,select{font:inherit;color:inherit;background:var(--card);border:1px solid var(--line);border-radius:8px;padding:5px 12px}
+button{cursor:pointer;background:var(--btn)}button.small{padding:4px 10px;font-size:.875rem}a.btn{display:inline-flex;align-items:center;justify-content:center;width:30px;height:30px;padding:0;text-decoration:none;color:inherit;background:var(--btn);border:1px solid var(--line);border-radius:8px;white-space:nowrap}a.btn:hover{background:light-dark(#cbcbcb,color-mix(in srgb,var(--btn) 50%,var(--surf)))}a.btn:active{background:light-dark(#bcbcbc,color-mix(in srgb,var(--btn) 25%,var(--surf)))}a.btn.small{width:28px;height:28px}button:disabled{opacity:.5;cursor:not-allowed;pointer-events:auto}button:disabled:hover,button:disabled:active{background:var(--btn)}.btns .del{margin-left:auto}button:hover{background:light-dark(#cbcbcb,color-mix(in srgb,var(--btn) 50%,var(--surf)))}button:active{background:light-dark(#bcbcbc,color-mix(in srgb,var(--btn) 25%,var(--surf)))}
+.card,dialog{--surf:var(--card)}.box{--surf:var(--bg)}.primary{background:var(--accent);border-color:var(--accent);color:#fff}.primary:hover{background:light-dark(color-mix(in srgb,var(--accent) 95%,#000),color-mix(in srgb,var(--accent) 52%,#000))}.primary:active{background:light-dark(color-mix(in srgb,var(--accent) 89%,#000),color-mix(in srgb,var(--accent) 37%,#000))}
+section{margin-bottom:16px}.sh{display:flex;justify-content:space-between;align-items:center;height:28px;margin-bottom:8px;font-size:1rem}
+.tog{width:24px;height:24px;padding:0;border:0;background:none;display:inline-flex;align-items:center;justify-content:center;color:var(--sub)}.tog:hover{background:var(--ghost-hover)}.tog:active{background:var(--ghost-active)}.tog .material-icons{transform:rotate(180deg);transition:transform .25s ease}section.off .tog .material-icons{transform:none}.body{display:grid;grid-template-rows:1fr;transition:grid-template-rows .25s ease}.body>div{min-height:0;overflow:hidden;transition:opacity .25s ease,visibility 0s}section.off .body{grid-template-rows:0fr}section.off .body>div{opacity:0;visibility:hidden;transition:opacity .25s ease,visibility 0s .25s}
+#sum{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}@media(max-width:639px){#sum{grid-template-columns:minmax(0,1fr)}}.sb{background:var(--card);border-radius:8px;padding:14px}.sb>b{display:block;margin-bottom:10px;font-weight:500;font-size:1rem}.sc{display:flex;gap:8px}.sc>div{flex:1;min-width:0;background:var(--bg);border-radius:8px;padding:14px}.sc .sub{white-space:nowrap}.sc b{display:block;font-size:1.125rem;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.sc small{font-size:.75rem;font-weight:400;color:var(--sub)}
+#mon{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}@media(max-width:639px){#mon{grid-template-columns:minmax(0,1fr)}}#mon .sb:only-child{grid-column:1/-1}
+.bar{display:flex;gap:1px;height:8px;background:var(--bg);border-radius:4px;overflow:hidden;margin:10px 0}.bar i{height:100%}
+.leg{display:flex;flex-wrap:wrap;gap:4px 14px;font-size:.75rem;color:var(--sub)}.leg s{display:inline-block;width:8px;height:8px;border-radius:2px;margin-right:5px}
+#grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:12px}
+.top>b{font-size:1rem}.spread{display:flex;justify-content:space-between;gap:8px}.top>b.tag{font-size:.875rem;font-weight:400}.cp{flex:none;color:var(--accent);font-size:.75rem}.addr{display:flex;gap:6px;width:fit-content;cursor:pointer;margin:-2px -6px;padding:2px 6px;border-radius:8px;transition:background-color .1s}.addr:hover{background:var(--ghost-hover)}.addr:active,.addr.pressed{background:var(--ghost-active)}.card>.sel{margin:10px 0}.card .sel select{width:100%;background:var(--bg)}
+.card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:14px}.card.ext{border-style:dashed}
+.top{display:flex;justify-content:space-between;align-items:center;margin-bottom:6px}
+.material-icons{font-size:1rem;line-height:1;user-select:none}.tog .material-icons{font-size:1rem}
+.badge .material-icons{font-size:.75rem}
+.badge{display:inline-flex;align-items:center;gap:4px;font-size:.75rem;padding:2px 8px;border-radius:8px;background:var(--off)}
+.running{background:var(--okbg);color:var(--ok)}.unreachable{background:var(--warnbg);color:var(--warn)}
+.model{margin:8px 0;padding:6px 8px;background:var(--bg);border-radius:8px;font-size:.75rem}.btns{display:flex;gap:6px}
+
+dialog h3 button{width:26px;height:26px;padding:0;display:inline-flex;align-items:center;justify-content:center;font-size:.75rem}
+dialog h3{position:sticky;top:0;z-index:1;margin:0 0 8px;padding:16px 0 8px;line-height:26px;background:var(--card)}code{font-size:.75rem;color:var(--sub)}
+dialog{border:1px solid var(--line);border-radius:12px;background:var(--card);color:var(--text);width:520px;max-width:calc(100vw - 32px);max-height:calc(100vh - 108px);top:62px;bottom:46px;padding:0 16px 16px;overflow:auto}dialog::backdrop{background:rgba(0,0,0,.5)}
+dialog input,dialog select{width:100%}
+*{scrollbar-width:thin;scrollbar-color:light-dark(#b0b0b0,#4a4a4a) transparent}
+button,a.btn{transition:background-color .25s}
+/* button tone: base/hover/active derived from the surface the button sits on (header buttons excluded) */
+:where(main,dialog) button:not(.primary):not(.tog),:where(main,dialog) a.btn{--b:light-dark(color-mix(in srgb,var(--surf) 94%,#000),color-mix(in srgb,var(--surf) 90%,#fff));--bh:light-dark(color-mix(in srgb,var(--surf) 86%,#000),color-mix(in srgb,var(--surf) 78%,#000));--ba:light-dark(color-mix(in srgb,var(--surf) 78%,#000),color-mix(in srgb,var(--surf) 62%,#000));background:var(--b)}
+:where(main,dialog) button:not(.primary):not(.tog):hover,:where(main,dialog) a.btn:hover{background:var(--bh)}
+:where(main,dialog) button:not(.primary):not(.tog):active,:where(main,dialog) a.btn:active{background:var(--ba)}
+:where(main,dialog) button:not(.primary):not(.tog):disabled:hover,:where(main,dialog) button:not(.primary):not(.tog):disabled:active{background:var(--b)}
+.f.row:has(.ml){align-items:flex-start}.ml{text-align:right}.lm+.lm{margin-top:8px}.gp{height:4px}#dt .f.row>span{text-align:right}#dt .addr{margin-right:-6px}
+.rg{width:100%;margin:0;padding:0;border:0;background:none;accent-color:var(--accent);cursor:pointer}#cv{font-size:.875rem}
+.ch{cursor:pointer;display:flex;align-items:center;justify-content:space-between}.ch>b{font-weight:400;font-size:.875rem}.cb{display:grid;grid-template-rows:1fr;transition:grid-template-rows .25s ease}.cb>div{min-height:0;overflow:hidden;transition:opacity .25s ease,visibility 0s}.cc{position:absolute;opacity:0;pointer-events:none}.cat:has(.cc:not(:checked)) .cb{grid-template-rows:0fr}.cat:has(.cc:not(:checked)) .cb>div{opacity:0;visibility:hidden;transition:opacity .25s ease,visibility 0s .25s}.cat:has(.cc:not(:checked)) .tog .material-icons{transform:none}.ch{margin:0 -5px 0 -5px;padding:2px 2px 2px 10px;border-radius:8px;transition:background-color .25s}.ch:hover{background:var(--ghost-hover)}.ch:active{background:var(--ghost-active)}.ch .tog:hover,.ch .tog:active{background:none}.cc:focus-visible+.tog{outline:2px solid var(--accent)}
+input[type=number]{appearance:textfield;-moz-appearance:textfield}input[type=number]::-webkit-inner-spin-button,input[type=number]::-webkit-outer-spin-button{-webkit-appearance:none;margin:0}
+.ch.tl>b{font-size:1rem;font-weight:500}.cat .cb .f:first-child{margin-top:10px}
+.rg{appearance:none;-webkit-appearance:none;height:14px;--p:0%}
+.rg::-webkit-slider-runnable-track{height:4px;border-radius:2px;background:linear-gradient(to right,var(--accent) var(--p),light-dark(#d0d0d0,#3a3a3a) var(--p))}
+.rg::-webkit-slider-thumb{-webkit-appearance:none;appearance:none;width:14px;height:14px;margin-top:-5px;border-radius:50%;border:0;background:var(--accent)}
+.rg::-moz-range-track{height:4px;border-radius:2px;background:light-dark(#d0d0d0,#3a3a3a)}.rg::-moz-range-progress{height:4px;border-radius:2px;background:var(--accent)}
+.rg::-moz-range-thumb{width:14px;height:14px;border:0;border-radius:50%;background:var(--accent)}
+#dlg input.rg,input.rg:focus{background:none;border:0;padding:0;border-radius:0;box-shadow:none;outline:0;height:14px}
+.f:not(.row){margin:16px 0 10px}.f:not(.row):last-child{margin-bottom:0}.box>b+.f:not(.row){margin-top:10px}.f:not(.row)>.f.row{margin:0 0 5px}
+.cat .card>.f:first-child{margin-top:0}
+#nm{margin-top:8px}
+.model>span:first-child{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.model>.sub{flex:none;white-space:nowrap}
+#lbox{--surf:var(--card);background:var(--card);border-radius:8px;padding:14px}#logs{height:180px;overflow-x:hidden;overflow-y:auto;white-space:pre-wrap;overflow-wrap:anywhere;font:.75rem/20px ui-monospace,SFMono-Regular,Menlo,monospace;color:var(--sub)}
+#ltabs,#stabs,#utabs,
+#ltabs,#stabs,#mtabs{margin:0 8px 0 auto;min-width:0;display:flex;gap:6px;overflow-x:auto;scrollbar-width:none;transition:opacity .25s ease,transform .25s ease,visibility 0s}#ltabs button,#stabs button,#utabs button,#ltabs button,#stabs button,#mtabs button{flex:none}section.off #ltabs,section.off #stabs,section.off #utabs,section.off #ltabs,section.off #stabs,section.off #mtabs{opacity:0;transform:translateX(32px);visibility:hidden;pointer-events:none;transition:opacity .25s ease,transform .25s ease,visibility 0s .25s}
+:where(main,dialog) button.on:not(.primary),:where(main,dialog) button.on:not(.primary):hover{background:var(--ba)}
+main #ltabs,main #stabs,main #utabs,
+main #ltabs,main #stabs,main #mtabs{--surf:var(--bg)}main #ltabs button,main #stabs button,main #utabs button,main #ltabs button,main #stabs button,main #mtabs button{background:var(--btn)}main #ltabs button:hover,main #stabs button:hover,main #utabs button:hover,main #ltabs button:hover,main #stabs button:hover,main #mtabs button:hover{background:light-dark(#cbcbcb,color-mix(in srgb,var(--btn) 50%,var(--surf)))}main #ltabs button:active,main #ltabs button.on,main #ltabs button.on:hover,main #stabs button:active,main #stabs button.on,main #stabs button.on:hover,main #utabs button:active,main #utabs button.on,main #utabs button.on:hover,main #ltabs button:active,main #ltabs button.on,main #ltabs button.on:hover,main #stabs button:active,main #stabs button.on,main #stabs button.on:hover,main #mtabs button:active,main #mtabs button.on,main #mtabs button.on:hover{background:light-dark(#bcbcbc,color-mix(in srgb,var(--btn) 25%,var(--surf)))}
+#stabs .material-icons{font-size:.875rem;margin:0 -2px 0 2px;vertical-align:-2px}
+.sb:only-child{grid-column:1/-1}
+#pop{width:420px;padding:20px}#pop .pb{display:flex;gap:14px;align-items:flex-start}#pop .pi{flex:none;width:40px;height:40px;display:flex;align-items:center;justify-content:center;color:var(--sub)}#pop .pi .material-icons{font-size:32px}
+#pop[data-k=info] .pi{color:var(--accent)}#pop[data-k=warn] .pi{color:var(--warn)}#pop[data-k=error] .pi,#pop[data-k=danger] .pi{color:var(--err)}
+#pop .pt{min-width:0;flex:1}#pop h3{position:static;margin:0 0 6px;padding:0;line-height:24px;background:none;font-size:1rem}#pop p{margin:0;color:var(--sub);line-height:20px;white-space:pre-line;overflow-wrap:anywhere}
+#pop .btns{justify-content:flex-end;margin-top:20px}#pop .primary.danger{background:var(--err);border-color:var(--err);color:#fff}
+</style>
+<header><h1 id="app-title">Ollama Multi Manager</h1><div id="srv" role="button" tabindex="0" title=""><code class="d">http://192.168.0.24:9100</code><span class="cp">Copy</span></div><div class="btns"><button class="primary" onclick="openNew()" data-i-aria="hdr.new" data-i-title="hdr.new"><i class="material-icons">add</i><span data-i="hdr.new"></span></button><button onclick="openModels()" data-i-aria="hdr.models" data-i-title="hdr.models"><i class="material-icons">storage</i><span data-i="hdr.models"></span></button><button onclick="openCfg()" data-i-aria="hdr.settings" data-i-title="hdr.settings"><i class="material-icons">settings</i><span data-i="hdr.settings"></span></button></div></header>
+<main><section data-t="sum"><div id="utabs"></div><div id="sum"></div></section><section data-t="mon"><div id="mtabs"></div><div id="mon"></div></section><section data-t="inst"><div id="stabs"></div><div id="grid"></div></section><section data-t="logs"><div id="ltabs"></div><div id="lbox"><div id="logs"></div></div></section></main><footer><div><span class="l"><span class="material-icons">bug_report</span><span id="status"></span></span><a id="ver" href="https://github.com/gyuholee-dev/ollama-multi-manager" target="_blank" rel="noopener noreferrer">ollama-multi-manager v0.1.0</a></div></footer>
+<dialog id="det"></dialog>
+<dialog id="pop" aria-live="assertive"></dialog>
+<dialog id="dlg"><form method="dialog" onsubmit="return create(event)">
+<h3><span data-i="new.title"></span> <button type="button" style="float:right" onclick="dlg.close()"><span class="material-icons">close</span></button></h3>
+<div class="box" id="sv"><b data-i="new.server"></b>
+<div class="f"><div class="f row"><label data-i="f.name"></label></div><input id="n" required placeholder="worker-4"></div>
+<div class="f"><div class="f row"><label data-i="f.port"></label></div><input id="p" type="number" required placeholder="11438"></div>
+<div class="cat nc"><label class="ch"><b data-i="new.general"></b><input type="checkbox" class="cc" data-i-aria="new.generalT"><span class="tog"><span class="material-icons">expand_more</span></span></label><div class="cb"><div><div class="card" style="margin-top:8px;padding:14px">
+<div class="f"><div class="f row"><label data-i="f.ctx"></label><span id="cv">8K</span></div><input id="cx" class="rg" type="range" min="1" max="7" step="1" value="3" oninput="$('cv').textContent=fmtCtx(2048*2**(this.value-1))"></div>
+<div class="f"><div class="f row"><label data-i="f.keep"></label><span id="kv"></span></div><input id="kp" class="rg" type="range" min="0" max="9" step="1" value="1" oninput="$('kv').textContent=fmtKeep(KEEP[this.value])"></div>
+<div class="f"><div class="f row"><label data-i="f.maxLoaded"></label><span id="ml"></span></div><input id="mlr" class="rg" type="range" min="1" max="4" step="1" value="2" oninput="$('ml').textContent=fmtN(this.value)"></div>
+<div class="f"><div class="f row"><label data-i="f.parallel"></label><span id="np"></span></div><input id="npr" class="rg" type="range" min="1" max="8" step="1" value="2" oninput="$('np').textContent=fmtN(this.value)"></div>
+</div></div></div></div>
+<div class="cat nc"><label class="ch"><b data-i="new.advanced"></b><input type="checkbox" class="cc" data-i-aria="new.advancedT"><span class="tog"><span class="material-icons">expand_more</span></span></label><div class="cb"><div><div class="card" style="margin-top:8px;padding:14px">
+<div class="f"><div class="f row"><label data-i="f.device"></label></div><span class="sel"><select id="gp"></select><span class="material-icons">expand_more</span></span></div>
+<div class="f"><div class="f row"><label data-i="f.kvq"></label></div><span class="sel"><select id="kvq"><option value="f16" data-i="opt.f16"></option><option value="q8_0">q8_0</option><option value="q4_0">q4_0</option></select><span class="material-icons">expand_more</span></span></div>
+<div class="f row"><label data-i="f.flash"></label><input id="fa" class="sw" type="checkbox" role="switch" checked></div>
+</div></div></div></div>
+</div><div class="box"><b data-i="new.models"></b>
+<div id="nm" onchange="chkNew()"></div>
+</div>
+<div class="btns" style="justify-content:flex-end;margin-top:4px"><button type="button" onclick="dlg.close()" data-i="btn.cancel"></button><button class="primary" id="mk" data-i="btn.create" disabled></button></div>
+</form></dialog>
+<script src="locales/en.js"></script>
+<script src="locales/ko.js"></script>
+<script>
+const VERSION='v0.1.0';let checking=false;
+const detectLang=()=>{for(const l of navigator.languages||[navigator.language]){const b=String(l||'').toLowerCase().split('-')[0];if(window.LOCALES[b])return b}return 'en'};
+const defCfg={lang:detectLang(),theme:'system',login:false,tray:false,interval:3,extMon:true,monPort:9100,restore:true,stopOnQuit:false,exe:'',modelsPath:'~/.ollama/models'},cfg={...defCfg};let saved={...defCfg};
+let models=[{n:'llama3.1:8b-instruct-q4_K_M',gb:4.7},{n:'llama3.1:8b-instruct-q8_0',gb:8.5},{n:'mistral:7b-instruct-q4_K_M',gb:4.1},{n:'qwen2.5:3b-instruct-q4_K_M',gb:2.1},{n:'gemma2:9b-instruct-q4_K_M',gb:5.4}];
+const t=(k,p)=>String(LOCALES[cfg.lang]?.[k]??LOCALES.en[k]??k).replace(/\{(\w+)\}/g,(_,x)=>p?.[x]??'');
+const mi=n=>`<span class="material-icons">${n}</span>`;
+const SI={running:'circle',stopped:'radio_button_unchecked',starting:'more_horiz',unreachable:'warning'},stL=s=>mi(SI[s])+t('state.'+s);
+let list=[
+ {id:1,name:'worker-1',port:11435,exp:[Date.now()+3*60000],models:['llama3.1:8b-instruct-q4_K_M','mistral:7b-instruct-q4_K_M'],ctx:8192,keep:5,loaded:['llama3.1:8b-instruct-q4_K_M · 4.7 GB'],state:'running'},
+ {id:2,name:'worker-2',port:11436,models:['mistral:7b-instruct-q4_K_M'],ctx:4096,keep:15,loaded:[],state:'stopped'},
+ {id:3,name:'worker-3',port:11437,models:['llama3.1:8b-instruct-q8_0'],ctx:8192,keep:5,loaded:[],state:'unreachable'}];
+const ext={get name(){return t('ext.name')},port:11434,exp:[Date.now()+4*60000],ctx:4096,keep:15,loaded:['qwen2.5:3b-instruct-q4_K_M · 2.1 GB']};
+const $=id=>document.getElementById(id),by=id=>list.find(i=>i.id==id);
+const logs=[],lf={v:'all'},hms=t=>new Date(t).toLocaleTimeString('en-GB'),
+ log=(m,src='app')=>{logs.push({ts:Date.now(),src,m});if(logs.length>300)logs.shift();$('status').textContent=`[${hms(logs.at(-1).ts)}] ${m}`;renderLogs();renderSum()},
+ renderLogs=()=>{const srcs=['app',...new Set(logs.map(e=>e.src).filter(x=>x!='app'))],l=$('logs');if(lf.v!='all'&&!srcs.includes(lf.v))lf.v='all';
+  $('ltabs').innerHTML=['all',...srcs].map(x=>`<button class="small${x==lf.v?' on':''}" onclick="setLf(this.dataset.s)" data-s="${x}">${x=='all'?t('log.all'):x=='app'?t('log.app'):x=='default'?t('ext.name'):x}</button>`).join('');
+  const end=l.scrollTop+l.clientHeight>=l.scrollHeight-4;l.textContent=logs.filter(e=>lf.v=='all'||e.src==lf.v).map(e=>`[${hms(e.ts)}] ${lf.v=='all'?`[${e.src}] `:''}${e.m}`).join('\n');if(end)l.scrollTop=l.scrollHeight},
+ setLf=v=>{lf.v=v;renderLogs();$('logs').scrollTop=$('logs').scrollHeight};
+const set=async(id,state,ms=900)=>{const n=by(id).name,run=state=='running';
+ if(run){const pct=Math.max(...vramByGpu().map(g=>g.pct));if(pct>85&&!await popup({kind:'warn',title:t('w.vram.t'),msg:t('w.vram.m',{pct,n}),ok:t('btn.start'),cancel:t('btn.cancel')}))return}
+ else{const k=by(id).loaded.length;if(k&&!await ask(t('w.stop.t'),t('w.stop.m',{n,k}),t('btn.stop'),true))return}
+ by(id).state='starting';log(`${run?'Starting':'Stopping'} ${n}…`,n);render();setTimeout(()=>{by(id).state=state;if(!run)by(id).loaded=[];log(`${n} ${run?'is running':'stopped'}`,n);render()},ms)};
+function btns(i){const st=i.state,busy=st=='running'||st=='starting';
+ return (st=='stopped'?`<button class="small" onclick="set(${i.id},'running')">${t('btn.start')}</button>`:`<button class="small" onclick="set(${i.id},'stopped')" ${st=='starting'?'disabled':''}>${t('btn.stop')}</button>`)
+  +`<button class="small" onclick="show(${i.id})" ${st=='starting'?'disabled':''}>${t('btn.details')}</button>`
+  +`<button class="small del" onclick="del(${i.id})" ${busy?`disabled title="${t('del.disabled')}"`:''}>${t('btn.delete')}</button>`}
+const HOST='192.168.0.24',
+ expAt=(ts,keep)=>keep<0?t('exp.none'):t('exp.at',{t:new Date(ts).toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'})}),loadedBox=(x,ts,keep)=>`<div class="model" style="display:flex;justify-content:space-between;gap:8px"><span title="${x.split(' · ')[0]}">${x.split(' · ')[0]}</span><span class="sub">${expAt(ts,keep)}</span></div>`,fmtCtx=c=>c/1024+'K',GPUS=['NVIDIA GeForce RTX 4090','NVIDIA GeForce RTX 3090'],gpuName=g=>g=='auto'?t('gpu.auto'):g=='cpu'?'CPU':t('gpu.n',{g,name:GPUS[g]}),KEEP=[1,5,15,30,60,180,360,720,1440,-1],fmtN=n=>n+t('u.cnt'),fmtKeep=m=>m<0?t('keep.unlimited'):m>=1440?t('keep.day',{n:m/1440}):m>=60?t('keep.hour',{n:m/60}):t('keep.min',{n:m}),portLine=(port,ctx,ld=[])=>`<div class="sub">${t('card.line',{port,ctx:fmtCtx(ctx),gb:+ld.reduce((a,x)=>a+parseFloat(x.split(' · ')[1]),0).toFixed(1)})}</div>`;
+async function copyText(t,el,msg='Address copied'){try{await navigator.clipboard.writeText(t)}catch{const a=document.createElement('textarea');a.value=t;document.body.append(a);a.select();document.execCommand('copy');a.remove()}
+ log(msg);el.classList.add('pressed');setTimeout(()=>el.classList.remove('pressed'),150)}
+const so={k:'name',d:1},SO=[['name','f.name'],['port','f.port'],['state','f.state']],SORD=['running','starting','stopped','unreachable'],
+ sorted=()=>[...list].sort((a,b)=>so.d*(so.k=='state'?SORD.indexOf(a.state)-SORD.indexOf(b.state):so.k=='port'?a.port-b.port:a.name.localeCompare(b.name,undefined,{numeric:true}))||a.name.localeCompare(b.name,undefined,{numeric:true})),
+ setSort=k=>{if(so.k==k)so.d=-so.d;else{so.k=k;so.d=1}render()};
+const GB=a=>a.reduce((t,x)=>t+parseFloat(x.split('·')[1]),0),
+ cell=(k,v,u='',c='')=>`<div><div class="sub">${k}</div><b${c?` style="color:var(${c})"`:''}>${v}${u?`<small>${u}</small>`:''}</b></div>`,
+ MONS=['CPU','RAM','GPU','VRAM'],monOn=new Set(MONS),togMon=t=>{monOn.has(t)?monOn.delete(t):monOn.add(t);render()},
+ SUMS=['ins','usage','perf','status'],sumOn=new Set(['ins','usage']),togSum=t=>{sumOn.has(t)?sumOn.delete(t):sumOn.add(t);renderSum()},
+ sbox=(k,cs)=>!sumOn.has(k)?'':`<div class="sb"><b>${t('sum.'+k)}</b><div class="sc">${cs.join('')}</div></div>`;
+const GVRAM=[24,24],GSYS=1.6,gOf=i=>{const g=i.gpu||'auto';return g=='cpu'?-1:g=='auto'?(i===ext?1:0):+g},
+ vramByGpu=()=>{const all=[ext,...list];return GPUS.map((_,g)=>{const parts=all.map((i,n)=>({name:i.name,v:gOf(i)==g?GB(i.loaded):0,col:`hsl(${n*70+210} 60% 55%)`})).filter(p=>p.v),used=GSYS+parts.reduce((t,p)=>t+p.v,0);return {parts,used,total:GVRAM[g],pct:Math.round(used/GVRAM[g]*100)}})};
+function renderSum(){
+ $('utabs').innerHTML=SUMS.map(k=>`<button class="small${sumOn.has(k)?' on':''}" onclick="togSum('${k}')">${t('sum.'+k)}</button>`).join('');
+ const c=s=>list.filter(i=>i.state==s).length,all=[ext,...list],pct=Math.max(...vramByGpu().map(g=>g.pct)),
+  models=all.reduce((t,i)=>t+i.loaded.length,0),warn=c('unreachable')+(pct>85?1:0),errs=logs.filter(e=>/timed out|unreachable|error|failed/i.test(e.m)).length;
+ $('sum').innerHTML=[
+  sbox('ins',[cell(t('c.total'),list.length+1),cell(t('c.running'),c('running')+1),cell(t('c.stopped'),c('stopped')),cell(t('c.unreach'),c('unreachable'))]),
+  sbox('usage',[cell('VRAM',pct,'%',pct>85?'--warn':''),cell(t('c.mem'),34,'%'),cell(t('c.models'),models,t('u.cnt'))]),
+  sbox('perf',[cell(t('c.reqs'),2,t('u.case')),cell(t('c.latency'),1.4,' s'),cell(t('c.speed'),87,' tok/s')]),
+  sbox('status',[cell(t('c.warn'),warn?warn:t('c.ok'),warn?t('u.case'):'',warn?'--warn':'--ok'),cell(t('c.errs'),errs,t('u.case')),cell(t('c.mon'),cfg.extMon?t('c.on'):t('c.off'),cfg.extMon?` :${cfg.monPort}`:''),cell(t('c.updated'),hms(Date.now()).slice(0,5)) ])].join('')||`<div class="sub" style="grid-column:1/-1">${t('sum.empty')}</div>`}
+function render(){
+ $('mtabs').innerHTML=MONS.map(t=>`<button class="small${monOn.has(t)?' on':''}" onclick="togMon('${t}')">${t}</button>`).join('');
+ $('stabs').innerHTML=SO.map(([k,x])=>`<button class="small${so.k==k?' on':''}" onclick="setSort('${k}')">${t(x)}${so.k==k?mi(so.d>0?'arrow_upward':'arrow_downward'):''}</button>`).join('');
+ const S=t('mon.system'),O=t('mon.other'),V=vramByGpu(),used=V.reduce((t,g)=>t+g.used,0),total=V.reduce((t,g)=>t+g.total,0),pct=Math.round(used/total*100),pmax=Math.max(...V.map(g=>g.pct));
+ const mb=(t,v,body,w='')=>monOn.has(t)?`<div class="sb"><div class="top" style="margin:0"><b>${t}</b><span class="sub"${w}>${v}</span></div>${body}</div>`:'',
+  bar=(ps)=>`<div class="bar">${ps.map(p=>`<i title="${p[0]}" style="width:${p[1]}%;background:${p[2]}"></i>`).join('')}</div>`,
+  leg=(ps)=>`<div class="leg">${ps.map(p=>`<span><s style="background:${p[2]}"></s>${p[0]} ${p[3]}</span>`).join('')}</div>`,
+  gpuRows=[[62,58,214,5],[4,41,28,2]].map(([u,tc,w,sy],n)=>{const ps=V[n].parts,tp=ps.reduce((x,p)=>x+p.v,0),sysU=ps.length?Math.min(sy,u):u,segs=[[S,sysU,'var(--sub)',sysU+'%'],...ps.map(p=>[p.name,(u-sysU)*p.v/tp,p.col,Math.round((u-sysU)*p.v/tp)+'%'])];return `<div class="top" style="margin:${n?14:8}px 0 0"><span>${gpuName(n)}</span><span class="sub">${u}% · ${tc}°C · ${w} W</span></div>${bar(segs)}${leg(segs)}`}).join('');
+ $('mon').innerHTML=[
+  mb('CPU',t('mon.cpu',{pct:23,n:12}),bar([['Ollama',9,'var(--accent)'],[O,14,'var(--sub)']])+leg([['Ollama',9,'var(--accent)','9%'],[O,14,'var(--sub)','14%']])),
+  mb('RAM','21.8 / 64 GB (34%)',bar([[S,15/64*100,'var(--sub)'],['Ollama',6.8/64*100,'var(--accent)']])+leg([[S,15,'var(--sub)','15.0 GB'],['Ollama',6.8,'var(--accent)','6.8 GB']])),
+  mb('GPU',t('mon.gpus',{n:GPUS.length}),gpuRows),
+  mb('VRAM',`${used.toFixed(1)} / ${total} GB (${pct}%)`,V.map((g,n)=>{const ps=[[S,GSYS/g.total*100,'var(--sub)',GSYS.toFixed(1)+' GB'],...g.parts.map(p=>[p.name,p.v/g.total*100,p.col,p.v.toFixed(1)+' GB'])];return `<div class="top" style="margin:${n?14:8}px 0 0"><span>${gpuName(n)}</span><span class="sub"${g.pct>85?' style="color:var(--warn)"':''}>${g.used.toFixed(1)} / ${g.total} GB (${g.pct}%)</span></div>`+bar(ps)+leg(ps.map(p=>[p[0],p[1],p[2],p[3]]))}).join(''),pmax>85?' style="color:var(--warn)"':'')].join('')||`<div class="sub" style="grid-column:1/-1">${t('sum.empty')}</div>`;
+ renderSum();
+ $('grid').innerHTML=sorted().map(i=>`<div class="card"><div class="top"><b>${i.name}</b><span class="badge ${i.state}">${stL(i.state)}</span></div>
+  ${portLine(i.port,i.ctx,i.loaded)}
+  ${i.loaded.length?i.loaded.map((x,n)=>loadedBox(x,(i.exp||[])[n]||Date.now(),i.keep)).join(''):`<div class="model" style="color:var(--sub)">${t('card.none')}</div>`}<div class="btns">${btns(i)}</div></div>`).join('')+
+  (`<div class="card ext"><div class="top"><b>${ext.name}</b><span class="badge">${mi('lock')}${t('ext.managed')}</span></div>${portLine(ext.port,ext.ctx,ext.loaded)}${loadedBox(ext.loaded[0],ext.exp[0],5)}</div>`)}
+function show(id){const i=by(id),run=i.state=='running',kv=(k,v)=>`<div class="f row"><label>${k}</label><span>${v}</span></div>`,
+ ld=i.loaded.map(x=>`<div>${x}</div>`).join('<div class="gp"></div>');
+ $('det').innerHTML=`<h3>${i.name} <button style="float:right" onclick="det.close()">${mi('close')}</button></h3>
+ <div id="dt"><div class="box"><b>${t('new.server')}</b>${kv(t('f.state'),`<span class="badge ${i.state}">${stL(i.state)}</span>`)}${kv(t('f.port'),i.port)}${kv(t('d.pid'),run?4200+i.id*37:'-')}${kv(t('d.uptime'),run?t('d.up'):'-')}${kv(t('f.maxLoaded'),fmtN(i.maxLoaded||2))}${kv(t('f.parallel'),fmtN(i.parallel||2))}</div>
+ <div class="box"><b>${t('d.models')}</b><div class="f row"><label>${t('d.loaded')}</label><div class="ml">${ld||`<div class="sub">${t('d.none')}</div>`}</div></div><div class="f row"><label>${t('d.avail')}</label><div class="ml">${i.models.map(m=>`<div>${m} · ${models.find(x=>x.n==m)?.gb??'?'} GB</div>`).join('<div class="gp"></div>')||`<div class="sub">${t('d.none')}</div>`}</div></div></div>
+ <div class="box"><b>${t('d.res')}</b>${kv(t('d.vram'),i.loaded.length?i.loaded.map(x=>x.split(' · ')[1]).join(' + '):'0 GB')}${kv(t('f.ctx'),fmtCtx(i.ctx))}${kv(t('f.keep'),fmtKeep(i.keep)+(i.keep>=0&&i.loaded.length?' · '+expAt((i.exp||[])[0]||Date.now(),i.keep):''))}${kv(t('f.device'),gpuName(i.gpu||'auto'))}${kv(t('f.kvq'),i.kvq||'f16')}${kv(t('f.flash'),i.flash===false?t('c.off'):t('c.on'))}${kv(t('d.reqs'),run?t('d.reqsV',{n:0}):'-')}</div></div>`;det.showModal()}
+function openCfg(){monOk=cfg.monPort;monWas=cfg.extMon;const v=cfg;$('det').innerHTML=`<h3>${t('set.title')} <button style="float:right" onclick="det.close()">${mi('close')}</button></h3>
+ <div oninput="upd()" onchange="chg(event)"><div class="box"><b>${t('set.general')}</b>
+ ${chk('lg',t('set.login'),v.login)}
+ ${chk('tray',t('set.tray'),v.tray)}
+ <div class="f"><div class="f row"><label>${t('set.lang')}</label></div><span class="sel"><select id="lang">${opt(Object.keys(LOCALES).map(k=>[k,LOCALES[k]._name]),v.lang)}</select>${caret}</span></div>
+ <div class="f"><div class="f row"><label>${t('set.theme')}</label></div><span class="sel"><select id="t">${opt([['system',t('theme.system')],['light',t('theme.light')],['dark',t('theme.dark')]],v.theme)}</select>${caret}</span></div>
+ </div><div class="box"><b>${t('set.monitor')}</b>
+ ${chk('em',t('set.ext'),v.extMon)}
+ <div class="f"><div class="f row"><label>${t('set.extPort')}</label></div><input id="mport" type="number" min="1024" max="65535" value="${v.monPort}"></div>
+ <div class="f"><div class="f row"><label>${t('set.interval')}</label></div><span class="sel"><select id="iv">${opt([1,3,5,10].map(n=>[n,t('sec.n',{n})]),v.interval)}</select>${caret}</span></div>
+ </div><div class="box"><b>${t('new.server')}</b>
+ ${chk('rs',t('set.restore'),v.restore)}
+ ${chk('sq',t('set.stopQuit'),v.stopOnQuit)}
+ <div class="f"><div class="f row"><label>${t('set.exe')}</label></div><span class="pr"><input id="ex" value="${v.exe}" placeholder="${t('set.exePh')}"><button type="button" onclick="browse('ex')">${t('set.browse')}</button></span></div>
+ <div class="f"><div class="f row"><label>${t('set.models')}</label></div><span class="pr"><input id="mp" value="${v.modelsPath}"><button type="button" onclick="browse('mp')">${t('set.browse')}</button></span></div>
+ </div><div class="box"><b>${t('set.update')}</b>
+ <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-top:8px"><span class="sub" id="upd">${t('set.ver',{v:VERSION})}</span><button onclick="checkUpdate()">${t('set.check')}</button></div>
+ </div></div> <div class="btns" style="justify-content:flex-end;margin-top:12px"><button onclick="resetCfg()">${t('set.reset')}</button><button class="primary" onclick="save()">${t('set.save')}</button></div>`;if(!det.open)det.showModal()}
+const caret=mi('expand_more'),
+ chk=(id,t,v)=>`<div class="f row"><label>${t}</label><input id="${id}" class="sw" type="checkbox" role="switch" ${v?'checked':''}></div>`,
+ opt=(a,v)=>a.map(([k,t])=>`<option value="${k}" ${k==v?'selected':''}>${t}`).join('');
+function browse(id){const v={ex:'/usr/local/bin/ollama',mp:'/Users/me/ollama/models'}[id];$(id).value=v;$(id).dispatchEvent(new Event('input',{bubbles:true}));log(`Path selected: ${v}`)}
+const POPI={info:'info',warn:'warning',error:'error',confirm:'help_outline',danger:'delete_outline'};
+function popup({kind='info',title,msg,ok=t('pop.ok'),cancel}){return new Promise(r0=>{let done=false;const res=v=>{if(!done){done=true;r0(v)}},end=v=>{res(v);pop.close()};pop.dataset.k=kind;
+ pop.innerHTML=`<div class="pb"><div class="pi">${mi(POPI[kind])}</div><div class="pt"><h3></h3><p></p></div></div><div class="btns">${cancel?'<button type="button" id="pc"></button>':''}<button type="button" id="po" class="primary${kind=='danger'?' danger':''}"></button></div>`;
+ pop.querySelector('h3').textContent=title;pop.querySelector('p').textContent=msg;$('po').textContent=ok;if(cancel){$('pc').textContent=cancel;$('pc').onclick=()=>end(false)}
+ $('po').onclick=()=>end(true);pop.addEventListener('close',()=>{if(!pop.open)res(false)},{once:true});if(pop.open)pop.close();pop.showModal();$('po').focus()})}
+const notify=(kind,title,msg)=>popup({kind,title,msg}),ask=(title,msg,ok=t('pop.cont'),danger=false)=>popup({kind:danger?'danger':'confirm',title,msg,ok,cancel:t('btn.cancel')});
+function checkUpdate(){if(checking)return;checking=true;$('upd').textContent=t('set.checking');log('Checking for updates…');
+ setTimeout(()=>{checking=false;log(`Up to date (${VERSION})`);if($('upd'))$('upd').textContent=t('set.ver',{v:VERSION});notify('info',t('upd.title'),t('upd.latest',{v:VERSION}))},1200)}
+function syncSrv(){const a=`http://192.168.0.24:${cfg.monPort}`;$('srv').style.display=cfg.extMon?'':'none';$('srv').querySelector('code').textContent=a;$('srv').title=t('srv.title',{a})}
+function applyStatic(){document.title=t('app.title');document.documentElement.lang=cfg.lang;
+ document.querySelectorAll('[data-i]').forEach(e=>e.textContent=t(e.dataset.i));
+ document.querySelectorAll('[data-i-title]').forEach(e=>e.title=t(e.dataset.iTitle));
+ document.querySelectorAll('[data-i-aria]').forEach(e=>e.setAttribute('aria-label',t(e.dataset.iAria)));
+ document.querySelectorAll('main > section').forEach(secLbl)}
+function apply(){document.documentElement.dataset.theme=cfg.theme;applyStatic();syncSrv();render();renderLogs()}
+function upd(){const lc=$('lang').value!=cfg.lang;Object.assign(cfg,{lang:$('lang').value,theme:$('t').value,login:$('lg').checked,tray:$('tray').checked,interval:+$('iv').value,extMon:$('em').checked,monPort:+$('mport').value||defCfg.monPort,restore:$('rs').checked,stopOnQuit:$('sq').checked,exe:$('ex').value,modelsPath:$('mp').value});apply();saved={...cfg};if(lc)openCfg()}
+async function resetCfg(){if(!await ask(t('rst.title'),t('rst.msg'),t('rst.ok'),true))return;Object.assign(cfg,defCfg);saved={...cfg};log('Settings reset to defaults');apply();openCfg()}
+let monOk=0,monWas=false;
+function chg(e){const id=e.target.id,p=cfg.monPort,bad=!(p>=1024&&p<=65535)?[t('v.port.t'),t('v.port.m')]:(list.some(i=>i.port==p)||ext.port==p)?[t('port.conflict'),t('sv.portMsg',{p})]:null;
+ if(id=='mport'||id=='em'){
+  if(cfg.extMon&&bad){notify('warn',...bad);cfg.monPort=monOk;$('mport').value=monOk;apply();saved={...cfg};return}
+  if(cfg.extMon&&(p!=monOk||!monWas))notify('info',t('ext.title'),t('ext.msg',{p}));monOk=p;monWas=cfg.extMon}
+ if((id=='ex'||id=='mp')&&list.some(i=>i.state=='running'||i.state=='starting'))notify('info',t('rr.t'),t('rr.m'))}
+function save(){saved={...cfg};log('Settings saved');det.close()}
+const usedBy=n=>list.filter(i=>i.models.includes(n)).map(i=>i.name);
+const estTps=gb=>Math.round(1008*.6/gb),
+ modelInfo=tag=>{const p=tag.match(/(?:^|[-:])(\d+(?:\.\d+)?)b(?=-|$)/i),q=tag.match(/(q\d+(?:_[a-z0-9]+)*|nvfp\d+|fp\d+|bf\d+)/i);return t('mdl.param',{p:p?p[1]+'B':'-',q:q?q[1].toUpperCase():'-'})};
+function modelGroups(){const g={};models.forEach(m=>(g[m.n.split(':')[0]]??=[]).push(m));
+ const c=Object.entries(g).map(([f,a])=>`<div class="cat"><b>${f}</b>${a.map(m=>{const tg=m.n.slice(f.length+1);return `<div class="card" style="margin-top:8px;padding:14px"><div class="top" style="margin:0 0 4px"><b class="tag">${tg}</b><span class="sub">${m.gb} GB</span></div>
+  <div class="sub spread"><span>${modelInfo(tg)}</span><span title="${t('mdl.estimate')}">≈ ${estTps(m.gb)} tok/s</span></div><div class="btns" style="margin-top:6px;justify-content:space-between"><a class="btn small" href="https://ollama.com/library/${m.n}" target="_blank" rel="noopener noreferrer" aria-label="${t('mdl.library')}" title="${t('mdl.library')}">${mi('open_in_new')}</a><button class="small" onclick="delModel('${m.n}')">${t('btn.delete')}</button></div></div>`}).join('')}</div>`).join('');
+ return `<div class="box" style="margin-top:12px">${c||`<div class="sub">${t('mdl.none')}</div>`}</div>`}
+const modelStats=()=>t('mdl.stats',{path:cfg.modelsPath,n:models.length,gb:models.reduce((a,m)=>a+m.gb,0).toFixed(1)});
+function openModels(){$('det').innerHTML=`<h3>${t('hdr.models')} <button style="float:right" onclick="det.close()">${mi('close')}</button></h3>
+ <div class="f"><div class="f row"><label>${t('mdl.download')}</label></div><div class="pr"><input id="pn" placeholder="${t('mdl.dlPh')}"><button onclick="pull()">${t('mdl.download')}</button></div></div>
+ <div class="sub" id="pg" style="min-height:16px">${modelStats()}</div>
+ ${modelGroups()}`;if(!det.open)det.showModal()}
+function pull(){let n=$('pn').value.trim();if(n&&!n.includes(':'))n+=':latest';if(!n||models.some(m=>m.n==n)){notify('warn',t(n?'mdl.dup.title':'mdl.empty.title'),t(n?'mdl.dup.msg':'mdl.empty.msg',{n}));return}
+ let p=0;const iv=setInterval(()=>{p+=20;$('pg').textContent=t('mdl.progress',{n,p});if(p>=100){clearInterval(iv);models.push({n,gb:3.8});log(`Pulled model ${n}`);openModels();notify('info',t('mdl.done.title'),t('mdl.done.msg',{n}))}},150)}
+async function delModel(n){const u=usedBy(n);
+ if(await ask(t('mdl.del.title'),t('mdl.del.msg',{n})+(u.length?'\n'+t('mdl.del.used',{u:u.join(', ')}):''),t('btn.delete'),true)){models=models.filter(m=>m.n!=n);log(`Deleted model ${n}`);list.forEach(i=>{i.models=i.models.filter(x=>x!=n)});render();openModels()}}
+async function del(id){if(await ask(t('inst.del.title'),t('inst.del.msg',{n:by(id).name}),t('btn.delete'),true)){log(`Deleted ${by(id).name}`,by(id).name);list=list.filter(i=>i.id!=id);render()}}
+function newModels(){const g={};models.forEach(m=>(g[m.n.split(':')[0]]??=[]).push(m));let first=true;
+ return Object.entries(g).map(([f,a])=>`<div class="cat nc"><label class="ch"><b>${f}</b><input type="checkbox" class="cc" aria-label="${t('new.toggle',{n:f})}"><span class="tog">${mi('expand_more')}</span></label><div class="cb"><div><div class="card" style="margin-top:8px;padding:14px;display:grid;gap:10px">${a.map(m=>{const c=first;first=false;return `<div class="f row" style="margin:0"><label>${m.n.slice(f.length+1)}</label><input class="sw" type="checkbox" role="switch" value="${m.n}" ></div>`}).join('')}</div></div></div></div></div>`).join('')||`<div class="sub">${t('new.noModels')}</div>`}
+const chkNew=()=>{$('mk').disabled=!document.querySelector('#nm input.sw:checked')};
+const rgFill=e=>e.style.setProperty('--p',(e.value-e.min)/(e.max-e.min)*100+'%');
+document.addEventListener('input',e=>{if(e.target.matches?.('.rg'))rgFill(e.target)});
+function openNew(){$('gp').innerHTML=['auto','cpu',...GPUS.keys()].map(g=>`<option value="${g}">${gpuName(g)}</option>`).join('');let k=1;while(list.some(i=>i.name=='worker-'+k))k++;let pt=11435;while(pt==ext.port||list.some(i=>i.port==pt))pt++;$('n').value='worker-'+k;$('p').value=pt;$('cx').value=3;$('cv').textContent='8K';$('kp').value=1;$('kv').textContent=fmtKeep(5);$('mlr').value=2;$('ml').textContent=fmtN(2);$('npr').value=2;$('np').textContent=fmtN(2);$('gp').value='auto';$('fa').checked=true;$('kvq').value='f16';document.querySelectorAll('#nm .cc').forEach(x=>x.checked=false);document.querySelectorAll('#sv .cc').forEach(x=>x.checked=false);$('nm').innerHTML=newModels();chkNew();document.querySelectorAll('.rg').forEach(rgFill);dlg.showModal()}
+function create(ev){const port=+$('p').value,nm=$('n').value.trim(),ms=[...document.querySelectorAll('#nm input.sw:checked')].map(x=>x.value);
+ const bad=!nm?[t('v.nameReq.t'),t('v.nameReq.m')]:[ext,...list].some(i=>i.name==nm)?[t('v.nameDup.t'),t('v.nameDup.m',{n:nm})]:!(port>=1024&&port<=65535)?[t('v.port.t'),t('v.port.m')]:[ext,...list].some(i=>i.port==port)||port==cfg.monPort?[t('port.conflict'),t('v.used.m',{p:port})]:null;
+ if(bad){notify('warn',...bad);return false}
+ const cap=({auto:GVRAM[0],cpu:Infinity})[$('gp').value]??GVRAM[+$('gp').value]??GVRAM[0],need=ms.map(m=>models.find(x=>x.n==m).gb).sort((a,b)=>b-a).slice(0,+$('mlr').value).reduce((t,x)=>t+x,0);
+ if(need>cap-GSYS){popup({kind:'warn',title:t('w.fit.t'),msg:t('w.fit.m',{need:need.toFixed(1),cap:(cap-GSYS).toFixed(1)}),ok:t('btn.create'),cancel:t('btn.cancel')}).then(y=>{if(y){doCreate(ms,port);dlg.close()}});return false}
+ doCreate(ms,port);return true}
+function doCreate(ms,port){
+ list.push({id:Date.now(),name:$('n').value,port,models:ms,ctx:2048*2**($('cx').value-1),keep:KEEP[$('kp').value],maxLoaded:+$('mlr').value,parallel:+$('npr').value,gpu:$('gp').value,flash:$('fa').checked,kvq:$('kvq').value,loaded:[],state:'stopped'});log(`Created ${$('n').value} (port ${port})`,$('n').value);render()}
+document.querySelectorAll('dialog').forEach(d=>{const out=e=>{const r=d.getBoundingClientRect();return e.clientX<r.left||e.clientX>r.right||e.clientY<r.top||e.clientY>r.bottom};let down=false;d.addEventListener('mousedown',e=>down=e.target==d&&out(e));d.addEventListener('click',e=>{if(down&&e.target==d&&out(e))d.close();down=false})});
+document.querySelectorAll('main > section').forEach(s=>{const w=document.createElement('div'),i=document.createElement('div');w.className='body';i.append(...s.children);w.append(i);s.append(w);s.insertAdjacentHTML('afterbegin',`<div class="sh"><h3 data-i="sec.${s.dataset.t}"></h3><button class="tog">${mi('expand_more')}</button></div>`);
+ const b=s.querySelector('.tog');{const c={sum:'utabs',mon:'mtabs',logs:'ltabs',inst:'stabs'}[s.dataset.t];if(c)b.before($(c))}b.onclick=()=>{s.classList.toggle('off');secLbl(s)}});
+const secLbl=s=>{const b=s.querySelector('.tog'),h=t(s.classList.contains('off')?'sec.show':'sec.hide');b.title=h;b.setAttribute('aria-label',`${t('sec.'+s.dataset.t)} ${h}`)};
+const srv=$('srv'),addr=srv.querySelector('code');
+const copyAddr=()=>copyText(addr.textContent,srv,'Serving address copied');
+srv.onclick=copyAddr;srv.onkeydown=e=>{if(e.key=='Enter'||e.key==' '){e.preventDefault();copyAddr()}};
+$('ver').textContent='ollama-multi-manager '+VERSION;const sd=(ago,src,m)=>logs.push({ts:Date.now()-ago*1000,src,m});
+sd(900,'app','Loaded settings from database');sd(895,'app','Restoring instances from last session');
+sd(890,'default','Listening on 127.0.0.1:11434 (externally managed)');sd(884,'default','Model loaded: qwen2.5:3b-instruct-q4_K_M (2.1 GB)');
+sd(880,'worker-1','Process started (pid 4237) on port 11435');sd(878,'worker-1','Listening on 127.0.0.1:11435');sd(872,'worker-1','Model loaded: llama3.1:8b-instruct-q4_K_M (4.7 GB) in 5.8s');
+sd(600,'worker-1','POST /api/chat 200 1.84s');sd(420,'worker-1','POST /api/generate 200 0.92s');
+sd(300,'worker-3','Health check timed out (3 consecutive failures)');sd(298,'worker-3','State changed to unreachable');
+log('App started');apply();
+</script>
