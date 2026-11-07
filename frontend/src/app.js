@@ -174,7 +174,8 @@ function renderSum() {
   ].join('') || `<div class="sub" style="grid-column:1/-1">${t('sum.empty')}</div>`);
 }
 
-const bar = ps => `<div class="bar">${ps.map(p => `<i title="${esc(p[0])}" style="width:${Math.max(0, p[1])}%;background:${p[2]}"></i>`).join('')}</div>`;
+// Empty segments are left out: the bar's 1px gap would otherwise show as a notch before the first real segment.
+const bar = ps => `<div class="bar">${ps.filter(p => p[1] > 0).map(p => `<i title="${esc(p[0])}" style="width:${p[1]}%;background:${p[2]}"></i>`).join('')}</div>`;
 const leg = ps => `<div class="leg">${ps.map(p => `<span><s style="background:${p[2]}"></s>${esc(p[0])} ${p[3]}</span>`).join('')}</div>`;
 
 function renderMon() {
