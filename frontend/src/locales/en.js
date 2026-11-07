@@ -89,7 +89,7 @@
   'd.req': 'Requests', 'c.fail': 'Failed',
   'rq.byModel': 'By model (last 5 min)', 'rq.recent': 'Recent requests', 'rq.none': 'No requests yet.',
   'rq.model': 'Model', 'rq.count': 'Requests', 'rq.speed': 'Speed', 'rq.avg': 'Avg. response',
-  'rq.time': 'Time', 'rq.path': 'Path', 'rq.status': 'Status', 'rq.dur': 'Took', 'rq.tok': 'Tokens', 'rq.cancelled': 'Cancelled',
+  'rq.time': 'Time', 'rq.path': 'Path', 'rq.status': 'Status', 'rq.dur': 'Took', 'rq.tok': 'Tokens (in/out)', 'rq.cancelled': 'Cancelled',
   'rq.hour': '{n} requests in the last hour', 'rq.hourSpeed': 'Speed over the last hour (max {n} tok/s)',
   'w.busy.t': 'Requests are running',
   'w.busy.m': '{n} is handling {k} request(s).\nYou can wait for them to finish and then stop, or stop right now, which cuts the running answers off.',

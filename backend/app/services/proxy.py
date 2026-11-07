@@ -64,21 +64,47 @@ class Record:
         return self.outcome == "ok"
 
 
-def read_stats(tail: bytes) -> tuple[int, int] | None:
-    """(eval_count, eval_duration in ns) from the last JSON line of an Ollama answer."""
-    lines = [ln for ln in tail.split(b"\n") if ln.strip()]
-    if not lines:
+def _int(v: Any) -> int | None:
+    try:
+        return int(v) if v else None
+    except (TypeError, ValueError):
         return None
+
+
+def read_stats(tail: bytes, path: str, streamed: bool, latency: float, ttft: float | None) -> tuple[int | None, int | None, int | None]:
+    """(generated tokens, generation time in ns, input tokens) taken from the end of an answer.
+
+    Native endpoints end with an object holding eval_count / eval_duration / prompt_eval_count, so the speed is
+    exact. The OpenAI-compatible /v1 endpoints only report `usage` (token counts), so their speed is the token
+    count over the time spent answering (after the first byte when streaming, the whole request otherwise) --
+    an approximation that also includes prompt processing.
+    """
+    lines = [ln.strip() for ln in tail.split(b"\n") if ln.strip()]
+    if path.startswith("/v1/"):
+        for ln in reversed(lines):
+            if ln.startswith(b"data:"):
+                ln = ln[5:].strip()
+            if ln == b"[DONE]":
+                continue
+            try:
+                obj = json.loads(ln)
+            except ValueError:
+                continue
+            usage = obj.get("usage") if isinstance(obj, dict) else None
+            if isinstance(usage, dict):
+                out = _int(usage.get("completion_tokens"))
+                secs = latency - ttft if streamed and ttft is not None else latency
+                return out, int(secs * 1e9) if out and secs > 0 else None, _int(usage.get("prompt_tokens"))
+        return None, None, None
+    if not lines:
+        return None, None, None
     try:
         obj = json.loads(lines[-1])
     except ValueError:
-        return None
-    if isinstance(obj, dict) and obj.get("eval_count") and obj.get("eval_duration"):
-        try:
-            return int(obj["eval_count"]), int(obj["eval_duration"])
-        except (TypeError, ValueError):
-            return None
-    return None
+        return None, None, None
+    if not isinstance(obj, dict):
+        return None, None, None
+    return _int(obj.get("eval_count")), _int(obj.get("eval_duration")), _int(obj.get("prompt_eval_count"))
 
 
 def model_of(body: bytes) -> str:
@@ -97,6 +123,8 @@ class PerfStats:
         self.history: deque[Record] = deque(maxlen=HISTORY_SIZE)  # newest last; kept past the 5-minute window
         self.total = 0
         self.errors_total = 0
+        self.tokens_total = 0
+        self.prompt_tokens_total = 0
 
     def begin(self, model: str) -> None:
         self.inflight[model] = self.inflight.get(model, 0) + 1
@@ -112,6 +140,8 @@ class PerfStats:
         self.total += 1
         if rec.outcome == "error":
             self.errors_total += 1
+        self.tokens_total += rec.tokens or 0
+        self.prompt_tokens_total += rec.prompt_tokens or 0
 
     def snapshot(self) -> dict[str, Any]:
         cutoff = time.time() - WINDOW_SECONDS
@@ -134,6 +164,8 @@ class PerfStats:
             "models": self._by_model(),
             "latency_avg": sum(r.latency for r in done) / len(done) if done else None,
             "ttft_avg": sum(ttfts) / len(ttfts) if ttfts else None,
+            "prompt_tokens": sum(r.prompt_tokens or 0 for r in done),
+            "tokens_total": self.tokens_total, "prompt_tokens_total": self.prompt_tokens_total,
             "tokens": tokens, "eval_seconds": eval_s, "tok_per_s": tokens / eval_s if eval_s > 0 else None,
             "window_seconds": WINDOW_SECONDS,
         }
@@ -163,7 +195,7 @@ class PerfStats:
         return [
             {"ts": r.ts, "path": r.path, "model": r.model, "status": r.status, "outcome": r.outcome,
              "duration": round(r.latency, 3), "ttft": round(r.ttft, 3) if r.ttft is not None else None,
-             "tokens": r.tokens, "client": r.client}
+             "tokens": r.tokens, "prompt_tokens": r.prompt_tokens, "client": r.client}
             for r in list(self.history)[::-1][:limit]
         ]
 
@@ -206,12 +238,12 @@ class InstanceProxy:
 
         client = request.client.host if request.client else ""
 
-        def finish(outcome: str, status: int, ttft: float | None, tail: bytes) -> None:
+        def finish(outcome: str, status: int, ttft: float | None, tail: bytes, streamed: bool = False) -> None:
             if not measured:
                 return
-            st = read_stats(tail) if outcome == "ok" else None
-            rec = Record(time.time(), outcome, time.monotonic() - started, ttft, st[0] if st else None,
-                         st[1] if st else None, None, status, path, model, client)
+            latency = time.monotonic() - started
+            out, eval_ns, prompt = read_stats(tail, path, streamed, latency, ttft) if outcome == "ok" else (None, None, None)
+            rec = Record(time.time(), outcome, latency, ttft, out, eval_ns, prompt, status, path, model, client)
             self.stats.end(model, rec)
             if self.recorder is not None:
                 try:
@@ -243,7 +275,7 @@ class InstanceProxy:
             finally:
                 with anyio.CancelScope(shield=True):
                     await resp.aclose()  # closing the upstream request is what makes Ollama stop generating
-                finish(outcome, resp.status_code, ttft, tail)
+                finish(outcome, resp.status_code, ttft, tail, resp.headers.get("content-type", "").startswith("text/event-stream"))
 
         out_headers = {k: v for k, v in resp.headers.items() if k.lower() not in SKIP_RESPONSE}
         return StreamingResponse(body(), status_code=resp.status_code, headers=out_headers)

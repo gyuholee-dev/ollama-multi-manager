@@ -56,8 +56,7 @@ class Handler(BaseHTTPRequestHandler):
         if self.path in ("/api/generate", "/api/chat"):
             return self._generate()
         if self.path == "/v1/chat/completions":
-            self._body()
-            return self._json({"choices": [{"message": {"role": "assistant", "content": "hi"}}], "usage": {"completion_tokens": 1}})
+            return self._openai()
         if self.path != "/api/pull":
             return self.send_error(404)
         name = self._body().get("model", "")
@@ -83,6 +82,30 @@ class Handler(BaseHTTPRequestHandler):
         except (BrokenPipeError, ConnectionResetError):
             pass
 
+    def _openai(self):
+        """OpenAI-style answer: only token counts in `usage` (no timings). Streams SSE when asked to."""
+        req = self._body()
+        n = int(req.get("max_tokens", 1))
+        delay = float(os.environ.get("FAKE_GEN_DELAY", "0.02"))
+        usage = {"prompt_tokens": 3, "completion_tokens": n, "total_tokens": 3 + n}
+        if not req.get("stream"):
+            time.sleep(delay * n)
+            return self._json({"choices": [{"message": {"role": "assistant", "content": "hi"}}], "usage": usage})
+        self.send_response(200)
+        self.send_header("Content-Type", "text/event-stream")
+        self.end_headers()
+        try:
+            for i in range(n):
+                time.sleep(delay)
+                self.wfile.write(b"data: " + json.dumps({"choices": [{"delta": {"content": f"t{i} "}}]}).encode() + b"\n\n")
+                self.wfile.flush()
+            if (req.get("stream_options") or {}).get("include_usage"):
+                self.wfile.write(b"data: " + json.dumps({"choices": [], "usage": usage}).encode() + b"\n\n")
+            self.wfile.write(b"data: [DONE]\n\n")
+            self.wfile.flush()
+        except (BrokenPipeError, ConnectionResetError):
+            pass
+
     def _generate(self):
         """Streams `num_predict` tokens (default 5), then the final object with Ollama-style stats:
         eval_count = tokens, eval_duration = 1 s per 10 tokens (so the speed is always 10 tok/s)."""
@@ -90,7 +113,7 @@ class Handler(BaseHTTPRequestHandler):
         n = int((req.get("options") or {}).get("num_predict", 5))
         stream = req.get("stream", True)
         delay = float(os.environ.get("FAKE_GEN_DELAY", "0.02"))
-        stats = {"done": True, "total_duration": 1, "eval_count": n, "eval_duration": n * 100_000_000}
+        stats = {"done": True, "total_duration": 1, "prompt_eval_count": 3, "eval_count": n, "eval_duration": n * 100_000_000}
         chat = self.path == "/api/chat"
         token = lambda i: ({"message": {"role": "assistant", "content": f"t{i} "}} if chat else {"response": f"t{i} "})  # noqa: E731
         try:

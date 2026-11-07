@@ -89,7 +89,7 @@
   'd.req': '요청', 'c.fail': '실패',
   'rq.byModel': '모델별 (최근 5분)', 'rq.recent': '최근 요청', 'rq.none': '아직 요청이 없습니다.',
   'rq.model': '모델', 'rq.count': '요청', 'rq.speed': '속도', 'rq.avg': '평균 응답',
-  'rq.time': '시각', 'rq.path': '경로', 'rq.status': '상태', 'rq.dur': '소요', 'rq.tok': '토큰', 'rq.cancelled': '취소',
+  'rq.time': '시각', 'rq.path': '경로', 'rq.status': '상태', 'rq.dur': '소요', 'rq.tok': '토큰 (입력/출력)', 'rq.cancelled': '취소',
   'rq.hour': '최근 1시간 요청 {n}건', 'rq.hourSpeed': '최근 1시간 속도 (최대 {n} tok/s)',
   'w.busy.t': '처리 중인 요청이 있습니다',
   'w.busy.m': '{n}에서 요청 {k}개를 처리하는 중입니다.\n끝날 때까지 기다린 뒤 중지하거나, 지금 바로 중지할 수 있습니다. 바로 중지하면 처리 중인 응답이 끊깁니다.',

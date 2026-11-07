@@ -50,7 +50,7 @@ async def test_requests_pass_through_unchanged(env):
     r = await gen(port, n=3, path="/api/chat")
     lines = [json.loads(x) for x in r.text.splitlines()]
     assert lines[-1]["done"] is True and lines[0]["message"]["content"] == "t0 "
-    assert (await gen(port, path="/v1/chat/completions")).json()["usage"]["completion_tokens"] == 1
+    assert (await gen(port, path="/v1/chat/completions", stream=False)).json()["usage"]["completion_tokens"] == 1  # max_tokens defaults to 1
 
 
 async def test_streaming_arrives_chunk_by_chunk(env, monkeypatch):
@@ -204,7 +204,7 @@ async def test_errors_models_and_history(env):
     assert [x["status"] for x in r["requests"]] == [502, 200, 200]  # newest first
     first = r["requests"][1]
     assert first["model"] == "b" and first["path"] == "/api/generate" and first["tokens"] == 4 and first["client"] == "127.0.0.1"
-    assert "prompt" not in str(r)  # nothing the user typed is kept
+    assert not any(k in ("prompt", "response", "content", "messages") for x in r["requests"] for k in x)  # nothing typed or answered is kept
     assert "omm_instance_request_errors_total" in prometheus.render(await env.app.state.collector.collect(), {inst["id"]: "p"})
 
 
@@ -246,3 +246,33 @@ async def test_per_minute_numbers_are_stored_and_survive_a_restart(tmp_path, fak
             assert sum(x["requests"] for x in again) == 2
             await c.delete(f"/instances/{inst['id']}")
             assert sum(x["requests"] for x in (await c.get("/monitor/requests?minutes=5")).json()["series"]) == 0
+
+
+async def test_input_tokens_and_openai_compatible_speed(env, monkeypatch):
+    monkeypatch.setenv("FAKE_GEN_DELAY", "0.05")
+    inst = await start(env)
+    port = inst["port"]
+    await gen(port, n=10)                                                        # native: exact
+    p = perf(env, inst)
+    assert p["prompt_tokens"] == 3 and p["tokens"] == 10 and abs(p["tok_per_s"] - 10.0) < 0.01
+    # OpenAI-compatible, not streamed: the speed is tokens over the whole request (approximate)
+    async with httpx.AsyncClient(timeout=30) as c:
+        r = await c.post(f"http://127.0.0.1:{port}/v1/chat/completions", json={"model": "m", "messages": [], "max_tokens": 10})
+        assert r.json()["usage"]["completion_tokens"] == 10
+        # streamed with include_usage: the speed is measured after the first byte
+        async with c.stream("POST", f"http://127.0.0.1:{port}/v1/chat/completions", json={
+                "model": "m", "messages": [], "max_tokens": 10, "stream": True, "stream_options": {"include_usage": True}}) as r:
+            async for _ in r.aiter_lines():
+                pass
+        # streamed without usage: nothing to count, but it still is a request
+        async with c.stream("POST", f"http://127.0.0.1:{port}/v1/chat/completions", json={"model": "m", "messages": [], "max_tokens": 3, "stream": True}) as r:
+            async for _ in r.aiter_lines():
+                pass
+    await wait_for(lambda: perf(env, inst)["requests"] == 4)
+    p = perf(env, inst)
+    assert p["tokens"] == 30 and p["prompt_tokens"] == 9 and p["tokens_total"] == 30 and p["prompt_tokens_total"] == 9
+    v1 = env.app.state.manager.requests(inst["id"], 3)["requests"]
+    assert v1[1]["tokens"] == 10 and v1[0]["tokens"] is None                      # newest first: no usage -> no tokens
+    assert 6 < p["tok_per_s"] < 40                                                  # mixed exact and approximate speeds
+    text = prometheus.render(await env.app.state.collector.collect(), {inst["id"]: "p"})
+    assert 'omm_instance_tokens_total{instance="p",kind="prompt"} 9' in text
