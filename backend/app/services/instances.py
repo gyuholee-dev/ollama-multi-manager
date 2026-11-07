@@ -4,6 +4,9 @@ Lifetime policy: the app's running state *is* the instances' running state.
   * app start -> start every instance whose saved desired_state is 'running'
   * app quit  -> save each instance's running state, then stop all instances
 Anything left over after a crash or kill is cleaned up on the next start (see cleanup_orphans).
+
+Ports: the instance's configured port is served by an in-process proxy (proxy.py) that measures requests;
+the real `ollama serve` listens on a private loopback port (Handle.inner_port).
 """
 from __future__ import annotations
 
@@ -29,6 +32,7 @@ from app.config import FIRST_INSTANCE_PORT
 from app.db import Database
 from app.schemas import InstanceCreate, InstanceOptions, InstanceUpdate
 from app.services.hub import Hub
+from app.services.proxy import InstanceProxy, ProxyError
 from app.services.settings import SettingsService
 
 log = logging.getLogger("omm.instances")
@@ -86,6 +90,13 @@ def build_env(port: int, o: InstanceOptions, base: dict[str, str], default_model
     return env
 
 
+def free_loopback_port() -> int:
+    """A port nothing listens on right now, for the private `ollama serve` behind an instance's proxy."""
+    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+        s.bind(("127.0.0.1", 0))
+        return s.getsockname()[1]
+
+
 def port_free(port: int) -> bool:
     """True if nothing is listening. SO_REUSEADDR (POSIX) ignores TIME_WAIT leftovers from a just-stopped instance."""
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
@@ -119,6 +130,8 @@ class Handle:
     stopping: bool = False
     started_at: float = field(default_factory=time.time)
     tasks: list[asyncio.Task] = field(default_factory=list)
+    inner_port: int = 0  # where ollama really listens (0 = same as port, no proxy)
+    proxy: InstanceProxy | None = None
 
 
 class InstanceManager:
@@ -130,6 +143,7 @@ class InstanceManager:
         self.last_exit: dict[int, dict[str, Any]] = {}
         self.logs: dict[int, deque] = {}
         self._locks: dict[int, asyncio.Lock] = {}
+        self._proxy_closers: set[asyncio.Task] = set()
         self._client = httpx.AsyncClient(timeout=1.5)
 
     # ------------------------------------------------------------- records
@@ -255,7 +269,13 @@ class InstanceManager:
         if not port_free(port):
             raise InstanceError("port_in_use", f"Port {port} is already in use", 409)
         opts = InstanceOptions(**json.loads(row["options"]))
-        env = build_env(port, opts, dict(os.environ), self.settings.get("default_models_path"))
+        inner = free_loopback_port()
+        env = build_env(inner, opts, dict(os.environ), self.settings.get("default_models_path"))
+        proxy = InstanceProxy(row["name"], port, inner, opts.num_parallel)
+        try:
+            await proxy.start()
+        except ProxyError as e:
+            raise InstanceError("port_in_use", f"Port {port} is already in use", 409) from e
 
         log_path = self.log_dir / f"instance-{iid}.log"
         if log_path.exists() and log_path.stat().st_size > LOG_FILE_MAX_BYTES:
@@ -268,12 +288,16 @@ class InstanceManager:
             kwargs["creationflags"] = subprocess.CREATE_NEW_PROCESS_GROUP | subprocess.CREATE_NO_WINDOW
         else:
             kwargs["start_new_session"] = True
-        with open(log_path, "ab") as out:
-            proc = await asyncio.create_subprocess_exec(
-                exe, "serve", env=env, stdin=subprocess.DEVNULL, stdout=out, stderr=out, **kwargs
-            )
+        try:
+            with open(log_path, "ab") as out:
+                proc = await asyncio.create_subprocess_exec(
+                    exe, "serve", env=env, stdin=subprocess.DEVNULL, stdout=out, stderr=out, **kwargs
+                )
+        except OSError:
+            await proxy.close()
+            raise
         ps = psutil.Process(proc.pid)
-        h = Handle(iid, row["name"], port, ps, proc, log_path)
+        h = Handle(iid, row["name"], port, ps, proc, log_path, inner_port=inner, proxy=proxy)
         self.handles[iid] = h
         self.last_exit.pop(iid, None)
         self.db.execute(
@@ -293,7 +317,7 @@ class InstanceManager:
         n = 0
         while self.handles.get(h.iid) is h and not h.stopping:
             try:
-                r = await self._client.get(f"http://127.0.0.1:{h.port}/api/version")
+                r = await self._client.get(f"http://127.0.0.1:{h.inner_port or h.port}/api/version")
                 if r.status_code == 200:
                     h.state = "running"
                     self._log(h.iid, "info", f"{h.name} is ready")
@@ -335,6 +359,10 @@ class InstanceManager:
         if self.handles.get(h.iid) is not h:
             return
         del self.handles[h.iid]
+        if h.proxy is not None:  # free the instance's port again
+            closer = asyncio.create_task(h.proxy.close())
+            self._proxy_closers.add(closer)
+            closer.add_done_callback(self._proxy_closers.discard)
         crashed = not h.stopping
         self.last_exit[h.iid] = {"crashed": crashed, "code": code}
         self.db.execute("UPDATE instances SET pid=NULL, pid_started=NULL WHERE id=?", (h.iid,))
@@ -363,6 +391,8 @@ class InstanceManager:
                     await asyncio.sleep(0.05)
                 else:
                     self._finish(h, None)
+                if h.proxy is not None:
+                    await h.proxy.close()  # idempotent; a restart reuses the port right away
         return self.get(iid)
 
     async def restart(self, iid: int) -> dict[str, Any]:
@@ -423,4 +453,5 @@ class InstanceManager:
             state = "running" if row["id"] in self.handles else "stopped"
             self.db.execute("UPDATE instances SET desired_state=? WHERE id=?", (state, row["id"]))
         await asyncio.gather(*(self.stop(i, persist=False) for i in list(self.handles)), return_exceptions=True)
+        await asyncio.gather(*self._proxy_closers, return_exceptions=True)
         await self._client.aclose()

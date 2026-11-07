@@ -37,7 +37,7 @@
   'sum.ins': 'Instances', 'sum.usage': 'Usage', 'sum.perf': 'Performance', 'sum.status': 'Status',
   'sum.empty': 'Nothing to show.',
   'c.total': 'Total', 'c.running': 'Running', 'c.stopped': 'Stopped', 'c.unreach': 'Unresponsive',
-  'c.mem': 'Memory', 'c.models': 'Loaded models', 'c.reqs': 'Active requests', 'c.latency': 'Avg. response',
+  'c.mem': 'Memory', 'c.models': 'Loaded models', 'c.reqs': 'Active requests', 'c.queued': 'waiting', 'c.latency': 'Avg. response',
   'c.speed': 'Avg. speed', 'c.warn': 'Warnings', 'c.ok': 'Normal', 'c.errs': 'Recent errors',
   'c.mon': 'Monitoring', 'c.on': 'On', 'c.off': 'Off', 'c.updated': 'Updated',
 

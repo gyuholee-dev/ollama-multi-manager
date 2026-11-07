@@ -1,7 +1,8 @@
 """Stand-in for `ollama serve`: /api/version, /api/ps, /api/tags, /api/pull, /api/delete,
 plus an optional runner-like child process.
 
-Env knobs: FAKE_CHILD=0 (no child), FAKE_PULL_DELAY=<seconds between pull progress lines, default 0.05>.
+Env knobs: FAKE_CHILD=0 (no child), FAKE_PULL_DELAY=<seconds between pull progress lines, default 0.05>,
+FAKE_GEN_DELAY=<seconds per generated token, default 0.02>, FAKE_EVENTS=<file that gets a line when a client hangs up mid-answer>.
 """
 import json
 import os
@@ -52,6 +53,11 @@ class Handler(BaseHTTPRequestHandler):
         self._json({"error": f"model '{name}' not found"}, 404)
 
     def do_POST(self):
+        if self.path in ("/api/generate", "/api/chat"):
+            return self._generate()
+        if self.path == "/v1/chat/completions":
+            self._body()
+            return self._json({"choices": [{"message": {"role": "assistant", "content": "hi"}}], "usage": {"completion_tokens": 1}})
         if self.path != "/api/pull":
             return self.send_error(404)
         name = self._body().get("model", "")
@@ -76,6 +82,34 @@ class Handler(BaseHTTPRequestHandler):
             send({"status": "success"})
         except (BrokenPipeError, ConnectionResetError):
             pass
+
+    def _generate(self):
+        """Streams `num_predict` tokens (default 5), then the final object with Ollama-style stats:
+        eval_count = tokens, eval_duration = 1 s per 10 tokens (so the speed is always 10 tok/s)."""
+        req = self._body()
+        n = int((req.get("options") or {}).get("num_predict", 5))
+        stream = req.get("stream", True)
+        delay = float(os.environ.get("FAKE_GEN_DELAY", "0.02"))
+        stats = {"done": True, "total_duration": 1, "eval_count": n, "eval_duration": n * 100_000_000}
+        chat = self.path == "/api/chat"
+        token = lambda i: ({"message": {"role": "assistant", "content": f"t{i} "}} if chat else {"response": f"t{i} "})  # noqa: E731
+        try:
+            if not stream:
+                time.sleep(delay * n)
+                return self._json({**token(n), **stats})
+            self.send_response(200)
+            self.send_header("Content-Type", "application/x-ndjson")
+            self.end_headers()
+            for i in range(n):
+                time.sleep(delay)
+                self.wfile.write(json.dumps({**token(i), "done": False}).encode() + b"\n")
+                self.wfile.flush()
+            self.wfile.write(json.dumps({**token(n), **stats}).encode() + b"\n")
+            self.wfile.flush()
+        except (BrokenPipeError, ConnectionResetError):
+            if os.environ.get("FAKE_EVENTS"):
+                with open(os.environ["FAKE_EVENTS"], "a") as f:
+                    f.write("client_gone\n")
 
     def log_message(self, *a):
         pass

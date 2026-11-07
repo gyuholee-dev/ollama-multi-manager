@@ -48,7 +48,7 @@ async def test_falls_back_to_ollama_estimate_when_driver_gives_no_numbers(env):
 async def test_unresponsive_instance_does_not_break_collection(env):
     inst, pid = await running_instance(env)
     h = env.app.state.manager.handles[inst["id"]]
-    h.port = free_port()                                 # nothing listens there
+    h.inner_port = free_port()                           # nothing listens there
     d = (await env.app.state.collector.collect())["instances"][str(inst["id"])]
     assert d["responsive"] is False and d["models"] == []
     assert d["vram_source"] == "nvml" and d["vram_bytes"] == 0   # NVML is authoritative: nothing in the tree uses VRAM

@@ -135,7 +135,7 @@ const portLine = (port, ctx, ld = []) => `<div class="sub">${t('card.line', { po
 const gpuName = g => g === 'auto' ? t('gpu.auto') : g === 'cpu' ? 'CPU' : t('gpu.n', { g, name: devices()[g]?.name ?? '?' });
 
 // ---------------------------------------------------------------- summary & monitor
-const sumOn = new Set(['ins', 'usage']), SUMS = ['ins', 'usage', 'status'];
+const sumOn = new Set(['ins', 'usage', 'perf']), SUMS = ['ins', 'usage', 'perf', 'status'];
 const togSum = k => { sumOn.has(k) ? sumOn.delete(k) : sumOn.add(k); renderSum(); };
 const monOn = new Set(['CPU', 'RAM', 'GPU', 'VRAM']), monAvail = () => devices().length ? ['CPU', 'RAM', 'GPU', 'VRAM'] : ['CPU', 'RAM'];
 const togMon = k => { monOn.has(k) ? monOn.delete(k) : monOn.add(k); render(); };
@@ -160,6 +160,15 @@ function vramByGpu() {
 const cell = (k, v, u = '', c = '') => `<div><div class="sub">${k}</div><b${c ? ` style="color:var(${c})"` : ''}>${v}${u ? `<small>${u}</small>` : ''}</b></div>`;
 const sbox = (k, cs) => !sumOn.has(k) ? '' : `<div class="sb"><b>${t('sum.' + k)}</b><div class="sc">${cs.join('')}</div></div>`;
 
+// Request numbers measured by the instances' proxies, added up over every running instance (last 5 minutes).
+function perfAll() {
+  const ps = Object.values(S.snap?.instances || {}).map(i => i.perf).filter(Boolean);
+  if (!ps.length) return null;
+  const sum = k => ps.reduce((a, p) => a + (p[k] || 0), 0), n = sum('requests'), evalS = sum('eval_seconds');
+  const lat = ps.filter(p => p.latency_avg != null).reduce((a, p) => a + p.latency_avg * p.requests, 0);
+  return { processing: sum('processing'), queued: sum('queued'), latency: n && lat ? lat / n : null, speed: evalS > 0 ? sum('tokens') / evalS : null };
+}
+
 function renderSum() {
   setHtml($('utabs'), SUMS.map(k => `<button class="small${sumOn.has(k) ? ' on' : ''}" onclick="togSum('${k}')">${t('sum.' + k)}</button>`).join(''));
   const list = view(), e = ext(), c = s => list.filter(i => i.state === s).length;
@@ -171,6 +180,14 @@ function renderSum() {
   setHtml($('sum'), [
     sbox('ins', [cell(t('c.total'), list.length + (e ? 1 : 0)), cell(t('c.running'), c('running') + (e ? 1 : 0)), cell(t('c.stopped'), c('stopped')), cell(t('c.unreach'), bad)]),
     sbox('usage', [pct === null ? '' : cell('VRAM', pct, '%', pct > 85 ? '--warn' : ''), cell(t('c.mem'), memPct ?? '-', memPct === null ? '' : '%'), cell(t('c.models'), models, t('u.cnt'))]),
+    sbox('perf', (() => {
+      const p = perfAll();
+      return [
+        cell(t('c.reqs'), p ? p.processing : '-', p ? ` ${t('u.case')} · ${t('c.queued')} ${p.queued}${t('u.case')}` : ''),
+        cell(t('c.latency'), p?.latency != null ? p.latency.toFixed(1) : '-', p?.latency != null ? ' s' : ''),
+        cell(t('c.speed'), p?.speed != null ? Math.round(p.speed) : '-', p?.speed != null ? ' tok/s' : ''),
+      ];
+    })()),
     sbox('status', [cell(t('c.warn'), warn ? warn : t('c.ok'), warn ? t('u.case') : '', warn ? '--warn' : '--ok'), cell(t('c.errs'), errs, t('u.case')),
       cell(t('c.mon'), ex?.active ? t('c.on') : t('c.off'), ex?.active ? ` :${ex.port}` : ''), cell(t('c.updated'), S.snap ? hms(S.snap.ts * 1000).slice(0, 5) : '-')]),
   ].join('') || `<div class="sub" style="grid-column:1/-1">${t('sum.empty')}</div>`);

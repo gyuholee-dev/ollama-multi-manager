@@ -115,7 +115,7 @@ class Collector:
 
     async def _instance(self, h: Handle, pvram: ProcessVram | None) -> dict[str, Any]:
         (models, responsive), (pids, cpu, rss) = await asyncio.gather(
-            self._api_ps(h.port), asyncio.to_thread(self._proc_stats, h.ps)
+            self._api_ps(h.inner_port or h.port), asyncio.to_thread(self._proc_stats, h.ps)
         )
         vram, by_gpu, source = self._attribute_vram(pids, pvram, models, responsive)
         data = {
@@ -123,6 +123,7 @@ class Collector:
             "cpu_percent": round(cpu, 1), "rss": rss,
             "vram_bytes": vram, "vram_by_gpu": by_gpu, "vram_source": source,
             "models": models,
+            "perf": h.proxy.stats.snapshot() if h.proxy else None,
         }
         return {"_data": data, "pids": set(pids)}
 

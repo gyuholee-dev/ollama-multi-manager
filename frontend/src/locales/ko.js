@@ -37,7 +37,7 @@
   'sum.ins': '인스턴스', 'sum.usage': '사용량', 'sum.perf': '성능', 'sum.status': '상태',
   'sum.empty': '표시할 항목이 없습니다.',
   'c.total': '전체', 'c.running': '실행 중', 'c.stopped': '중지', 'c.unreach': '응답 없음',
-  'c.mem': '메모리', 'c.models': '로드 모델', 'c.reqs': '처리 중 요청', 'c.latency': '평균 응답',
+  'c.mem': '메모리', 'c.models': '로드 모델', 'c.reqs': '처리 중 요청', 'c.queued': '대기', 'c.latency': '평균 응답',
   'c.speed': '평균 속도', 'c.warn': '경고', 'c.ok': '정상', 'c.errs': '최근 오류',
   'c.mon': '모니터링', 'c.on': '켬', 'c.off': '끔', 'c.updated': '갱신',
 
