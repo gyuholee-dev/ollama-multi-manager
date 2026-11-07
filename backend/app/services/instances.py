@@ -98,13 +98,22 @@ def free_loopback_port() -> int:
         return s.getsockname()[1]
 
 
-def port_free(port: int) -> bool:
-    """True if nothing is listening. SO_REUSEADDR (POSIX) ignores TIME_WAIT leftovers from a just-stopped instance."""
+def port_free(port: int, host: str = "127.0.0.1") -> bool:
+    """True if nothing is listening.
+
+    Two checks: nobody may accept connections on the loopback address (this also catches a listener bound to all
+    addresses, which a plain bind() test misses on macOS/BSD), and `host` must be bindable. SO_REUSEADDR (POSIX)
+    makes the bind ignore TIME_WAIT leftovers from a just-stopped instance.
+    """
+    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as c:
+        c.settimeout(0.5)
+        if c.connect_ex(("127.0.0.1", port)) == 0:
+            return False
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
         if os.name != "nt":  # on Windows SO_REUSEADDR would let bind() succeed over a live listener
             s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         try:
-            s.bind(("127.0.0.1", port))
+            s.bind((host, port))
         except OSError:
             return False
     return True
@@ -274,7 +283,13 @@ class InstanceManager:
         opts = InstanceOptions(**json.loads(row["options"]))
         inner = free_loopback_port()
         env = build_env(inner, opts, dict(os.environ), self.settings.get("default_models_path"))
-        proxy = InstanceProxy(row["name"], port, inner, opts.num_parallel, recorder=lambda rec: self.request_stats.record(iid, rec))
+        host = "0.0.0.0" if opts.listen == "lan" else "127.0.0.1"
+        if host != "127.0.0.1" and not port_free(port, host):
+            raise InstanceError("port_in_use", f"Port {port} is already in use", 409)
+        proxy = InstanceProxy(row["name"], port, inner, opts.num_parallel, recorder=lambda rec: self.request_stats.record(iid, rec),
+                              host=host, api_key=opts.api_key)
+        if opts.listen == "lan" and not opts.api_key:
+            self._log(iid, "warn", f"{row['name']} is open to the whole network without an API key")
         try:
             await proxy.start()
         except ProxyError as e:

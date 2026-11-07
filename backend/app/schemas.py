@@ -22,6 +22,8 @@ class InstanceOptions(BaseModel):
     flash_attention: bool = False
     kv_cache_type: Literal["f16", "q8_0", "q4_0"] = "f16"
     models_path: str | None = None  # None = use the default_models_path setting
+    listen: Literal["local", "lan"] = "local"  # who can reach the instance's port: this PC only, or the whole network
+    api_key: Annotated[str, Field(min_length=8, max_length=128, pattern=r"^\S+$")] | None = None  # clients must send it as a Bearer token
 
 
 class InstanceCreate(BaseModel):

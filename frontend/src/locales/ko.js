@@ -91,6 +91,8 @@
   'rq.model': '모델', 'rq.count': '요청', 'rq.speed': '속도', 'rq.avg': '평균 응답',
   'rq.time': '시각', 'rq.path': '경로', 'rq.status': '상태', 'rq.dur': '소요', 'rq.tok': '토큰 (입력/출력)', 'rq.cancelled': '취소',
   'rq.hour': '최근 1시간 요청 {n}건', 'rq.hourSpeed': '최근 1시간 속도 (최대 {n} tok/s)',
+  'f.lan': 'LAN에서 접속 허용', 'f.key': 'API 키', 'f.keyPh': '비워 두면 인증하지 않습니다', 'btn.genKey': '생성', 'd.addr': '접속 주소',
+  'w.lan.t': '인증 없이 네트워크에 공개', 'w.lan.m': '이 인스턴스는 같은 네트워크의 모든 기기에서 인증 없이 쓸 수 있게 됩니다. API 키를 설정하는 것을 권장합니다.', 'btn.open': '공개',
   'w.busy.t': '처리 중인 요청이 있습니다',
   'w.busy.m': '{n}에서 요청 {k}개를 처리하는 중입니다.\n끝날 때까지 기다린 뒤 중지하거나, 지금 바로 중지할 수 있습니다. 바로 중지하면 처리 중인 응답이 끊깁니다.',
   'btn.drainStop': '끝나면 중지', 'btn.stopNow': '바로 중지',

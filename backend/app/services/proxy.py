@@ -12,6 +12,7 @@ chunk by chunk, and a client that goes away makes the upstream request go away t
 from __future__ import annotations
 
 import asyncio
+import hmac
 import json
 import logging
 import time
@@ -201,8 +202,10 @@ class PerfStats:
 
 
 class InstanceProxy:
-    def __init__(self, name: str, port: int, upstream_port: int, parallel: int, recorder: Callable[[Record], None] | None = None):
+    def __init__(self, name: str, port: int, upstream_port: int, parallel: int, recorder: Callable[[Record], None] | None = None,
+                 host: str = "127.0.0.1", api_key: str | None = None):
         self.name, self.port, self.upstream_port = name, port, upstream_port
+        self.host, self.api_key = host, api_key  # host 0.0.0.0 = reachable from the network
         self.recorder = recorder  # called with every finished request (the manager stores per-minute sums)
         self.stats = PerfStats(parallel)
         self._upstream = f"http://127.0.0.1:{upstream_port}"
@@ -218,12 +221,21 @@ class InstanceProxy:
         methods = ["GET", "POST", "PUT", "DELETE", "HEAD", "PATCH", "OPTIONS"]
         return Starlette(routes=[Route("/{path:path}", self._handle, methods=methods)])
 
+    def _authorized(self, request: Request) -> bool:
+        if not self.api_key or request.method == "OPTIONS":  # CORS preflights carry no credentials; Ollama answers them
+            return True
+        auth = request.headers.get("authorization", "")
+        scheme, _, token = auth.partition(" ")
+        return scheme.lower() == "bearer" and hmac.compare_digest(token.strip().encode(), self.api_key.encode())
+
     async def _handle(self, request: Request) -> Response:
+        if not self._authorized(request):
+            return JSONResponse({"error": "Missing or invalid API key"}, status_code=401, headers={"WWW-Authenticate": "Bearer"})
         path = request.url.path
         measured = request.method == "POST" and path in INFERENCE_PATHS
         started = time.monotonic()
         url = self._upstream + path + (f"?{request.url.query}" if request.url.query else "")
-        headers = {k: v for k, v in request.headers.items() if k.lower() not in HOP_BY_HOP}
+        headers = {k: v for k, v in request.headers.items() if k.lower() not in HOP_BY_HOP and not (self.api_key and k.lower() == "authorization")}
         model = ""
         if measured and self.draining:
             return JSONResponse({"error": "The instance is stopping"}, status_code=503, headers={"Retry-After": "5"})
@@ -292,7 +304,7 @@ class InstanceProxy:
 
     async def start(self) -> None:
         server = uvicorn.Server(uvicorn.Config(
-            self._app(), host="127.0.0.1", port=self.port, log_level="warning", lifespan="off",
+            self._app(), host=self.host, port=self.port, log_level="warning", lifespan="off",
             access_log=False, timeout_graceful_shutdown=2,
         ))
         server.install_signal_handlers = lambda: None  # the main server owns signal handling
