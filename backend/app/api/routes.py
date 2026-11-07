@@ -2,12 +2,14 @@
 from __future__ import annotations
 
 import secrets
+import sys
 from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException, Request, Response, WebSocket, WebSocketDisconnect
 from fastapi.responses import PlainTextResponse
 
 from app.schemas import InstanceCreate, InstanceUpdate, PullRequest, SettingsPatch
+from app.services.external import lan_ip
 from app.services.monitor import prometheus
 from app.services.settings import SettingsError
 
@@ -41,10 +43,22 @@ async def get_settings(request: Request) -> dict[str, Any]:
 
 @api.put("/settings")
 async def put_settings(patch: SettingsPatch, request: Request) -> dict[str, Any]:
+    st = request.app.state
+    port = patch.external_monitoring_port
+    if port is not None and st.db.one("SELECT 1 FROM instances WHERE port=?", (port,)):
+        raise HTTPException(409, f"Port {port} is used by an instance")
     try:
-        return request.app.state.settings.update(patch)
+        result = st.settings.update(patch)
     except SettingsError as e:
         raise HTTPException(422, str(e)) from e
+    await st.external.apply()
+    return result
+
+
+@api.get("/info")
+async def info(request: Request) -> dict[str, Any]:
+    return {"version": request.app.state.version, "platform": sys.platform, "lan_ip": lan_ip(),
+            "external_monitoring": request.app.state.external.status()}
 
 
 # ---- instances

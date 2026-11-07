@@ -26,6 +26,7 @@ class Collector:
         self.history: deque = deque(maxlen=history)
         self._procs: dict[int, psutil.Process] = {}
         self._client = httpx.AsyncClient(timeout=2.0)
+        self.external_port = 11434  # the user's own Ollama, shown read-only when it is not one of ours
         psutil.cpu_percent(None)  # prime: the first call always returns 0.0
 
     async def run(self) -> None:
@@ -55,7 +56,10 @@ class Collector:
             asyncio.to_thread(self._safe_process_vram),
         )
         handles = list(self.manager.handles.values())
-        results = await asyncio.gather(*(self._instance(h, pvram) for h in handles), return_exceptions=True)
+        results, external = await asyncio.gather(
+            asyncio.gather(*(self._instance(h, pvram) for h in handles), return_exceptions=True),
+            self._external(),
+        )
         instances: dict[str, Any] = {}
         seen: set[int] = set()
         for h, res in zip(handles, results):
@@ -71,7 +75,15 @@ class Collector:
             "system": system,
             "gpu": {"provider": self.provider.name, "devices": [g.to_dict() for g in gpus]},
             "instances": instances,
+            "external": external,
         }
+
+    async def _external(self) -> dict[str, Any] | None:
+        """Probe the default Ollama port, unless one of our instances is configured on it."""
+        if self.manager.db.one("SELECT 1 FROM instances WHERE port=?", (self.external_port,)):
+            return None
+        models, responsive = await self._api_ps(self.external_port)
+        return {"port": self.external_port, "responsive": True, "models": models} if responsive else None
 
     # ---- system
 
@@ -83,7 +95,7 @@ class Collector:
             disk = {"disk_total": du.total, "disk_used": du.used}
         except OSError:
             disk = {"disk_total": None, "disk_used": None}
-        return {"cpu_percent": psutil.cpu_percent(None), "mem_total": vm.total, "mem_used": vm.total - vm.available, **disk}
+        return {"cpu_percent": psutil.cpu_percent(None), "cpu_count": psutil.cpu_count() or 1, "mem_total": vm.total, "mem_used": vm.total - vm.available, **disk}
 
     def _safe_devices(self):
         try:

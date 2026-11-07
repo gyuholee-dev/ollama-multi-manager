@@ -37,6 +37,12 @@ def free_port() -> int:
         return s.getsockname()[1]
 
 
+@pytest.fixture(autouse=True)
+def loopback_only(monkeypatch):
+    """Never open the external monitoring listener on the LAN while testing."""
+    monkeypatch.setenv("OMM_EXTERNAL_HOST", "127.0.0.1")
+
+
 @pytest.fixture
 def fake_exe(tmp_path) -> str:
     script = tmp_path / "ollama"
