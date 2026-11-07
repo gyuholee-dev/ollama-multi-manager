@@ -171,3 +171,4 @@ __pycache__/
 # Backend virtualenv
 backend/.venv/
 .pytest_cache/
+build/

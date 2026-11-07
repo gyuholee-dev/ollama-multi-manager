@@ -8,9 +8,55 @@
   "author": "gyuholee-dev",
   "license": "UNLICENSED",
   "scripts": {
-    "start": "electron ."
+    "start": "electron .",
+    "build:backend": "node scripts/build-backend.js",
+    "dist:dir": "npm run build:backend && electron-builder --dir",
+    "dist": "npm run build:backend && electron-builder"
   },
   "devDependencies": {
-    "electron": "^45.2.3"
+    "electron": "^45.2.3",
+    "electron-builder": "^26.18.0"
+  },
+  "build": {
+    "appId": "dev.gyuholee.ollama-multi-manager",
+    "productName": "Ollama Multi Manager",
+    "directories": {
+      "output": "dist"
+    },
+    "files": [
+      "electron/**/*",
+      "package.json",
+      "!electron/assets/make-icons.py"
+    ],
+    "extraResources": [
+      {
+        "from": "build/backend/ollama-multi-manager-backend",
+        "to": "backend"
+      },
+      {
+        "from": "frontend/src",
+        "to": "frontend"
+      }
+    ],
+    "icon": "electron/assets/icon.png",
+    "mac": {
+      "category": "public.app-category.developer-tools",
+      "target": [
+        "dmg",
+        "zip"
+      ]
+    },
+    "win": {
+      "target": [
+        "nsis"
+      ]
+    },
+    "linux": {
+      "target": [
+        "AppImage",
+        "deb"
+      ],
+      "category": "Development"
+    }
   }
 }
