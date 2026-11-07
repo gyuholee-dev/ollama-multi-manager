@@ -18,7 +18,7 @@ import logging
 import time
 from collections import deque
 from dataclasses import dataclass
-from typing import Any, AsyncIterator, Callable
+from typing import Any, AsyncIterator, Awaitable, Callable
 
 import anyio
 import httpx
@@ -202,13 +202,15 @@ class PerfStats:
 
 
 class InstanceProxy:
-    def __init__(self, name: str, port: int, upstream_port: int, parallel: int, recorder: Callable[[Record], None] | None = None,
+    def __init__(self, name: str, port: int, upstream_port: int | None, parallel: int, recorder: Callable[[Record], None] | None = None,
                  host: str = "127.0.0.1", api_key: str | None = None):
-        self.name, self.port, self.upstream_port = name, port, upstream_port
+        self.name, self.port, self.upstream_port = name, port, upstream_port  # upstream None = standby (nothing behind the port)
         self.host, self.api_key = host, api_key  # host 0.0.0.0 = reachable from the network
         self.recorder = recorder  # called with every finished request (the manager stores per-minute sums)
         self.stats = PerfStats(parallel)
-        self._upstream = f"http://127.0.0.1:{upstream_port}"
+        self.ready = False  # True once the upstream answers; requests arriving earlier wait (see ensure)
+        self.ensure: Callable[[], Awaitable[bool]] | None = None  # set by the manager: make the upstream ready, True if it is
+        self.last_activity = time.monotonic()
         self._client = httpx.AsyncClient(timeout=httpx.Timeout(None, connect=5.0), limits=httpx.Limits(max_connections=None, max_keepalive_connections=20))
         self._server: uvicorn.Server | None = None
         self._task: asyncio.Task | None = None
@@ -232,9 +234,13 @@ class InstanceProxy:
         if not self._authorized(request):
             return JSONResponse({"error": "Missing or invalid API key"}, status_code=401, headers={"WWW-Authenticate": "Bearer"})
         path = request.url.path
+        self.last_activity = time.monotonic()
+        if not self.ready:  # stopped (standby) or still starting: start it if allowed and wait until it answers
+            if self.ensure is None or not await self.ensure():
+                return JSONResponse({"error": "The instance is not running"}, status_code=503, headers={"Retry-After": "5"})
         measured = request.method == "POST" and path in INFERENCE_PATHS
         started = time.monotonic()
-        url = self._upstream + path + (f"?{request.url.query}" if request.url.query else "")
+        url = f"http://127.0.0.1:{self.upstream_port}" + path + (f"?{request.url.query}" if request.url.query else "")
         headers = {k: v for k, v in request.headers.items() if k.lower() not in HOP_BY_HOP and not (self.api_key and k.lower() == "authorization")}
         model = ""
         if measured and self.draining:
@@ -257,6 +263,7 @@ class InstanceProxy:
             out, eval_ns, prompt = read_stats(tail, path, streamed, latency, ttft) if outcome == "ok" else (None, None, None)
             rec = Record(time.time(), outcome, latency, ttft, out, eval_ns, prompt, status, path, model, client)
             self.stats.end(model, rec)
+            self.last_activity = time.monotonic()
             if self.recorder is not None:
                 try:
                     self.recorder(rec)
@@ -293,6 +300,16 @@ class InstanceProxy:
         return StreamingResponse(body(), status_code=resp.status_code, headers=out_headers)
 
     # ---- lifecycle
+
+    def attach(self, upstream_port: int, parallel: int) -> None:
+        """An instance process now runs behind this proxy (it is ready once the manager sees it answer)."""
+        self.upstream_port, self.ready, self.draining = upstream_port, False, False
+        self.stats.parallel = max(1, parallel)
+        self.last_activity = time.monotonic()
+
+    def detach(self) -> None:
+        """The process is gone but the port stays reserved (standby for an on-demand instance)."""
+        self.upstream_port, self.ready, self.draining = None, False, False
 
     async def drain(self, timeout: float) -> int:
         """Refuse new inference requests and wait for the running ones. Returns how many were still running."""

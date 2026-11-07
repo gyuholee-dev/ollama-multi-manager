@@ -96,6 +96,8 @@ main #ltabs,main #stabs,main #mtabs{--surf:var(--bg)}main #ltabs button,main #st
 <div class="f"><div class="f row"><label data-i="f.device"></label></div><span class="sel"><select id="gp"></select><span class="material-icons">expand_more</span></span></div>
 <div class="f"><div class="f row"><label data-i="f.kvq"></label></div><span class="sel"><select id="kvq"><option value="f16" data-i="opt.f16"></option><option value="q8_0">q8_0</option><option value="q4_0">q4_0</option></select><span class="material-icons">expand_more</span></span></div>
 <div class="f row"><label data-i="f.flash"></label><input id="fa" class="sw" type="checkbox" role="switch" checked></div>
+<div class="f row"><label data-i="f.auto"></label><input id="as" class="sw" type="checkbox" role="switch" onchange="$('istw').style.display=this.checked?'':'none'"></div>
+<div class="f" id="istw" style="display:none"><div class="f row"><label data-i="f.idle"></label></div><input id="ist" type="number" min="0" max="1440" value="10"></div>
 <div class="f row"><label data-i="f.lan"></label><input id="lan" class="sw" type="checkbox" role="switch"></div>
 <div class="f"><div class="f row"><label data-i="f.key"></label></div><span class="pr"><input id="ak" autocomplete="off" spellcheck="false"><button type="button" onclick="genKey()" data-i="btn.genKey"></button></span></div>
 </div></div></div></div>

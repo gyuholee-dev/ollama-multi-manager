@@ -116,7 +116,7 @@ async def test_client_hangup_stops_the_upstream_request(env, monkeypatch, tmp_pa
 async def test_unreachable_ollama_gives_502(env):
     inst = await start(env)
     h = env.app.state.manager.handles[inst["id"]]
-    h.proxy._upstream = f"http://127.0.0.1:{free_port()}"
+    h.proxy.upstream_port = free_port()
     r = await gen(inst["port"])
     assert r.status_code == 502 and "error" in r.json()
     assert perf(env, inst)["inflight"] == 0
@@ -194,7 +194,7 @@ async def test_errors_models_and_history(env):
     await gen(port, model="a", n=10, path="/api/chat")
     await gen(port, model="b", n=4)
     h = env.app.state.manager.handles[inst["id"]]
-    h.proxy._upstream = f"http://127.0.0.1:{free_port()}"          # Ollama "disappears"
+    h.proxy.upstream_port = free_port()          # Ollama "disappears"
     assert (await gen(port, model="a")).status_code == 502
     p = perf(env, inst)
     assert p["errors"] == 1 and p["errors_total"] == 1 and p["requests"] == 4
@@ -315,3 +315,100 @@ async def test_listening_on_the_network_is_opt_in(env):
                 pass
     r = await env.client.post("/instances", json={"name": "x", "port": free_port(), "options": {"api_key": "short"}})
     assert r.status_code == 422  # keys must be at least 8 characters
+
+
+# ---------------------------------------------------------------- on-demand start
+
+async def make_on_demand(env, name="od", **opts):
+    inst = (await env.client.post("/instances", json={"name": name, "port": free_port(), "options": {"auto_start": True, **opts}})).json()
+    return inst
+
+
+async def test_on_demand_instance_holds_its_port_and_starts_on_the_first_request(env):
+    inst = await make_on_demand(env)
+    m = env.app.state.manager
+    assert m.status(inst["id"])["state"] == "stopped" and not port_free(inst["port"])  # standby proxy holds the port
+    r = await gen(inst["port"], n=3)
+    assert r.status_code == 200 and m.status(inst["id"])["state"] == "running"
+    assert perf(env, inst)["requests_total"] == 1
+    # a stopped instance without the option is not started by anything
+    plain = await start(env, "plain")
+    await env.client.post(f"/instances/{plain['id']}/stop")
+    assert port_free(plain["port"])
+
+
+async def test_requests_wait_while_the_instance_is_starting(env, monkeypatch):
+    inst = await make_on_demand(env)
+    results = await asyncio.gather(*(gen(inst["port"], n=2) for _ in range(3)))  # all arrive before it is ready
+    assert [r.status_code for r in results] == [200, 200, 200]
+    assert env.app.state.manager.status(inst["id"])["state"] == "running"
+
+
+async def test_explicit_stop_keeps_the_port_and_the_next_request_restarts(env):
+    inst = await make_on_demand(env)
+    await gen(inst["port"], n=2)
+    await env.client.post(f"/instances/{inst['id']}/stop")
+    assert env.app.state.manager.status(inst["id"])["state"] == "stopped" and not port_free(inst["port"])
+    assert (await gen(inst["port"], n=2)).status_code == 200
+    assert env.app.state.manager.status(inst["id"])["state"] == "running"
+    assert env.app.state.manager.proxies[inst["id"]].stats.total == 2  # statistics carry over the restart
+
+
+async def test_idle_on_demand_instance_stops_itself(env, monkeypatch):
+    monkeypatch.setattr(type(env.app.state.manager), "IDLE_CHECK_SECONDS", 0.2)
+    monkeypatch.setattr(type(env.app.state.manager), "IDLE_UNIT_SECONDS", 0.5)  # "1 idle minute" = 0.5 s
+    inst = await make_on_demand(env, idle_stop_min=1)
+    await gen(inst["port"], n=2)
+    m = env.app.state.manager
+    assert m.status(inst["id"])["state"] == "running"
+    await wait_for(lambda: m.status(inst["id"])["state"] == "stopped", timeout=10)
+    assert not port_free(inst["port"])                       # still reserved
+    assert (await gen(inst["port"], n=2)).status_code == 200  # and wakes up again
+
+
+async def test_a_busy_on_demand_instance_is_not_stopped(env, monkeypatch):
+    monkeypatch.setattr(type(env.app.state.manager), "IDLE_CHECK_SECONDS", 0.2)
+    monkeypatch.setattr(type(env.app.state.manager), "IDLE_UNIT_SECONDS", 0.3)
+    monkeypatch.setenv("FAKE_GEN_DELAY", "0.1")
+    inst = await make_on_demand(env, idle_stop_min=1)
+    r = await gen(inst["port"], n=25)  # 2.5 s of work, longer than the idle time
+    assert r.status_code == 200 and r.text.count("\n") == 26
+
+
+async def test_standby_follows_option_changes_and_deletion(env):
+    m = env.app.state.manager
+    inst = await make_on_demand(env)
+    assert inst["id"] in m.proxies and not port_free(inst["port"])
+    r = await env.client.patch(f"/instances/{inst['id']}", json={"options": {"auto_start": False}})
+    assert r.status_code == 200 and inst["id"] not in m.proxies and port_free(inst["port"])
+    new_port = free_port()
+    await env.client.patch(f"/instances/{inst['id']}", json={"port": new_port, "options": {"auto_start": True}})
+    assert not port_free(new_port) and m.proxies[inst["id"]].port == new_port
+    assert (await env.client.delete(f"/instances/{inst['id']}")).status_code == 204
+    assert port_free(new_port) and inst["id"] not in m.proxies
+
+
+async def test_on_demand_instances_are_not_started_at_app_start_but_stand_by(tmp_path, fake_exe, provider):
+    from app.main import create_app
+    data = tmp_path / "data"
+    app = create_app(data_dir=data, provider=provider, token=None)
+    async with app.router.lifespan_context(app):
+        async with httpx.AsyncClient(transport=httpx.ASGITransport(app=app), base_url="http://t") as c:
+            await c.put("/settings", json={"ollama_executable_path": fake_exe})
+            inst = (await c.post("/instances", json={"name": "od", "port": free_port(), "options": {"auto_start": True}})).json()
+            await gen(inst["port"], n=2)
+            assert app.state.manager.status(inst["id"])["state"] == "running"
+    assert port_free(inst["port"])  # quitting releases everything
+    app2 = create_app(data_dir=data, provider=provider, token=None)
+    async with app2.router.lifespan_context(app2):
+        await wait_for(lambda: not port_free(inst["port"]))            # standing by again ...
+        assert app2.state.manager.status(inst["id"])["state"] == "stopped"  # ... but not started
+        assert (await gen(inst["port"], n=2)).status_code == 200
+
+
+async def test_a_request_to_a_stopped_plain_instance_is_refused_not_started(env):
+    inst = await start(env, "plain2")
+    h = env.app.state.manager.handles[inst["id"]]
+    h.proxy.ready = False  # pretend it is not ready and cannot become so
+    h.state = "stopping"
+    assert (await gen(inst["port"], n=2)).status_code == 503

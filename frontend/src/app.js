@@ -56,7 +56,7 @@ function view() {
     return {
       id: i.id, name: i.name, port: i.port, state, pid: i.status.pid, startedAt: (i.status.started_at || 0) * 1000,
       ctx: o.context_length, keep: o.keep_alive_min, maxLoaded: o.max_loaded_models, parallel: o.num_parallel,
-      gpu: o.gpu, flash: o.flash_attention, kvq: o.kv_cache_type, listen: o.listen, key: o.api_key,
+      gpu: o.gpu, flash: o.flash_attention, kvq: o.kv_cache_type, listen: o.listen, key: o.api_key, auto: o.auto_start, idle: o.idle_stop_min,
       loaded: (m?.models || []).map(x => ({ name: x.name, gb: gb(x.size_vram || x.size), exp: x.expires_at })),
       metrics: m,
     };
@@ -248,7 +248,7 @@ function renderCards() {
   setHtml($('stabs'), SO.map(([k, x]) => `<button class="small${so.k === k ? ' on' : ''}" onclick="setSort('${k}')">${t(x)}${so.k === k ? mi(so.d > 0 ? 'arrow_upward' : 'arrow_downward') : ''}</button>`).join(''));
   const e = ext();
   setHtml($('grid'), sorted().map(i => `<div class="card"><div class="top"><b>${esc(i.name)}</b><span class="badge ${i.state}">${stL(i.state)}</span></div>
-  ${portLine(i.port, i.ctx, i.loaded)}
+  ${portLine(i.port, i.ctx, i.loaded)}${i.auto ? `<div class="sub">${t('card.auto')}</div>` : ''}
   ${i.loaded.length ? i.loaded.map(x => loadedBox(x, i.keep)).join('') : `<div class="model" style="color:var(--sub)">${t('card.none')}</div>`}<div class="btns">${btns(i)}</div></div>`).join('')
     + (e ? `<div class="card ext"><div class="top"><b>${esc(e.name)}</b><span class="badge">${mi('lock')}${t('ext.managed')}</span></div>${portLine(e.port, 0, e.loaded)}${e.loaded.length ? e.loaded.map(x => loadedBox(x, e.keep)).join('') : `<div class="model" style="color:var(--sub)">${t('card.none')}</div>`}</div>` : ''));
 }
@@ -294,7 +294,7 @@ async function show(id) {
   const run = i.state === 'running', m = i.metrics, ld = i.loaded.map(x => `<div>${esc(x.name)} · ${x.gb.toFixed(1)} GB</div>`).join('<div class="gp"></div>');
   const vram = m?.vram_bytes != null ? gb(m.vram_bytes).toFixed(1) + ' GB' + (m.vram_source === 'estimated' ? ' ~' : '') : '-';
   $('det').innerHTML = `<h3>${esc(i.name)} <button style="float:right" onclick="det.close()">${mi('close')}</button></h3>
- <div id="dt"><div class="box"><b>${t('new.server')}</b>${kv(t('f.state'), `<span class="badge ${i.state}">${stL(i.state)}</span>`)}${kv(t('f.port'), i.port)}${kv(t('d.addr'), i.listen === 'lan' ? `http://${S.info?.lan_ip || '?'}:${i.port}` : `http://127.0.0.1:${i.port}`)}${kv(t('f.lan'), i.listen === 'lan' ? t('c.on') : t('c.off'))}${kv(t('f.key'), i.key ? t('c.on') : t('c.off'))}${kv(t('d.pid'), i.pid ?? '-')}${kv(t('d.uptime'), run ? fmtUp(Date.now() - i.startedAt) : '-')}${kv(t('f.maxLoaded'), fmtN(i.maxLoaded))}${kv(t('f.parallel'), fmtN(i.parallel))}</div>
+ <div id="dt"><div class="box"><b>${t('new.server')}</b>${kv(t('f.state'), `<span class="badge ${i.state}">${stL(i.state)}</span>`)}${kv(t('f.port'), i.port)}${kv(t('d.addr'), i.listen === 'lan' ? `http://${S.info?.lan_ip || '?'}:${i.port}` : `http://127.0.0.1:${i.port}`)}${kv(t('f.auto'), i.auto ? (i.idle ? t('auto.idle', { n: i.idle }) : t('c.on')) : t('c.off'))}${kv(t('f.lan'), i.listen === 'lan' ? t('c.on') : t('c.off'))}${kv(t('f.key'), i.key ? t('c.on') : t('c.off'))}${kv(t('d.pid'), i.pid ?? '-')}${kv(t('d.uptime'), run ? fmtUp(Date.now() - i.startedAt) : '-')}${kv(t('f.maxLoaded'), fmtN(i.maxLoaded))}${kv(t('f.parallel'), fmtN(i.parallel))}</div>
  <div class="box"><b>${t('d.models')}</b><div class="f row"><label>${t('d.loaded')}</label><div class="ml">${ld || `<div class="sub">${t('d.none')}</div>`}</div></div><div class="f row"><label>${t('d.avail')}</label><div class="ml">${avail.map(x => `<div>${esc(x.name)} · ${gb(x.size).toFixed(1)} GB</div>`).join('<div class="gp"></div>') || `<div class="sub">${t('d.none')}</div>`}</div></div></div>
  <div class="box"><b>${t('d.req')}</b><div id="rq"></div></div>
  <div class="box"><b>${t('d.res')}</b>${kv(t('d.vram'), vram)}${kv(t('f.ctx'), fmtCtx(i.ctx))}${kv(t('f.keep'), fmtKeep(i.keep) + (i.keep >= 0 && i.loaded.length ? ' · ' + expAt(i.loaded[0].exp, i.keep) : ''))}${kv(t('f.device'), esc(gpuName(i.gpu)))}${kv(t('f.kvq'), i.kvq)}${kv(t('f.flash'), i.flash ? t('c.on') : t('c.off'))}</div></div>`;
@@ -355,6 +355,7 @@ async function openNew() {
   $('npr').value = 2; $('np').textContent = fmtN(2);
   $('gp').value = 'auto'; $('fa').checked = true; $('kvq').value = 'f16';
   $('lan').checked = false; $('ak').value = ''; $('ak').placeholder = t('f.keyPh');
+  $('as').checked = false; $('ist').value = 10; $('istw').style.display = 'none';
   document.querySelectorAll('#sv .cc').forEach(x => x.checked = false);
   document.querySelectorAll('.rg').forEach(rgFill);
   dlg.showModal();
@@ -374,6 +375,7 @@ function create(ev) {
       gpu: g === 'auto' || g === 'cpu' ? g : +g, context_length: 2048 * 2 ** ($('cx').value - 1), keep_alive_min: KEEP[$('kp').value],
       max_loaded_models: +$('mlr').value, num_parallel: +$('npr').value, flash_attention: $('fa').checked, kv_cache_type: $('kvq').value,
       listen: $('lan').checked ? 'lan' : 'local', api_key: $('ak').value.trim() || null,
+      auto_start: $('as').checked, idle_stop_min: $('as').checked ? Math.max(0, +$('ist').value || 0) : 0,
     },
   });
   return false;  // the dialog is closed once the backend has accepted the instance

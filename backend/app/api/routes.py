@@ -85,7 +85,9 @@ async def next_port(request: Request) -> dict[str, int]:
 
 @api.post("/instances", status_code=201)
 async def create_instance(body: InstanceCreate, request: Request) -> dict[str, Any]:
-    return request.app.state.manager.create(body)
+    created = request.app.state.manager.create(body)
+    await request.app.state.manager.sync_standby(created["id"])
+    return created
 
 
 @api.get("/instances/{iid}")
@@ -95,12 +97,15 @@ async def get_instance(iid: int, request: Request) -> dict[str, Any]:
 
 @api.patch("/instances/{iid}")
 async def update_instance(iid: int, body: InstanceUpdate, request: Request) -> dict[str, Any]:
-    return request.app.state.manager.update(iid, body)
+    updated = request.app.state.manager.update(iid, body)
+    await request.app.state.manager.sync_standby(iid)
+    return updated
 
 
 @api.delete("/instances/{iid}", status_code=204)
 async def delete_instance(iid: int, request: Request) -> None:
     request.app.state.manager.delete(iid)
+    await request.app.state.manager.sync_standby(iid)
 
 
 @api.get("/instances/{iid}/models")

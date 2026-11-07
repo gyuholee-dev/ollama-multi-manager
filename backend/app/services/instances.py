@@ -39,6 +39,7 @@ from app.services.settings import SettingsService
 log = logging.getLogger("omm.instances")
 
 LOG_LINES = 2000
+START_WAIT_SECONDS = 120.0  # how long a request waits for an instance that is starting
 LOG_FILE_MAX_BYTES = 5 * 1024 * 1024
 
 
@@ -145,6 +146,9 @@ class Handle:
 
 
 class InstanceManager:
+    IDLE_CHECK_SECONDS = 10.0
+    IDLE_UNIT_SECONDS = 60.0  # one "idle minute"; tests shrink it
+
     def __init__(self, db: Database, hub: Hub, settings: SettingsService, data_dir: Path):
         self.db, self.hub, self.settings = db, hub, settings
         self.log_dir = data_dir / "logs"
@@ -154,6 +158,7 @@ class InstanceManager:
         self.logs: dict[int, deque] = {}
         self._locks: dict[int, asyncio.Lock] = {}
         self._proxy_closers: set[asyncio.Task] = set()
+        self.proxies: dict[int, InstanceProxy] = {}  # every live proxy: attached to a process, or standing by for an on-demand instance
         self.request_stats = RequestStats(db)
         self._client = httpx.AsyncClient(timeout=1.5)
 
@@ -278,22 +283,13 @@ class InstanceManager:
         if exe is None:
             raise InstanceError("executable_not_found", "Ollama executable not found", 400)
         port = row["port"]
-        if not port_free(port):
-            raise InstanceError("port_in_use", f"Port {port} is already in use", 409)
         opts = InstanceOptions(**json.loads(row["options"]))
         inner = free_loopback_port()
         env = build_env(inner, opts, dict(os.environ), self.settings.get("default_models_path"))
-        host = "0.0.0.0" if opts.listen == "lan" else "127.0.0.1"
-        if host != "127.0.0.1" and not port_free(port, host):
-            raise InstanceError("port_in_use", f"Port {port} is already in use", 409)
-        proxy = InstanceProxy(row["name"], port, inner, opts.num_parallel, recorder=lambda rec: self.request_stats.record(iid, rec),
-                              host=host, api_key=opts.api_key)
-        if opts.listen == "lan" and not opts.api_key:
-            self._log(iid, "warn", f"{row['name']} is open to the whole network without an API key")
-        try:
-            await proxy.start()
-        except ProxyError as e:
-            raise InstanceError("port_in_use", f"Port {port} is already in use", 409) from e
+        proxy = self.proxies.get(iid)  # an on-demand instance's proxy already holds the port
+        if proxy is None:
+            proxy = await self._open_proxy(iid, row, opts)
+        proxy.attach(inner, opts.num_parallel)
 
         log_path = self.log_dir / f"instance-{iid}.log"
         if log_path.exists() and log_path.stat().st_size > LOG_FILE_MAX_BYTES:
@@ -312,7 +308,7 @@ class InstanceManager:
                     exe, "serve", env=env, stdin=subprocess.DEVNULL, stdout=out, stderr=out, **kwargs
                 )
         except OSError:
-            await proxy.close()
+            await self._release_proxy(iid, opts)
             raise
         ps = psutil.Process(proc.pid)
         h = Handle(iid, row["name"], port, ps, proc, log_path, inner_port=inner, proxy=proxy)
@@ -338,6 +334,8 @@ class InstanceManager:
                 r = await self._client.get(f"http://127.0.0.1:{h.inner_port or h.port}/api/version")
                 if r.status_code == 200:
                     h.state = "running"
+                    if h.proxy is not None:
+                        h.proxy.ready = True
                     self._log(h.iid, "info", f"{h.name} is ready")
                     self._publish_status(h.iid)
                     return
@@ -377,10 +375,8 @@ class InstanceManager:
         if self.handles.get(h.iid) is not h:
             return
         del self.handles[h.iid]
-        if h.proxy is not None:  # free the instance's port again
-            closer = asyncio.create_task(h.proxy.close())
-            self._proxy_closers.add(closer)
-            closer.add_done_callback(self._proxy_closers.discard)
+        if h.proxy is not None:
+            self._release_proxy_soon(h.iid, h.proxy)
         crashed = not h.stopping
         self.last_exit[h.iid] = {"crashed": crashed, "code": code}
         self.db.execute("UPDATE instances SET pid=NULL, pid_started=NULL WHERE id=?", (h.iid,))
@@ -414,7 +410,7 @@ class InstanceManager:
                 else:
                     self._finish(h, None)
                 if h.proxy is not None:
-                    await h.proxy.close()  # idempotent; a restart reuses the port right away
+                    await self._release_proxy(iid, None, h.proxy)  # a restart reuses the port right away
         return self.get(iid)
 
     async def restart(self, iid: int, drain: int = 0) -> dict[str, Any]:
@@ -462,6 +458,113 @@ class InstanceManager:
             raise InstanceError("ollama_unreachable", f"Could not reach Ollama: {e}", 502) from e
         return [{"name": m.get("name"), "size": m.get("size", 0)} for m in r.json().get("models", [])]
 
+    # ------------------------------------------------------------- proxies, on-demand start
+
+    def _opts(self, iid: int) -> InstanceOptions | None:
+        row = self.db.one("SELECT options FROM instances WHERE id=?", (iid,))
+        return InstanceOptions(**json.loads(row["options"])) if row else None
+
+    async def _open_proxy(self, iid: int, row: sqlite3.Row, opts: InstanceOptions) -> InstanceProxy:
+        port = row["port"]
+        host = "0.0.0.0" if opts.listen == "lan" else "127.0.0.1"
+        if not port_free(port, host):
+            raise InstanceError("port_in_use", f"Port {port} is already in use", 409)
+        proxy = InstanceProxy(row["name"], port, None, opts.num_parallel, recorder=lambda rec: self.request_stats.record(iid, rec),
+                              host=host, api_key=opts.api_key)
+        proxy.ensure = lambda: self.ensure_running(iid)
+        if opts.listen == "lan" and not opts.api_key:
+            self._log(iid, "warn", f"{row['name']} is open to the whole network without an API key")
+        try:
+            await proxy.start()
+        except ProxyError as e:
+            raise InstanceError("port_in_use", f"Port {port} is already in use", 409) from e
+        self.proxies[iid] = proxy
+        return proxy
+
+    async def _release_proxy(self, iid: int, opts: InstanceOptions | None, proxy: InstanceProxy | None = None) -> None:
+        """The process behind a proxy is gone: keep the port (standby) for an on-demand instance, free it otherwise."""
+        proxy = proxy or self.proxies.get(iid)
+        if proxy is None:
+            return
+        opts = opts or self._opts(iid)
+        if opts is not None and opts.auto_start and self.proxies.get(iid) is proxy:
+            proxy.detach()
+            return
+        if self.proxies.get(iid) is proxy:
+            del self.proxies[iid]
+        await proxy.close()
+
+    def _release_proxy_soon(self, iid: int, proxy: InstanceProxy) -> None:
+        opts = self._opts(iid)
+        if opts is not None and opts.auto_start:
+            proxy.detach()
+            return
+        if self.proxies.get(iid) is proxy:
+            del self.proxies[iid]
+        closer = asyncio.create_task(proxy.close())
+        self._proxy_closers.add(closer)
+        closer.add_done_callback(self._proxy_closers.discard)
+
+    async def sync_standby(self, iid: int) -> None:
+        """Make the standing-by proxy match the instance: present for a stopped on-demand instance, gone otherwise."""
+        row = self.db.one("SELECT * FROM instances WHERE id=?", (iid,))
+        opts = InstanceOptions(**json.loads(row["options"])) if row else None
+        proxy = self.proxies.get(iid)
+        if iid in self.handles:
+            return  # a running instance's proxy is managed by its process
+        host = "0.0.0.0" if opts and opts.listen == "lan" else "127.0.0.1"
+        stale = proxy is not None and (opts is None or not opts.auto_start or (proxy.port, proxy.host, proxy.api_key) != (row["port"], host, opts.api_key))
+        if stale:
+            del self.proxies[iid]
+            await proxy.close()
+            proxy = None
+        if proxy is None and opts is not None and opts.auto_start:
+            try:
+                await self._open_proxy(iid, row, opts)
+                self._log(iid, "info", f"{row['name']} starts on demand (port {row['port']})")
+            except InstanceError as e:
+                self._log(iid, "warn", f"Could not reserve port {row['port']} for {row['name']}: {e.message}")
+
+    async def ensure_running(self, iid: int) -> bool:
+        """A request arrived: start the instance if it is on-demand and stopped, then wait until it answers."""
+        h = self.handles.get(iid)
+        if h is None:
+            opts = self._opts(iid)
+            if opts is None or not opts.auto_start:
+                return False
+            self._log(iid, "info", "A request arrived: starting on demand")
+            try:
+                await self.start(iid)
+            except InstanceError as e:
+                if e.code != "already_running":
+                    self._log(iid, "warn", f"Could not start on demand: {e.message}")
+                    return False
+            h = self.handles.get(iid)
+        end = time.monotonic() + START_WAIT_SECONDS
+        while h is not None and time.monotonic() < end:
+            if h.state == "running":
+                return True
+            if h.state == "stopping" or self.handles.get(iid) is not h:
+                return False
+            await asyncio.sleep(0.1)
+        return False
+
+    async def idle_loop(self) -> None:
+        """Stop on-demand instances that have had no requests for their idle time."""
+        while True:
+            await asyncio.sleep(self.IDLE_CHECK_SECONDS)
+            for iid, h in list(self.handles.items()):
+                opts = self._opts(iid)
+                if h.state != "running" or h.proxy is None or opts is None or not (opts.auto_start and opts.idle_stop_min):
+                    continue
+                busy = sum(h.proxy.stats.inflight.values())
+                if not busy and time.monotonic() - h.proxy.last_activity > opts.idle_stop_min * self.IDLE_UNIT_SECONDS:
+                    self._log(iid, "info", f"Stopping {h.name}: no requests for {opts.idle_stop_min} min")
+                    try:
+                        await self.stop(iid, persist=False)
+                    except Exception:
+                        log.exception("Idle stop of %s failed", h.name)
+
     # ------------------------------------------------------------- app lifetime
 
     async def cleanup_orphans(self) -> None:
@@ -484,11 +587,14 @@ class InstanceManager:
     async def restore(self) -> None:
         """App start: bring back the instances that were running when the app last quit."""
         await self.cleanup_orphans()
-        for row in self.db.query("SELECT id, name FROM instances WHERE desired_state='running' ORDER BY id"):
-            try:
-                await self.start(row["id"])
-            except InstanceError as e:
-                self._log(row["id"], "warn", f"Could not restore {row['name']}: {e.message}")
+        for row in self.db.query("SELECT id, name, options, desired_state FROM instances ORDER BY id"):
+            if json.loads(row["options"]).get("auto_start"):
+                await self.sync_standby(row["id"])  # starts when the first request arrives, not now
+            elif row["desired_state"] == "running":
+                try:
+                    await self.start(row["id"])
+                except InstanceError as e:
+                    self._log(row["id"], "warn", f"Could not restore {row['name']}: {e.message}")
 
     async def shutdown(self) -> None:
         """App quit: save each instance's running state, then stop everything."""
@@ -496,5 +602,7 @@ class InstanceManager:
             state = "running" if row["id"] in self.handles else "stopped"
             self.db.execute("UPDATE instances SET desired_state=? WHERE id=?", (state, row["id"]))
         await asyncio.gather(*(self.stop(i, persist=False) for i in list(self.handles)), return_exceptions=True)
+        await asyncio.gather(*(p.close() for p in list(self.proxies.values())), return_exceptions=True)  # standing-by proxies
+        self.proxies.clear()
         await asyncio.gather(*self._proxy_closers, return_exceptions=True)
         await self._client.aclose()

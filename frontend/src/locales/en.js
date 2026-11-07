@@ -93,6 +93,7 @@
   'rq.hour': '{n} requests in the last hour', 'rq.hourSpeed': 'Speed over the last hour (max {n} tok/s)',
   'f.lan': 'Allow access from the network', 'f.key': 'API key', 'f.keyPh': 'Leave empty for no authentication', 'btn.genKey': 'Generate', 'd.addr': 'Address',
   'w.lan.t': 'Open to the network without a key', 'w.lan.m': 'Every device on the same network will be able to use this instance without authentication. Setting an API key is recommended.', 'btn.open': 'Open it',
+  'f.auto': 'Start when a request arrives', 'f.idle': 'Stop when idle (minutes, 0 = never)', 'card.auto': 'Starts when a request arrives', 'auto.idle': 'On · stops after {n} idle min',
   'w.busy.t': 'Requests are running',
   'w.busy.m': '{n} is handling {k} request(s).\nYou can wait for them to finish and then stop, or stop right now, which cuts the running answers off.',
   'btn.drainStop': 'Stop when done', 'btn.stopNow': 'Stop now',

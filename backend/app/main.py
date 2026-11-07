@@ -54,13 +54,14 @@ def create_app(data_dir: Path | None = None, provider: GpuProvider | None = None
         log.info("Backend started (data dir: %s)", data_dir)
 
         await models.store.cleanup_orphan()
-        tasks = [asyncio.create_task(collector.run()), asyncio.create_task(manager.restore()), asyncio.create_task(external.apply())]
+        tasks = [asyncio.create_task(collector.run()), asyncio.create_task(manager.restore()), asyncio.create_task(external.apply()), asyncio.create_task(manager.idle_loop())]
         try:
             yield
         finally:
             tasks[0].cancel()
-            await asyncio.gather(*tasks[:1], return_exceptions=True)
-            await asyncio.gather(*tasks[1:], return_exceptions=True)  # let restore finish so shutdown sees a consistent state
+            tasks[3].cancel()
+            await asyncio.gather(tasks[0], tasks[3], return_exceptions=True)
+            await asyncio.gather(*tasks[1:3], return_exceptions=True)  # let restore finish so shutdown sees a consistent state
             await external.close()
             await models.close()
             await manager.shutdown()
