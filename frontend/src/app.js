@@ -410,8 +410,8 @@ const dls = () => Object.values(S.pulls).filter(x => x.status !== 'success').sor
 
 function dlCard(d, tg) {
   const off = d.status !== 'pulling';
-  return `<div class="card" id="dl-${d.id}" data-s="${d.status}" style="margin-top:8px;padding:14px"><div class="top" style="margin:0 0 4px"><b class="tag">${esc(tg)}</b><span class="sub" data-t>${dlText(d)}</span></div>
-  <div class="dl${off ? ' off' : ''}"><i style="width:${d.percent ?? 0}%"></i></div><div class="btns" style="margin-top:6px;justify-content:space-between"><button class="small" onclick="${off ? 'resumeDl' : 'pauseDl'}('${d.id}')">${t(off ? 'btn.resume' : 'btn.pause')}</button><button class="small" onclick="delDl('${d.id}')">${t('btn.delete')}</button></div></div>`;
+  return `<div class="card mc" id="dl-${d.id}" data-s="${d.status}"><div class="top" style="margin:0"><b class="tag">${esc(tg)}</b><span class="sub" data-t>${dlText(d)}</span></div>
+  <div class="mi"><div class="dl${off ? ' off' : ''}"><i style="width:${d.percent ?? 0}%"></i></div></div><div class="btns" style="justify-content:space-between"><button class="small" onclick="${off ? 'resumeDl' : 'pauseDl'}('${d.id}')">${t(off ? 'btn.resume' : 'btn.pause')}</button><button class="small" onclick="delDl('${d.id}')">${t('btn.delete')}</button></div></div>`;
 }
 const dlText = d => {
   const pct = `${Math.floor(d.percent ?? 0)}%`, size = d.total ? ` · ${gb(d.completed).toFixed(1)} / ${gb(d.total).toFixed(1)} GB` : '';
@@ -422,11 +422,11 @@ function modelGroups() {
   const g = {};
   dls().forEach(d => (g[d.model.split(':')[0]] ??= []).push({ d, tg: d.model.slice(d.model.split(':')[0].length + 1) }));
   S.modelList.forEach(m => (g[m.name.split(':')[0]] ??= []).push({ m }));
-  const c = Object.entries(g).map(([f, a]) => `<div class="cat"><b>${esc(f)}</b>${a.map(({ m, d, tg }) => {
+  const c = Object.entries(g).map(([f, a]) => `<div class="cat mg"><b>${esc(f)}</b>${a.map(({ m, d, tg }) => {
     if (d) return dlCard(d, tg);
     tg = m.name.slice(f.length + 1);
-    return `<div class="card" style="margin-top:8px;padding:14px"><div class="top" style="margin:0 0 4px"><b class="tag">${esc(tg)}</b><span class="sub">${gb(m.size).toFixed(1)} GB</span></div>
-  <div class="sub spread"><span>${modelInfo(tg)}</span></div><div class="btns" style="margin-top:6px;justify-content:space-between"><a class="btn small" href="https://ollama.com/library/${encodeURI(m.name)}" target="_blank" rel="noopener noreferrer" aria-label="${t('mdl.library')}" title="${t('mdl.library')}">${mi('open_in_new')}</a><button class="small" data-m="${esc(m.name)}" onclick="delModel(this.dataset.m)">${t('btn.delete')}</button></div></div>`;
+    return `<div class="card mc"><div class="top" style="margin:0"><b class="tag">${esc(tg)}</b><span class="sub">${gb(m.size).toFixed(1)} GB</span></div>
+  <div class="sub mi"><span>${modelInfo(tg)}</span></div><div class="btns" style="justify-content:space-between"><a class="btn small" href="https://ollama.com/library/${encodeURI(m.name)}" target="_blank" rel="noopener noreferrer" aria-label="${t('mdl.library')}" title="${t('mdl.library')}">${mi('open_in_new')}</a><button class="small" data-m="${esc(m.name)}" onclick="delModel(this.dataset.m)">${t('btn.delete')}</button></div></div>`;
   }).join('')}</div>`).join('');
   return `<div class="box" style="margin-top:12px">${c || `<div class="sub">${t('mdl.none')}</div>`}</div>`;
 }
