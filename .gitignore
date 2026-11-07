@@ -167,3 +167,7 @@ installers/
 # Python
 __pycache__/
 *.pyc
+
+# Backend virtualenv
+backend/.venv/
+.pytest_cache/

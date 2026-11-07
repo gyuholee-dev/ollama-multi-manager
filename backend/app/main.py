@@ -1,0 +1,67 @@
+"""FastAPI application factory."""
+from __future__ import annotations
+
+import asyncio
+import contextlib
+import logging
+import os
+from pathlib import Path
+
+from fastapi import FastAPI, Request
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
+
+from app.api import routes
+from app.config import cors_origins, default_data_dir
+from app.db import Database
+from app.services.hub import Hub
+from app.services.instances import InstanceError, InstanceManager
+from app.services.monitor.collector import Collector
+from app.services.monitor.providers import GpuProvider, detect_provider
+from app.services.settings import SettingsService
+
+log = logging.getLogger("omm")
+
+
+def create_app(data_dir: Path | None = None, provider: GpuProvider | None = None, token: str | None = None) -> FastAPI:
+    data_dir = data_dir or default_data_dir()
+    token = token if token is not None else os.environ.get("OMM_TOKEN") or None
+
+    @contextlib.asynccontextmanager
+    async def lifespan(app: FastAPI):
+        data_dir.mkdir(parents=True, exist_ok=True)
+        db = Database(data_dir / "app.db")
+        db.migrate()
+        hub = Hub()
+        settings = SettingsService(db)
+        manager = InstanceManager(db, hub, settings, data_dir)
+        collector = Collector(manager, provider or detect_provider(), settings, hub)
+        app.state.db, app.state.hub, app.state.settings = db, hub, settings
+        app.state.manager, app.state.collector, app.state.token = manager, collector, token
+        log.info("Backend started (data dir: %s)", data_dir)
+
+        tasks = [asyncio.create_task(collector.run()), asyncio.create_task(manager.restore())]
+        try:
+            yield
+        finally:
+            tasks[0].cancel()
+            await asyncio.gather(*tasks[:1], return_exceptions=True)
+            await tasks[1]  # let a pending restore finish so shutdown sees a consistent state
+            await manager.shutdown()
+            await collector.close()
+            db.close()
+            log.info("Backend stopped")
+
+    app = FastAPI(title="ollama-multi-manager", lifespan=lifespan)
+    app.add_middleware(
+        CORSMiddleware, allow_origins=cors_origins(), allow_methods=["*"], allow_headers=["*"],
+    )
+
+    @app.exception_handler(InstanceError)
+    async def _instance_error(_: Request, e: InstanceError) -> JSONResponse:
+        return JSONResponse({"error": {"code": e.code, "message": e.message}}, status_code=e.status)
+
+    app.include_router(routes.public)
+    app.include_router(routes.api)
+    app.include_router(routes.ws_router)
+    return app
