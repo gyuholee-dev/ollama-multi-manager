@@ -10,8 +10,8 @@
   "scripts": {
     "start": "electron .",
     "build:backend": "node scripts/build-backend.js",
-    "dist:dir": "npm run build:backend && electron-builder --dir",
-    "dist": "npm run build:backend && electron-builder"
+    "dist:dir": "yarn build:backend && electron-builder --dir",
+    "dist": "yarn build:backend && electron-builder"
   },
   "devDependencies": {
     "electron": "^45.2.3",
