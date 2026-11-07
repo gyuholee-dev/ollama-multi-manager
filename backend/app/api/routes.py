@@ -103,6 +103,12 @@ async def delete_instance(iid: int, request: Request) -> None:
     request.app.state.manager.delete(iid)
 
 
+@api.get("/instances/{iid}/models")
+async def instance_models(iid: int, request: Request) -> list[dict[str, Any]]:
+    """Read-only: what this running instance can serve. Managing models is done on /models."""
+    return await request.app.state.manager.models(iid)
+
+
 @api.post("/instances/{iid}/start")
 async def start_instance(iid: int, request: Request) -> dict[str, Any]:
     return await request.app.state.manager.start(iid)

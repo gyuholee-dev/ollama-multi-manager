@@ -419,6 +419,19 @@ class InstanceManager:
         for p in alive:
             _signal(p, kill=True)
 
+    async def models(self, iid: int) -> list[dict[str, Any]]:
+        """Models this running instance can serve (asks the instance itself, so a custom models path is respected)."""
+        self._row(iid)
+        h = self.handles.get(iid)
+        if h is None or h.state != "running":
+            raise InstanceError("not_running", "The instance must be running", 409)
+        try:
+            r = await self._client.get(f"http://127.0.0.1:{h.inner_port or h.port}/api/tags", timeout=10.0)
+            r.raise_for_status()
+        except httpx.HTTPError as e:
+            raise InstanceError("ollama_unreachable", f"Could not reach Ollama: {e}", 502) from e
+        return [{"name": m.get("name"), "size": m.get("size", 0)} for m in r.json().get("models", [])]
+
     # ------------------------------------------------------------- app lifetime
 
     async def cleanup_orphans(self) -> None:
