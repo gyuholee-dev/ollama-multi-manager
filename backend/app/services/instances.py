@@ -374,7 +374,7 @@ class InstanceManager:
 
     # ------------------------------------------------------------- stop
 
-    async def stop(self, iid: int, persist: bool = True) -> dict[str, Any]:
+    async def stop(self, iid: int, persist: bool = True, drain: int = 0) -> dict[str, Any]:
         async with self._lock(iid):
             self._row(iid)
             if persist:
@@ -384,6 +384,10 @@ class InstanceManager:
                 h.stopping = True
                 h.state = "stopping"
                 self._publish_status(iid)
+                if drain and h.proxy is not None:
+                    left = await h.proxy.drain(drain)
+                    self._log(iid, "warn" if left else "info",
+                              f"Stopping {h.name}: {left} request(s) were still running after {drain}s" if left else f"Stopping {h.name}: running requests finished")
                 await self._terminate(h)
                 for _ in range(100):
                     if self.handles.get(iid) is not h:
@@ -395,8 +399,8 @@ class InstanceManager:
                     await h.proxy.close()  # idempotent; a restart reuses the port right away
         return self.get(iid)
 
-    async def restart(self, iid: int) -> dict[str, Any]:
-        await self.stop(iid)
+    async def restart(self, iid: int, drain: int = 0) -> dict[str, Any]:
+        await self.stop(iid, drain=drain)
         return await self.start(iid)
 
     async def _terminate(self, h: Handle, timeout: float = 10.0) -> None:

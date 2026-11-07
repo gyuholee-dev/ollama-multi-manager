@@ -8,7 +8,7 @@ from typing import Any
 from fastapi import APIRouter, Depends, HTTPException, Request, Response, WebSocket, WebSocketDisconnect
 from fastapi.responses import PlainTextResponse
 
-from app.schemas import InstanceCreate, InstanceUpdate, PullRequest, SettingsPatch
+from app.schemas import InstanceCreate, InstanceUpdate, PullRequest, SettingsPatch, StopRequest
 from app.services.external import lan_ip
 from app.services.monitor import prometheus
 from app.services.settings import SettingsError
@@ -115,13 +115,13 @@ async def start_instance(iid: int, request: Request) -> dict[str, Any]:
 
 
 @api.post("/instances/{iid}/stop")
-async def stop_instance(iid: int, request: Request) -> dict[str, Any]:
-    return await request.app.state.manager.stop(iid)
+async def stop_instance(iid: int, request: Request, body: StopRequest | None = None) -> dict[str, Any]:
+    return await request.app.state.manager.stop(iid, drain=body.drain_seconds if body else 0)
 
 
 @api.post("/instances/{iid}/restart")
-async def restart_instance(iid: int, request: Request) -> dict[str, Any]:
-    return await request.app.state.manager.restart(iid)
+async def restart_instance(iid: int, request: Request, body: StopRequest | None = None) -> dict[str, Any]:
+    return await request.app.state.manager.restart(iid, drain=body.drain_seconds if body else 0)
 
 
 # ---- models

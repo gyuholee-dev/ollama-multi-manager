@@ -56,6 +56,14 @@ class SettingsPatch(BaseModel):
     default_models_path: str | None = None
 
 
+class StopRequest(BaseModel):
+    """Optional body of stop/restart: wait up to this long for running requests before stopping."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    drain_seconds: Annotated[int, Field(ge=0, le=600)] = 0
+
+
 class PullRequest(BaseModel):
     model_config = ConfigDict(extra="forbid")
 

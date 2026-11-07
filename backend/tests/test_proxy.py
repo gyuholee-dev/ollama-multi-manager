@@ -151,3 +151,37 @@ async def test_start_fails_cleanly_when_the_port_is_taken(env):
         r = await env.client.post(f"/instances/{inst['id']}/start")
     assert r.status_code == 409 and r.json()["error"]["code"] == "port_in_use"
     assert env.app.state.manager.status(inst["id"])["state"] == "stopped"
+
+
+async def test_stop_can_wait_for_running_requests(env, monkeypatch):
+    monkeypatch.setenv("FAKE_GEN_DELAY", "0.1")
+    inst = await start(env)
+    job = asyncio.create_task(gen(inst["port"], n=15))  # about 1.5 s
+    await wait_for(lambda: perf(env, inst)["inflight"] == 1)
+    stopping = asyncio.create_task(env.client.post(f"/instances/{inst['id']}/stop", json={"drain_seconds": 20}))
+    await wait_for(lambda: env.app.state.manager.status(inst["id"])["state"] == "stopping")
+    refused = await gen(inst["port"], n=2)  # new requests are turned away while it drains
+    assert refused.status_code == 503
+    done = await job
+    assert done.status_code == 200 and done.text.count("\n") == 16  # the running request was not cut off
+    assert (await stopping).status_code == 200
+    assert env.app.state.manager.status(inst["id"])["state"] == "stopped"
+
+
+async def test_drain_gives_up_after_the_timeout(env, monkeypatch):
+    monkeypatch.setenv("FAKE_GEN_DELAY", "0.5")
+    inst = await start(env)
+    job = asyncio.create_task(gen(inst["port"], n=40))  # 20 s, longer than the drain
+    await wait_for(lambda: perf(env, inst)["inflight"] == 1)
+    t0 = time.monotonic()
+    r = await env.client.post(f"/instances/{inst['id']}/stop", json={"drain_seconds": 1})
+    assert r.status_code == 200 and time.monotonic() - t0 < 8
+    await asyncio.gather(job, return_exceptions=True)
+
+
+async def test_instance_models_are_listed_by_the_instance(env):
+    inst = await start(env)
+    r = await env.client.get(f"/instances/{inst['id']}/models")
+    assert [m["name"] for m in r.json()] == ["fake:1b"]
+    other = (await env.client.post("/instances", json={"name": "off", "port": free_port()})).json()
+    assert (await env.client.get(f"/instances/{other['id']}/models")).status_code == 409

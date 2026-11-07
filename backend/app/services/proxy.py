@@ -129,6 +129,7 @@ class InstanceProxy:
         self._server: uvicorn.Server | None = None
         self._task: asyncio.Task | None = None
         self._closing: asyncio.Task | None = None
+        self.draining = False  # stopping: new inference requests are refused while the running ones finish
 
     # ---- relaying
 
@@ -143,6 +144,8 @@ class InstanceProxy:
         url = self._upstream + path + (f"?{request.url.query}" if request.url.query else "")
         headers = {k: v for k, v in request.headers.items() if k.lower() not in HOP_BY_HOP}
         model = ""
+        if measured and self.draining:
+            return JSONResponse({"error": "The instance is stopping"}, status_code=503, headers={"Retry-After": "5"})
         if measured:
             body = await request.body()  # small JSON; read whole to learn the model name
             model = model_of(body)
@@ -185,6 +188,14 @@ class InstanceProxy:
         return StreamingResponse(body(), status_code=resp.status_code, headers=out_headers)
 
     # ---- lifecycle
+
+    async def drain(self, timeout: float) -> int:
+        """Refuse new inference requests and wait for the running ones. Returns how many were still running."""
+        self.draining = True
+        end = time.monotonic() + timeout
+        while time.monotonic() < end and sum(self.stats.inflight.values()) > 0:
+            await asyncio.sleep(0.2)
+        return sum(self.stats.inflight.values())
 
     async def start(self) -> None:
         server = uvicorn.Server(uvicorn.Config(

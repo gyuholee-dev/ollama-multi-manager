@@ -86,6 +86,9 @@
   'w.vram.m': 'VRAM usage is currently {pct}%.\nStarting {n} and loading models may unload models from other instances or fail to load.',
   'w.stop.t': 'Stop instance',
   'w.stop.m': '{n} will be stopped.\n{k} loaded model(s) will be unloaded and requests in progress will be interrupted.',
+  'w.busy.t': 'Requests are running',
+  'w.busy.m': '{n} is handling {k} request(s).\nYou can wait for them to finish and then stop, or stop right now, which cuts the running answers off.',
+  'btn.drainStop': 'Stop when done', 'btn.stopNow': 'Stop now',
   'w.fit.t': 'VRAM may be insufficient',
   'w.fit.m': 'The models loaded at the same time need about {need} GB, which exceeds the available VRAM of the selected device ({cap} GB).\nCreate it anyway?',
 

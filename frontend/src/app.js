@@ -96,17 +96,19 @@ const setLf = v => { lf.v = v; renderLogs(); $('logs').scrollTop = $('logs').scr
 
 // ---------------------------------------------------------------- popups
 const POPI = { info: 'info', warn: 'warning', error: 'error', confirm: 'help_outline', danger: 'delete_outline' };
-function popup({ kind = 'info', title, msg, ok = t('pop.ok'), cancel }) {
+// Resolves true (ok), 'alt' (the optional middle button) or false (cancel / closed).
+function popup({ kind = 'info', title, msg, ok = t('pop.ok'), cancel, alt }) {
   return new Promise(r0 => {
     const pop = $('pop');
     let done = false;
     const res = v => { if (!done) { done = true; r0(v); } }, end = v => { res(v); pop.close(); };
     pop.dataset.k = kind;
-    pop.innerHTML = `<div class="pb"><div class="pi">${mi(POPI[kind])}</div><div class="pt"><h3></h3><p></p></div></div><div class="btns">${cancel ? '<button type="button" id="pc"></button>' : ''}<button type="button" id="po" class="primary${kind === 'danger' ? ' danger' : ''}"></button></div>`;
+    pop.innerHTML = `<div class="pb"><div class="pi">${mi(POPI[kind])}</div><div class="pt"><h3></h3><p></p></div></div><div class="btns">${cancel ? '<button type="button" id="pc"></button>' : ''}${alt ? '<button type="button" id="pa"></button>' : ''}<button type="button" id="po" class="primary${kind === 'danger' ? ' danger' : ''}"></button></div>`;
     pop.querySelector('h3').textContent = title;
     pop.querySelector('p').textContent = msg;
     $('po').textContent = ok;
     if (cancel) { $('pc').textContent = cancel; $('pc').onclick = () => end(false); }
+    if (alt) { $('pa').textContent = alt; $('pa').onclick = () => end('alt'); }
     $('po').onclick = () => end(true);
     pop.addEventListener('close', () => { if (!pop.open) res(false); }, { once: true });
     if (pop.open) pop.close();
@@ -259,9 +261,18 @@ async function setState(id, state) {
   if (state === 'running') {
     const V = vramByGpu(), pct = V.length ? Math.max(...V.map(g => g.pct)) : 0;
     if (pct > 85 && !await popup({ kind: 'warn', title: t('w.vram.t'), msg: t('w.vram.m', { pct, n: i.name }), ok: t('btn.start'), cancel: t('btn.cancel') })) return;
-  } else if (i.loaded.length && !await ask(t('w.stop.t'), t('w.stop.m', { n: i.name, k: i.loaded.length }), t('btn.stop'), true)) return;
+  }
+  let drain = 0;  // seconds to wait for running requests before stopping
+  if (state !== 'running') {
+    const busy = i.metrics?.perf?.inflight || 0;
+    if (busy > 0) {
+      const r = await popup({ kind: 'danger', title: t('w.busy.t'), msg: t('w.busy.m', { n: i.name, k: busy }), ok: t('btn.drainStop'), alt: t('btn.stopNow'), cancel: t('btn.cancel') });
+      if (!r) return;
+      drain = r === true ? 120 : 0;
+    } else if (i.loaded.length && !await ask(t('w.stop.t'), t('w.stop.m', { n: i.name, k: i.loaded.length }), t('btn.stop'), true)) return;
+  }
   try {
-    await API.post(`/instances/${id}/${state === 'running' ? 'start' : 'stop'}`);
+    await API.post(`/instances/${id}/${state === 'running' ? 'start' : 'stop'}`, drain ? { drain_seconds: drain } : undefined);
   } catch (e) { await fail(e); }
   await loadInstances();
 }
