@@ -13,7 +13,10 @@ def main() -> None:
     parser.add_argument("--port", type=int, default=8765)
     args = parser.parse_args()
     logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
-    uvicorn.run(create_app(), host=args.host, port=args.port, log_level="info")
+    app = create_app()
+    server = uvicorn.Server(uvicorn.Config(app, host=args.host, port=args.port, log_level="info"))
+    app.state.request_shutdown = lambda: setattr(server, "should_exit", True)
+    server.run()
 
 
 if __name__ == "__main__":

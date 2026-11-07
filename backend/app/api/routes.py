@@ -55,6 +55,16 @@ async def put_settings(patch: SettingsPatch, request: Request) -> dict[str, Any]
     return result
 
 
+@api.post("/shutdown", status_code=202)
+async def shutdown(request: Request) -> dict[str, str]:
+    """Graceful stop (instances are stopped and their state saved). Works on every OS, unlike signals on Windows."""
+    request_shutdown = getattr(request.app.state, "request_shutdown", None)
+    if request_shutdown is None:
+        raise HTTPException(501, "Shutdown is only available when started with `python -m app`")
+    request_shutdown()
+    return {"status": "shutting down"}
+
+
 @api.get("/info")
 async def info(request: Request) -> dict[str, Any]:
     return {"version": request.app.state.version, "platform": sys.platform, "lan_ip": lan_ip(),

@@ -1,0 +1,16 @@
+{
+  "name": "ollama-multi-manager",
+  "productName": "Ollama Multi Manager",
+  "version": "0.1.0",
+  "description": "Run and monitor multiple Ollama instances from one desktop app",
+  "private": true,
+  "main": "electron/main.js",
+  "author": "gyuholee-dev",
+  "license": "UNLICENSED",
+  "scripts": {
+    "start": "electron ."
+  },
+  "devDependencies": {
+    "electron": "^45.2.3"
+  }
+}
