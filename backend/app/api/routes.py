@@ -4,10 +4,10 @@ from __future__ import annotations
 import secrets
 from typing import Any
 
-from fastapi import APIRouter, Depends, HTTPException, Request, WebSocket, WebSocketDisconnect
+from fastapi import APIRouter, Depends, HTTPException, Request, Response, WebSocket, WebSocketDisconnect
 from fastapi.responses import PlainTextResponse
 
-from app.schemas import InstanceCreate, InstanceUpdate, SettingsPatch
+from app.schemas import InstanceCreate, InstanceUpdate, PullRequest, SettingsPatch
 from app.services.monitor import prometheus
 from app.services.settings import SettingsError
 
@@ -92,6 +92,36 @@ async def stop_instance(iid: int, request: Request) -> dict[str, Any]:
 @api.post("/instances/{iid}/restart")
 async def restart_instance(iid: int, request: Request) -> dict[str, Any]:
     return await request.app.state.manager.restart(iid)
+
+
+# ---- models
+
+@api.get("/instances/{iid}/models")
+async def list_models(iid: int, request: Request) -> list[dict[str, Any]]:
+    return await request.app.state.models.list(iid)
+
+
+@api.post("/instances/{iid}/models/pull", status_code=202)
+async def pull_model(iid: int, body: PullRequest, request: Request, response: Response) -> dict[str, Any]:
+    task, created = request.app.state.models.start_pull(iid, body.model)
+    if not created:
+        response.status_code = 200  # the same pull is already running; return it instead of starting another
+    return task.to_dict()
+
+
+@api.delete("/instances/{iid}/models/{name:path}", status_code=204)
+async def delete_model(iid: int, name: str, request: Request) -> None:
+    await request.app.state.models.delete(iid, name)
+
+
+@api.get("/pulls")
+async def list_pulls(request: Request) -> list[dict[str, Any]]:
+    return request.app.state.models.list_tasks()
+
+
+@api.delete("/pulls/{task_id}", status_code=204)
+async def cancel_pull(task_id: str, request: Request) -> None:
+    await request.app.state.models.cancel(task_id)
 
 
 @api.get("/logs")

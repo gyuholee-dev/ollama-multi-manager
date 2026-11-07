@@ -54,3 +54,9 @@ class SettingsPatch(BaseModel):
     refresh_interval_seconds: Annotated[int, Field(ge=1, le=60)] | None = None
     ollama_executable_path: str | None = None
     default_models_path: str | None = None
+
+
+class PullRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    model: Annotated[str, Field(min_length=1, max_length=200)]

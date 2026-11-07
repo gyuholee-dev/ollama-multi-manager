@@ -16,6 +16,7 @@ from app.config import cors_origins, default_data_dir
 from app.db import Database
 from app.services.hub import Hub
 from app.services.instances import InstanceError, InstanceManager
+from app.services.models import ModelService
 from app.services.monitor.collector import Collector
 from app.services.monitor.providers import GpuProvider, detect_provider
 from app.services.settings import SettingsService
@@ -35,9 +36,11 @@ def create_app(data_dir: Path | None = None, provider: GpuProvider | None = None
         hub = Hub()
         settings = SettingsService(db)
         manager = InstanceManager(db, hub, settings, data_dir)
+        models = ModelService(manager, hub)
         collector = Collector(manager, provider or detect_provider(), settings, hub)
         app.state.db, app.state.hub, app.state.settings = db, hub, settings
         app.state.manager, app.state.collector, app.state.token = manager, collector, token
+        app.state.models = models
         log.info("Backend started (data dir: %s)", data_dir)
 
         tasks = [asyncio.create_task(collector.run()), asyncio.create_task(manager.restore())]
@@ -47,6 +50,7 @@ def create_app(data_dir: Path | None = None, provider: GpuProvider | None = None
             tasks[0].cancel()
             await asyncio.gather(*tasks[:1], return_exceptions=True)
             await tasks[1]  # let a pending restore finish so shutdown sees a consistent state
+            await models.close()
             await manager.shutdown()
             await collector.close()
             db.close()
