@@ -6,7 +6,7 @@
   "private": true,
   "main": "electron/main.js",
   "author": "gyuholee-dev",
-  "license": "UNLICENSED",
+  "license": "MIT",
   "scripts": {
     "start": "electron .",
     "build:backend": "node scripts/build-backend.js",
