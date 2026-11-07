@@ -108,6 +108,23 @@ def read_stats(tail: bytes, path: str, streamed: bool, latency: float, ttft: flo
     return _int(obj.get("eval_count")), _int(obj.get("eval_duration")), _int(obj.get("prompt_eval_count"))
 
 
+def reached_end(tail: bytes, sent: int, headers: httpx.Headers) -> bool:
+    """Did the whole answer go out? A client that hangs up the instant it has the last byte can cancel the relay
+    just before the loop notices the end, so completeness is also judged from the bytes themselves."""
+    length = headers.get("content-length", "")
+    if length.isdigit() and sent >= int(length):
+        return True
+    lines = tail.rstrip().split(b"\n")
+    last = lines[-1].strip() if lines else b""
+    if last in (b"data: [DONE]", b"[DONE]"):
+        return True
+    try:
+        obj = json.loads(last)
+    except ValueError:
+        return False
+    return isinstance(obj, dict) and obj.get("done") is True
+
+
 def model_of(body: bytes) -> str:
     try:
         m = json.loads(body).get("model")
@@ -280,10 +297,12 @@ class InstanceProxy:
             ttft: float | None = None
             tail = b""
             outcome = "cancelled"  # stays so when the client goes away before the answer is complete
+            sent = 0
             try:
                 async for chunk in resp.aiter_raw():
                     if ttft is None:
                         ttft = time.monotonic() - started
+                    sent += len(chunk)
                     if measured:
                         tail = (tail + chunk)[-STATS_TAIL:]
                     yield chunk
@@ -292,6 +311,8 @@ class InstanceProxy:
                 outcome = "error"  # Ollama died or broke the connection mid-answer
                 raise
             finally:
+                if outcome == "cancelled" and measured and resp.status_code < 400 and reached_end(tail, sent, resp.headers):
+                    outcome = "ok"  # the client left only after receiving everything
                 with anyio.CancelScope(shield=True):
                     await resp.aclose()  # closing the upstream request is what makes Ollama stop generating
                 finish(outcome, resp.status_code, ttft, tail, resp.headers.get("content-type", "").startswith("text/event-stream"))

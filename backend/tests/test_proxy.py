@@ -412,3 +412,25 @@ async def test_a_request_to_a_stopped_plain_instance_is_refused_not_started(env)
     h.proxy.ready = False  # pretend it is not ready and cannot become so
     h.state = "stopping"
     assert (await gen(inst["port"], n=2)).status_code == 503
+
+
+async def test_a_client_that_leaves_right_after_the_last_byte_still_counts(env, monkeypatch):
+    """Connection: close clients drop the socket the moment the answer ends; that must not look like a cancel."""
+    monkeypatch.setenv("FAKE_GEN_DELAY", "0.01")
+    inst = await start(env)
+    for body, path in (({"model": "m", "prompt": "hi", "options": {"num_predict": 6}}, "/api/generate"),               # streamed
+                       ({"model": "m", "prompt": "hi", "stream": False, "options": {"num_predict": 6}}, "/api/generate")):  # one JSON object
+        payload = json.dumps(body).encode()
+        reader, writer = await asyncio.open_connection("127.0.0.1", inst["port"])
+        writer.write(f"POST {path} HTTP/1.1\r\nHost: x\r\nContent-Type: application/json\r\nContent-Length: {len(payload)}\r\nConnection: close\r\n\r\n".encode() + payload)
+        await writer.drain()
+        data = b""
+        while b'"done":true' not in data.replace(b'": ', b'":').replace(b'" :', b'":'):
+            chunk = await reader.read(4096)
+            if not chunk:
+                break
+            data += chunk
+        writer.close()  # gone the instant the end was seen
+    await wait_for(lambda: perf(env, inst)["requests"] == 2 and perf(env, inst)["inflight"] == 0)
+    p = perf(env, inst)
+    assert p["cancelled"] == 0 and p["tokens"] == 12 and p["prompt_tokens"] == 6
