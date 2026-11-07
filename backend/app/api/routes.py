@@ -109,6 +109,11 @@ async def instance_models(iid: int, request: Request) -> list[dict[str, Any]]:
     return await request.app.state.manager.models(iid)
 
 
+@api.get("/instances/{iid}/requests")
+async def instance_requests(iid: int, request: Request, limit: int = 50) -> dict[str, Any]:
+    return request.app.state.manager.requests(iid, max(1, min(limit, 200)))
+
+
 @api.post("/instances/{iid}/start")
 async def start_instance(iid: int, request: Request) -> dict[str, Any]:
     return await request.app.state.manager.start(iid)

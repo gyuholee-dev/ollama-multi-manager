@@ -423,6 +423,14 @@ class InstanceManager:
         for p in alive:
             _signal(p, kill=True)
 
+    def requests(self, iid: int, limit: int = 50) -> dict[str, Any]:
+        """Recent requests relayed for this instance, plus the per-model numbers (last 5 minutes)."""
+        self._row(iid)
+        h = self.handles.get(iid)
+        if h is None or h.proxy is None:
+            return {"requests": [], "models": {}}
+        return {"requests": h.proxy.stats.recent(limit), "models": h.proxy.stats.snapshot()["models"]}
+
     async def models(self, iid: int) -> list[dict[str, Any]]:
         """Models this running instance can serve (asks the instance itself, so a custom models path is respected)."""
         self._row(iid)

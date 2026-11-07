@@ -36,7 +36,7 @@ const S = {
   info: null,     // GET /info
   logs: [],       // {ts, src, m, level}
   pulls: {},      // task id -> pull task
-  modelList: [],
+  modelList: [], detail: null,
   connected: false,
 };
 const cfg = () => S.cfg;
@@ -168,7 +168,7 @@ function perfAll() {
   if (!ps.length) return null;
   const sum = k => ps.reduce((a, p) => a + (p[k] || 0), 0), n = sum('requests'), evalS = sum('eval_seconds');
   const lat = ps.filter(p => p.latency_avg != null).reduce((a, p) => a + p.latency_avg * p.requests, 0);
-  return { processing: sum('processing'), queued: sum('queued'), latency: n && lat ? lat / n : null, speed: evalS > 0 ? sum('tokens') / evalS : null };
+  return { processing: sum('processing'), queued: sum('queued'), latency: n && lat ? lat / n : null, speed: evalS > 0 ? sum('tokens') / evalS : null, errors: sum('errors'), requests: n };
 }
 
 function renderSum() {
@@ -188,6 +188,7 @@ function renderSum() {
         cell(t('c.reqs'), p ? p.processing : '-', p ? ` ${t('u.case')} · ${t('c.queued')} ${p.queued}${t('u.case')}` : ''),
         cell(t('c.latency'), p?.latency != null ? p.latency.toFixed(1) : '-', p?.latency != null ? ' s' : ''),
         cell(t('c.speed'), p?.speed != null ? Math.round(p.speed) : '-', p?.speed != null ? ' tok/s' : ''),
+        cell(t('c.fail'), p ? p.errors : '-', p ? ` ${t('u.case')}${p.requests ? ` · ${Math.round(p.errors / p.requests * 100)}%` : ''}` : '', p?.errors ? '--err' : ''),
       ];
     })()),
     sbox('status', [cell(t('c.warn'), warn ? warn : t('c.ok'), warn ? t('u.case') : '', warn ? '--warn' : '--ok'), cell(t('c.errs'), errs, t('u.case')),
@@ -295,9 +296,29 @@ async function show(id) {
   $('det').innerHTML = `<h3>${esc(i.name)} <button style="float:right" onclick="det.close()">${mi('close')}</button></h3>
  <div id="dt"><div class="box"><b>${t('new.server')}</b>${kv(t('f.state'), `<span class="badge ${i.state}">${stL(i.state)}</span>`)}${kv(t('f.port'), i.port)}${kv(t('d.pid'), i.pid ?? '-')}${kv(t('d.uptime'), run ? fmtUp(Date.now() - i.startedAt) : '-')}${kv(t('f.maxLoaded'), fmtN(i.maxLoaded))}${kv(t('f.parallel'), fmtN(i.parallel))}</div>
  <div class="box"><b>${t('d.models')}</b><div class="f row"><label>${t('d.loaded')}</label><div class="ml">${ld || `<div class="sub">${t('d.none')}</div>`}</div></div><div class="f row"><label>${t('d.avail')}</label><div class="ml">${avail.map(x => `<div>${esc(x.name)} · ${gb(x.size).toFixed(1)} GB</div>`).join('<div class="gp"></div>') || `<div class="sub">${t('d.none')}</div>`}</div></div></div>
+ <div class="box"><b>${t('d.req')}</b><div id="rq"></div></div>
  <div class="box"><b>${t('d.res')}</b>${kv(t('d.vram'), vram)}${kv(t('f.ctx'), fmtCtx(i.ctx))}${kv(t('f.keep'), fmtKeep(i.keep) + (i.keep >= 0 && i.loaded.length ? ' · ' + expAt(i.loaded[0].exp, i.keep) : ''))}${kv(t('f.device'), esc(gpuName(i.gpu)))}${kv(t('f.kvq'), i.kvq)}${kv(t('f.flash'), i.flash ? t('c.on') : t('c.off'))}</div></div>`;
+  S.detail = id;
+  refreshRequests();
   $('det').showModal();
 }
+
+// Per-model numbers and the latest requests of the instance whose details are open (no prompts or answers are kept).
+const stClass = r => r.outcome === 'error' ? 'bad' : r.outcome === 'cancelled' ? 'cx' : '';
+async function refreshRequests() {
+  const box = $('rq');
+  if (!box || S.detail == null) return;
+  let d;
+  try { d = await API.get(`/instances/${S.detail}/requests?limit=20`); } catch { return; }
+  if (!$('rq')) return;
+  const models = Object.entries(d.models);
+  const mt = models.length ? `<div class="rqw"><table class="rq"><tr><th>${t('rq.model')}</th><th class="r">${t('rq.count')}</th><th class="r">${t('rq.speed')}</th><th class="r">${t('rq.avg')}</th></tr>${models.map(([m, x]) =>
+    `<tr><td>${esc(m)}</td><td class="r">${x.requests}${x.errors ? ` <span class="bad">(${x.errors})</span>` : ''}</td><td class="r">${x.tok_per_s != null ? Math.round(x.tok_per_s) + ' tok/s' : '-'}</td><td class="r">${x.latency_avg != null ? x.latency_avg.toFixed(1) + ' s' : '-'}</td></tr>`).join('')}</table></div>` : '';
+  const rt = d.requests.length ? `<div class="rqw"><table class="rq"><tr><th>${t('rq.time')}</th><th>${t('rq.path')}</th><th>${t('rq.model')}</th><th class="r">${t('rq.status')}</th><th class="r">${t('rq.dur')}</th><th class="r">${t('rq.tok')}</th></tr>${d.requests.map(r =>
+    `<tr class="${stClass(r)}"><td>${hms(r.ts * 1000)}</td><td>${esc(r.path)}</td><td>${esc(r.model || '-')}</td><td class="r">${r.outcome === 'cancelled' ? t('rq.cancelled') : r.status}</td><td class="r">${r.duration.toFixed(1)} s</td><td class="r">${r.tokens ?? '-'}</td></tr>`).join('')}</table></div>` : `<div class="sub">${t('rq.none')}</div>`;
+  box.innerHTML = (mt ? `<div class="sub">${t('rq.byModel')}</div>${mt}` : '') + `<div class="sub" style="margin-top:${mt ? 10 : 0}px">${t('rq.recent')}</div>${rt}`;
+}
+$('det').addEventListener('close', () => { S.detail = null; });
 
 // ---------------------------------------------------------------- new instance
 const rgFill = e => e.style.setProperty('--p', (e.value - e.min) / (e.max - e.min) * 100 + '%');
@@ -601,7 +622,7 @@ function setFrozen(on) {
 
 function onMessage(m) {
   switch (m.type) {
-    case 'metrics': S.snap = m.data; if (!S.frozen) render(); break;
+    case 'metrics': S.snap = m.data; if (!S.frozen) { render(); refreshRequests(); } break;
     case 'instance': if (!S.frozen) loadInstancesSoon(); break;
     case 'log': fromBackendLog(m); break;
     case 'pull': if (S.frozen) S.pulls[m.task.id] = m.task; else onPull(m.task); break;

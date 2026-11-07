@@ -185,3 +185,38 @@ async def test_instance_models_are_listed_by_the_instance(env):
     assert [m["name"] for m in r.json()] == ["fake:1b"]
     other = (await env.client.post("/instances", json={"name": "off", "port": free_port()})).json()
     assert (await env.client.get(f"/instances/{other['id']}/models")).status_code == 409
+
+
+async def test_errors_models_and_history(env):
+    inst = await start(env)
+    port = inst["port"]
+    await gen(port, model="a", n=10)
+    await gen(port, model="a", n=10, path="/api/chat")
+    await gen(port, model="b", n=4)
+    h = env.app.state.manager.handles[inst["id"]]
+    h.proxy._upstream = f"http://127.0.0.1:{free_port()}"          # Ollama "disappears"
+    assert (await gen(port, model="a")).status_code == 502
+    p = perf(env, inst)
+    assert p["errors"] == 1 and p["errors_total"] == 1 and p["requests"] == 4
+    assert p["models"]["a"]["requests"] == 3 and p["models"]["a"]["errors"] == 1
+    assert abs(p["models"]["a"]["tok_per_s"] - 10.0) < 0.01 and p["models"]["b"]["requests"] == 1
+    r = (await env.client.get(f"/instances/{inst['id']}/requests?limit=3")).json()
+    assert [x["status"] for x in r["requests"]] == [502, 200, 200]  # newest first
+    first = r["requests"][1]
+    assert first["model"] == "b" and first["path"] == "/api/generate" and first["tokens"] == 4 and first["client"] == "127.0.0.1"
+    assert "prompt" not in str(r)  # nothing the user typed is kept
+    assert "omm_instance_request_errors_total" in prometheus.render(await env.app.state.collector.collect(), {inst["id"]: "p"})
+
+
+async def test_a_client_that_hangs_up_is_not_an_error(env, monkeypatch):
+    monkeypatch.setenv("FAKE_GEN_DELAY", "0.1")
+    inst = await start(env)
+    async with httpx.AsyncClient(timeout=30) as c:
+        async with c.stream("POST", f"http://127.0.0.1:{inst['port']}/api/generate",
+                            json={"model": "m", "prompt": "hi", "options": {"num_predict": 100}}) as r:
+            async for _ in r.aiter_lines():
+                break
+    await wait_for(lambda: perf(env, inst)["inflight"] == 0)
+    p = perf(env, inst)
+    assert p["errors"] == 0 and p["cancelled"] == 1
+    assert env.app.state.manager.requests(inst["id"])["requests"][0]["outcome"] == "cancelled"

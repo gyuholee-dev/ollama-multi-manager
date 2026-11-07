@@ -33,7 +33,7 @@ def render(snapshot: dict[str, Any] | None, names: dict[int, str]) -> str:
     metric("omm_gpu_utilization_percent", "GPU utilization", [(gl(g), g["util_percent"]) for g in gpus if g["util_percent"] is not None])
 
     cpu, rss, vram, up, loaded = [], [], [], [], []
-    inflight, queued, total, speed, latency = [], [], [], [], []
+    inflight, queued, total, speed, latency, errors = [], [], [], [], [], []
     for sid, d in snapshot["instances"].items():
         lab = {"instance": names.get(int(sid), sid)}
         cpu.append((lab, d["cpu_percent"]))
@@ -45,6 +45,7 @@ def render(snapshot: dict[str, Any] | None, names: dict[int, str]) -> str:
             inflight.append((lab, perf["inflight"]))
             queued.append((lab, perf["queued"]))
             total.append((lab, perf["requests_total"]))
+            errors.append((lab, perf["errors_total"]))
             if perf["tok_per_s"] is not None:
                 speed.append((lab, round(perf["tok_per_s"], 2)))
             if perf["latency_avg"] is not None:
@@ -59,6 +60,7 @@ def render(snapshot: dict[str, Any] | None, names: dict[int, str]) -> str:
     metric("omm_instance_requests_inflight", "Inference requests running or waiting", inflight)
     metric("omm_instance_requests_queued", "Inference requests waiting for a free slot", queued)
     metric("omm_instance_requests_total", "Inference requests finished since the instance started", total, "counter")
+    metric("omm_instance_request_errors_total", "Inference requests that failed (status 4xx/5xx or a broken connection)", errors, "counter")
     metric("omm_instance_tokens_per_second", "Generation speed over the last 5 minutes", speed)
     metric("omm_instance_request_seconds_avg", "Average inference request time over the last 5 minutes", latency)
     return "\n".join(lines) + "\n"

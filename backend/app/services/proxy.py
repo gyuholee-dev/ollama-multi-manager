@@ -38,6 +38,7 @@ HOP_BY_HOP = frozenset({"connection", "keep-alive", "proxy-authenticate", "proxy
 SKIP_RESPONSE = HOP_BY_HOP | {"date", "server"}  # the proxy's own server adds these
 STATS_TAIL = 64 * 1024  # the stats object is at the end of the answer; keep only that much
 WINDOW_SECONDS = 300.0
+HISTORY_SIZE = 200
 
 
 class ProxyError(RuntimeError):
@@ -47,11 +48,19 @@ class ProxyError(RuntimeError):
 @dataclass
 class Record:
     ts: float
-    ok: bool
+    outcome: str  # ok | error | cancelled (the client went away: not a failure)
     latency: float
     ttft: float | None
     tokens: int | None  # generated tokens, when Ollama reported them
     eval_ns: int | None
+    status: int = 0
+    path: str = ""
+    model: str = ""
+    client: str = ""
+
+    @property
+    def ok(self) -> bool:
+        return self.outcome == "ok"
 
 
 def read_stats(tail: bytes) -> tuple[int, int] | None:
@@ -84,7 +93,9 @@ class PerfStats:
         self.parallel = max(1, parallel)
         self.inflight: dict[str, int] = {}  # model -> requests currently relayed
         self.records: deque[Record] = deque()
+        self.history: deque[Record] = deque(maxlen=HISTORY_SIZE)  # newest last; kept past the 5-minute window
         self.total = 0
+        self.errors_total = 0
 
     def begin(self, model: str) -> None:
         self.inflight[model] = self.inflight.get(model, 0) + 1
@@ -96,7 +107,10 @@ class PerfStats:
         else:
             self.inflight.pop(model, None)
         self.records.append(rec)
+        self.history.append(rec)
         self.total += 1
+        if rec.outcome == "error":
+            self.errors_total += 1
 
     def snapshot(self) -> dict[str, Any]:
         cutoff = time.time() - WINDOW_SECONDS
@@ -107,17 +121,50 @@ class PerfStats:
         gen = [r for r in done if r.tokens and r.eval_ns]
         tokens = sum(r.tokens for r in gen)
         eval_s = sum(r.eval_ns for r in gen) / 1e9
+        errors = sum(1 for r in self.records if r.outcome == "error")
+        cancelled = sum(1 for r in self.records if r.outcome == "cancelled")
         running = sum(self.inflight.values())
         # Each loaded model serves `parallel` requests at once (OLLAMA_NUM_PARALLEL); the rest wait.
         queued = sum(max(0, n - self.parallel) for n in self.inflight.values())
         return {
             "inflight": running, "queued": queued, "processing": running - queued,
             "requests": len(self.records), "requests_total": self.total,
+            "errors": errors, "errors_total": self.errors_total, "cancelled": cancelled,
+            "models": self._by_model(),
             "latency_avg": sum(r.latency for r in done) / len(done) if done else None,
             "ttft_avg": sum(ttfts) / len(ttfts) if ttfts else None,
             "tokens": tokens, "eval_seconds": eval_s, "tok_per_s": tokens / eval_s if eval_s > 0 else None,
             "window_seconds": WINDOW_SECONDS,
         }
+
+
+    def _by_model(self) -> dict[str, dict[str, Any]]:
+        out: dict[str, dict[str, Any]] = {}
+        for r in self.records:
+            m = out.setdefault(r.model or "-", {"requests": 0, "errors": 0, "tokens": 0, "eval_seconds": 0.0, "_lat": 0.0, "_ok": 0})
+            m["requests"] += 1
+            if r.outcome == "error":
+                m["errors"] += 1
+            if r.ok:
+                m["_lat"] += r.latency
+                m["_ok"] += 1
+                if r.tokens and r.eval_ns:
+                    m["tokens"] += r.tokens
+                    m["eval_seconds"] += r.eval_ns / 1e9
+        for m in out.values():
+            ok, lat = m.pop("_ok"), m.pop("_lat")
+            m["latency_avg"] = lat / ok if ok else None
+            m["tok_per_s"] = m["tokens"] / m["eval_seconds"] if m["eval_seconds"] > 0 else None
+        return out
+
+    def recent(self, limit: int) -> list[dict[str, Any]]:
+        """Newest first. No prompts or answers are kept, only what happened to each request."""
+        return [
+            {"ts": r.ts, "path": r.path, "model": r.model, "status": r.status, "outcome": r.outcome,
+             "duration": round(r.latency, 3), "ttft": round(r.ttft, 3) if r.ttft is not None else None,
+             "tokens": r.tokens, "client": r.client}
+            for r in list(self.history)[::-1][:limit]
+        ]
 
 
 class InstanceProxy:
@@ -155,22 +202,25 @@ class InstanceProxy:
             has_body = "content-length" in request.headers or "transfer-encoding" in request.headers
             content = request.stream() if has_body else None
 
-        def finish(ok: bool, ttft: float | None, tail: bytes) -> None:
+        client = request.client.host if request.client else ""
+
+        def finish(outcome: str, status: int, ttft: float | None, tail: bytes) -> None:
             if not measured:
                 return
-            st = read_stats(tail) if ok else None
-            self.stats.end(model, Record(time.time(), ok, time.monotonic() - started, ttft, st[0] if st else None, st[1] if st else None))
+            st = read_stats(tail) if outcome == "ok" else None
+            self.stats.end(model, Record(time.time(), outcome, time.monotonic() - started, ttft, st[0] if st else None,
+                                         st[1] if st else None, status, path, model, client))
 
         try:
             resp = await self._client.send(self._client.build_request(request.method, url, headers=headers, content=content), stream=True)
         except httpx.HTTPError as e:
-            finish(False, None, b"")
+            finish("error", 502, None, b"")
             return JSONResponse({"error": f"Could not reach Ollama: {e.__class__.__name__}"}, status_code=502)
 
         async def body() -> AsyncIterator[bytes]:
             ttft: float | None = None
             tail = b""
-            done = False
+            outcome = "cancelled"  # stays so when the client goes away before the answer is complete
             try:
                 async for chunk in resp.aiter_raw():
                     if ttft is None:
@@ -178,11 +228,14 @@ class InstanceProxy:
                     if measured:
                         tail = (tail + chunk)[-STATS_TAIL:]
                     yield chunk
-                done = True
+                outcome = "ok" if resp.status_code < 400 else "error"
+            except httpx.HTTPError:
+                outcome = "error"  # Ollama died or broke the connection mid-answer
+                raise
             finally:
                 with anyio.CancelScope(shield=True):
                     await resp.aclose()  # closing the upstream request is what makes Ollama stop generating
-                finish(done and resp.status_code < 400, ttft, tail)
+                finish(outcome, resp.status_code, ttft, tail)
 
         out_headers = {k: v for k, v in resp.headers.items() if k.lower() not in SKIP_RESPONSE}
         return StreamingResponse(body(), status_code=resp.status_code, headers=out_headers)
