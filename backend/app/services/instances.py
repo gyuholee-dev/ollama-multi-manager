@@ -33,6 +33,7 @@ from app.db import Database
 from app.schemas import InstanceCreate, InstanceOptions, InstanceUpdate
 from app.services.hub import Hub
 from app.services.proxy import InstanceProxy, ProxyError
+from app.services.request_stats import RequestStats
 from app.services.settings import SettingsService
 
 log = logging.getLogger("omm.instances")
@@ -144,6 +145,7 @@ class InstanceManager:
         self.logs: dict[int, deque] = {}
         self._locks: dict[int, asyncio.Lock] = {}
         self._proxy_closers: set[asyncio.Task] = set()
+        self.request_stats = RequestStats(db)
         self._client = httpx.AsyncClient(timeout=1.5)
 
     # ------------------------------------------------------------- records
@@ -209,6 +211,7 @@ class InstanceManager:
         if iid in self.handles:
             raise InstanceError("running", "Stop the instance before deleting it", 409)
         self.db.execute("DELETE FROM instances WHERE id=?", (iid,))
+        self.request_stats.delete_instance(iid)
         self.logs.pop(iid, None)
         self.last_exit.pop(iid, None)
         self._log(0, "info", f"Deleted {row['name']}")
@@ -271,7 +274,7 @@ class InstanceManager:
         opts = InstanceOptions(**json.loads(row["options"]))
         inner = free_loopback_port()
         env = build_env(inner, opts, dict(os.environ), self.settings.get("default_models_path"))
-        proxy = InstanceProxy(row["name"], port, inner, opts.num_parallel)
+        proxy = InstanceProxy(row["name"], port, inner, opts.num_parallel, recorder=lambda rec: self.request_stats.record(iid, rec))
         try:
             await proxy.start()
         except ProxyError as e:

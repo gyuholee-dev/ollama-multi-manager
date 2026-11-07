@@ -17,7 +17,7 @@ import logging
 import time
 from collections import deque
 from dataclasses import dataclass
-from typing import Any, AsyncIterator
+from typing import Any, AsyncIterator, Callable
 
 import anyio
 import httpx
@@ -53,6 +53,7 @@ class Record:
     ttft: float | None
     tokens: int | None  # generated tokens, when Ollama reported them
     eval_ns: int | None
+    prompt_tokens: int | None = None
     status: int = 0
     path: str = ""
     model: str = ""
@@ -168,8 +169,9 @@ class PerfStats:
 
 
 class InstanceProxy:
-    def __init__(self, name: str, port: int, upstream_port: int, parallel: int):
+    def __init__(self, name: str, port: int, upstream_port: int, parallel: int, recorder: Callable[[Record], None] | None = None):
         self.name, self.port, self.upstream_port = name, port, upstream_port
+        self.recorder = recorder  # called with every finished request (the manager stores per-minute sums)
         self.stats = PerfStats(parallel)
         self._upstream = f"http://127.0.0.1:{upstream_port}"
         self._client = httpx.AsyncClient(timeout=httpx.Timeout(None, connect=5.0), limits=httpx.Limits(max_connections=None, max_keepalive_connections=20))
@@ -208,8 +210,14 @@ class InstanceProxy:
             if not measured:
                 return
             st = read_stats(tail) if outcome == "ok" else None
-            self.stats.end(model, Record(time.time(), outcome, time.monotonic() - started, ttft, st[0] if st else None,
-                                         st[1] if st else None, status, path, model, client))
+            rec = Record(time.time(), outcome, time.monotonic() - started, ttft, st[0] if st else None,
+                         st[1] if st else None, None, status, path, model, client)
+            self.stats.end(model, rec)
+            if self.recorder is not None:
+                try:
+                    self.recorder(rec)
+                except Exception:  # statistics must never break a request
+                    log.exception("Could not store request statistics")
 
         try:
             resp = await self._client.send(self._client.build_request(request.method, url, headers=headers, content=content), stream=True)

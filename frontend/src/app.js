@@ -304,19 +304,36 @@ async function show(id) {
 }
 
 // Per-model numbers and the latest requests of the instance whose details are open (no prompts or answers are kept).
+// Last hour, one column per minute: requests (red part = failed) and the generation speed.
+function reqCharts(series) {
+  const n = series.length, w = 300, h = 44, bw = w / n, maxR = Math.max(1, ...series.map(x => x.requests));
+  const bars = series.map((x, k) => {
+    if (!x.requests) return '';
+    const bh = Math.max(2, x.requests / maxR * (h - 4)), eh = x.errors / x.requests * bh;
+    return `<rect x="${(k * bw + .5).toFixed(1)}" y="${(h - bh).toFixed(1)}" width="${Math.max(1, bw - 1).toFixed(1)}" height="${(bh - eh).toFixed(1)}" fill="var(--accent)"/>`
+      + (eh ? `<rect x="${(k * bw + .5).toFixed(1)}" y="${(h - eh).toFixed(1)}" width="${Math.max(1, bw - 1).toFixed(1)}" height="${eh.toFixed(1)}" fill="var(--err)"/>` : '');
+  }).join('');
+  const sp = series.map((x, k) => [k, x.tok_per_s]).filter(p => p[1] != null), maxS = Math.max(1, ...sp.map(p => p[1]));
+  const line = sp.length ? `<polyline fill="none" stroke="var(--accent)" stroke-width="1.5" vector-effect="non-scaling-stroke" points="${sp.map(([k, v]) => `${(k * bw + bw / 2).toFixed(1)},${(h - 3 - v / maxS * (h - 6)).toFixed(1)}`).join(' ')}"/>` : '';
+  const total = series.reduce((a, x) => a + x.requests, 0);
+  return `<div class="sub">${t('rq.hour', { n: total })}</div><svg class="rqc" viewBox="0 0 ${w} ${h}" preserveAspectRatio="none" role="img" aria-label="${t('rq.hour', { n: total })}">${bars}</svg>
+    <div class="sub" style="margin-top:8px">${t('rq.hourSpeed', { n: Math.round(maxS) })}</div><svg class="rqc" viewBox="0 0 ${w} ${h}" preserveAspectRatio="none" role="img" aria-label="${t('rq.hourSpeed', { n: Math.round(maxS) })}">${line}</svg><div style="height:10px"></div>`;
+}
 const stClass = r => r.outcome === 'error' ? 'bad' : r.outcome === 'cancelled' ? 'cx' : '';
 async function refreshRequests() {
   const box = $('rq');
   if (!box || S.detail == null) return;
-  let d;
-  try { d = await API.get(`/instances/${S.detail}/requests?limit=20`); } catch { return; }
+  let d, ser;
+  try {
+    [d, ser] = await Promise.all([API.get(`/instances/${S.detail}/requests?limit=20`), API.get(`/monitor/requests?minutes=60&instance=${S.detail}`)]);
+  } catch { return; }
   if (!$('rq')) return;
   const models = Object.entries(d.models);
   const mt = models.length ? `<div class="rqw"><table class="rq"><tr><th>${t('rq.model')}</th><th class="r">${t('rq.count')}</th><th class="r">${t('rq.speed')}</th><th class="r">${t('rq.avg')}</th></tr>${models.map(([m, x]) =>
     `<tr><td>${esc(m)}</td><td class="r">${x.requests}${x.errors ? ` <span class="bad">(${x.errors})</span>` : ''}</td><td class="r">${x.tok_per_s != null ? Math.round(x.tok_per_s) + ' tok/s' : '-'}</td><td class="r">${x.latency_avg != null ? x.latency_avg.toFixed(1) + ' s' : '-'}</td></tr>`).join('')}</table></div>` : '';
   const rt = d.requests.length ? `<div class="rqw"><table class="rq"><tr><th>${t('rq.time')}</th><th>${t('rq.path')}</th><th>${t('rq.model')}</th><th class="r">${t('rq.status')}</th><th class="r">${t('rq.dur')}</th><th class="r">${t('rq.tok')}</th></tr>${d.requests.map(r =>
     `<tr class="${stClass(r)}"><td>${hms(r.ts * 1000)}</td><td>${esc(r.path)}</td><td>${esc(r.model || '-')}</td><td class="r">${r.outcome === 'cancelled' ? t('rq.cancelled') : r.status}</td><td class="r">${r.duration.toFixed(1)} s</td><td class="r">${r.tokens ?? '-'}</td></tr>`).join('')}</table></div>` : `<div class="sub">${t('rq.none')}</div>`;
-  box.innerHTML = (mt ? `<div class="sub">${t('rq.byModel')}</div>${mt}` : '') + `<div class="sub" style="margin-top:${mt ? 10 : 0}px">${t('rq.recent')}</div>${rt}`;
+  box.innerHTML = reqCharts(ser.series) + (mt ? `<div class="sub">${t('rq.byModel')}</div>${mt}` : '') + `<div class="sub" style="margin-top:${mt ? 10 : 0}px">${t('rq.recent')}</div>${rt}`;
 }
 $('det').addEventListener('close', () => { S.detail = null; });
 

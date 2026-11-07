@@ -220,3 +220,29 @@ async def test_a_client_that_hangs_up_is_not_an_error(env, monkeypatch):
     p = perf(env, inst)
     assert p["errors"] == 0 and p["cancelled"] == 1
     assert env.app.state.manager.requests(inst["id"])["requests"][0]["outcome"] == "cancelled"
+
+
+async def test_per_minute_numbers_are_stored_and_survive_a_restart(tmp_path, fake_exe, provider):
+    from app.main import create_app
+    data = tmp_path / "data"
+    app = create_app(data_dir=data, provider=provider, token=None)
+    async with app.router.lifespan_context(app):
+        async with httpx.AsyncClient(transport=httpx.ASGITransport(app=app), base_url="http://t") as c:
+            await c.put("/settings", json={"ollama_executable_path": fake_exe})
+            inst = (await c.post("/instances", json={"name": "s", "port": free_port()})).json()
+            await c.post(f"/instances/{inst['id']}/start")
+            await wait_for(lambda: app.state.manager.status(inst["id"])["state"] == "running")
+            await gen(inst["port"], n=10)
+            await gen(inst["port"], n=10, stream=False)
+            await wait_for(lambda: app.state.manager.handles[inst["id"]].proxy.stats.total == 2)
+            s = (await c.get(f"/monitor/requests?minutes=5&instance={inst['id']}")).json()["series"]
+    assert len(s) == 5 and sum(x["requests"] for x in s) == 2
+    last = [x for x in s if x["requests"]][0]
+    assert last["tokens"] == 20 and abs(last["tok_per_s"] - 10.0) < 0.01 and last["latency_avg"] > 0
+    app2 = create_app(data_dir=data, provider=provider, token=None)
+    async with app2.router.lifespan_context(app2):
+        async with httpx.AsyncClient(transport=httpx.ASGITransport(app=app2), base_url="http://t") as c:
+            again = (await c.get("/monitor/requests?minutes=5")).json()["series"]   # all instances
+            assert sum(x["requests"] for x in again) == 2
+            await c.delete(f"/instances/{inst['id']}")
+            assert sum(x["requests"] for x in (await c.get("/monitor/requests?minutes=5")).json()["series"]) == 0

@@ -41,3 +41,18 @@ CREATE TABLE IF NOT EXISTS downloads (
     total     INTEGER NOT NULL DEFAULT 0,
     digests   TEXT    NOT NULL DEFAULT '[]' CHECK (json_valid(digests))
 );
+
+-- 인스턴스별 분 단위 요청 집계(프록시가 잰 값). 프롬프트·응답·클라이언트 정보는 저장하지 않는다. 7일 지나면 지운다.
+CREATE TABLE IF NOT EXISTS request_stats (
+    instance_id   INTEGER NOT NULL,
+    minute        INTEGER NOT NULL,           -- 에포크 분
+    requests      INTEGER NOT NULL DEFAULT 0,
+    errors        INTEGER NOT NULL DEFAULT 0,
+    cancelled     INTEGER NOT NULL DEFAULT 0,
+    ok_requests   INTEGER NOT NULL DEFAULT 0, -- 평균 응답 시간 계산에 쓰는 정상 요청 수
+    tokens        INTEGER NOT NULL DEFAULT 0, -- 생성한 토큰
+    prompt_tokens INTEGER NOT NULL DEFAULT 0, -- 입력 토큰
+    eval_ns       INTEGER NOT NULL DEFAULT 0, -- 생성에 걸린 시간(ns)
+    latency_sum   REAL    NOT NULL DEFAULT 0, -- 정상 요청의 응답 시간 합(초)
+    PRIMARY KEY (instance_id, minute)
+);

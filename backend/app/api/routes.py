@@ -185,6 +185,12 @@ async def snapshot(request: Request) -> dict[str, Any]:
     return snap
 
 
+@api.get("/monitor/requests")
+async def request_series(request: Request, minutes: int = 60, instance: int | None = None) -> dict[str, Any]:
+    """Per-minute request numbers (requests, errors, tokens, speed, response time), empty minutes included."""
+    return {"series": request.app.state.manager.request_stats.series(max(1, min(minutes, 1440)), instance)}
+
+
 @api.get("/monitor/history")
 async def history(request: Request) -> list[dict[str, Any]]:
     return list(request.app.state.collector.history)
