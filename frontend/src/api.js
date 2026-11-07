@@ -6,9 +6,13 @@
 const API = (() => {
   let token = '';
   const m = location.hash.match(/token=([^&]+)/);
+  // The token is kept in sessionStorage so that a reload of the page (which no longer has the fragment) stays signed in.
   if (m) {
     token = decodeURIComponent(m[1]);
+    try { sessionStorage.setItem('omm-token', token); } catch { /* storage unavailable: a reload will need the fragment again */ }
     history.replaceState(null, '', location.pathname + location.search);
+  } else {
+    try { token = sessionStorage.getItem('omm-token') || ''; } catch { /* no stored token */ }
   }
   const base = new URLSearchParams(location.search).get('api') || location.origin;
 
