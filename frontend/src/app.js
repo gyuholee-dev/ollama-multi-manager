@@ -185,7 +185,7 @@ function renderSum() {
     sbox('perf', (() => {
       const p = perfAll();
       return [
-        cell(t('c.reqs'), p ? p.processing : '-', p ? ` ${t('u.case')} · ${t('c.queued')} ${p.queued}${t('u.case')}` : ''),
+        cell(t('c.reqs'), p ? p.processing : '-', p ? ` ${t('u.case')} · ${t('c.queued')} ${p.queued}` : ''),
         cell(t('c.latency'), p?.latency != null ? p.latency.toFixed(1) : '-', p?.latency != null ? ' s' : ''),
         cell(t('c.speed'), p?.speed != null ? Math.round(p.speed) : '-', p?.speed != null ? ' tok/s' : ''),
         cell(t('c.fail'), p ? p.errors : '-', p ? ` ${t('u.case')}${p.requests ? ` · ${Math.round(p.errors / p.requests * 100)}%` : ''}` : '', p?.errors ? '--err' : ''),
