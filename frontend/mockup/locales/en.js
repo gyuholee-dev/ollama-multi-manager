@@ -52,7 +52,6 @@
   'theme.system': 'System', 'theme.light': 'Light', 'theme.dark': 'Dark',
   'set.monitor': 'Monitor', 'set.ext': 'External monitoring', 'set.extPort': 'External monitoring port',
   'set.interval': 'Refresh interval', 'sec.n': '{n} s',
-  'set.restore': 'Start instances on app launch', 'set.stopQuit': 'Stop instances on app quit',
   'set.exe': 'Ollama executable', 'set.exePh': 'Auto-detect if empty', 'set.browse': 'Browse',
   'set.models': 'Model path (OLLAMA_MODELS default)', 'set.update': 'Update',
   'set.ver': 'Current version {v}', 'set.check': 'Check for updates', 'set.checking': 'Checking…',

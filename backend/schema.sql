@@ -14,7 +14,5 @@ INSERT OR IGNORE INTO settings (key, value) VALUES
     ('external_monitoring_enabled','true'),
     ('external_monitoring_port',   '9100'),
     ('refresh_interval_seconds',   '3'),
-    ('restore_instances_on_start', 'true'),
-    ('stop_instances_on_quit',     'false'),
     ('ollama_executable_path',     'null'),
     ('default_models_path',        'null');       -- OLLAMA_MODELS 기본값

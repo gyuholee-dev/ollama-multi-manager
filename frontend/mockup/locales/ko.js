@@ -52,7 +52,6 @@
   'theme.system': '시스템', 'theme.light': '라이트', 'theme.dark': '다크',
   'set.monitor': '모니터', 'set.ext': '외부 모니터링', 'set.extPort': '외부 모니터링 포트',
   'set.interval': '상태 갱신 주기', 'sec.n': '{n}초',
-  'set.restore': '앱 시작 시 인스턴스 실행', 'set.stopQuit': '앱 종료 시 인스턴스 종료',
   'set.exe': '올라마 실행 파일', 'set.exePh': '비워두면 자동 탐색', 'set.browse': '찾아보기',
   'set.models': '모델 경로 (OLLAMA_MODELS 기본값)', 'set.update': '업데이트',
   'set.ver': '현재 버전 {v}', 'set.check': '업데이트 확인', 'set.checking': '확인 중…',
