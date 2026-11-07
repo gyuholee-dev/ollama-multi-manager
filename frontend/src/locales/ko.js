@@ -69,7 +69,8 @@
   'mdl.download': '다운로드', 'mdl.dlPh': '다운로드할 모델 (예: qwen3:8b-q4_K_M)',
   'mdl.dup.title': '이미 설치된 모델', 'mdl.dup.msg': '{n} 모델은 이미 설치되어 있습니다.',
   'mdl.empty.title': '모델 이름 필요', 'mdl.empty.msg': '다운로드할 모델 이름을 입력하세요.',
-  'mdl.progress': '{n} 다운로드 중… {p}%', 'mdl.done.title': '다운로드 완료', 'mdl.done.msg': '{n} 모델을 설치했습니다.',
+  'btn.pause': '중지', 'btn.resume': '재개', 'mdl.paused': '중지됨', 'mdl.failed': '오류',
+  'mdl.dl.del.title': '다운로드 삭제', 'mdl.dl.del.msg': '{n} 다운로드를 중단하고 받은 파일을 지웁니다.',
   'mdl.del.title': '모델 삭제', 'mdl.del.msg': '{n} 파일을 삭제합니다.',
   'mdl.del.used': '사용 중인 인스턴스({u})에서도 쓸 수 없게 됩니다.',
 
@@ -90,6 +91,5 @@
 
   'state.stopping': '중지 중', 'state.crashed': '비정상 종료',
   'err.title': '작업에 실패했습니다', 'conn.lost': '백엔드와의 연결이 끊어졌습니다. 다시 연결하는 중…',
-  'mdl.inst': '인스턴스', 'mdl.needRunning': '모델을 관리하려면 먼저 인스턴스를 시작하세요.',
   'up.h': '시간', 'up.m': '분'
 };

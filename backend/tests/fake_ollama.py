@@ -13,6 +13,7 @@ import time
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
 LOCK = threading.Lock()
+LAYER1, LAYER2 = "sha256:" + "1" * 64, "sha256:" + "2" * 64
 MODELS = [{"name": "fake:1b", "model": "fake:1b", "size": 1_000_000, "digest": "sha256:aaa",
            "modified_at": "2026-01-01T00:00:00Z", "details": {"family": "fake", "parameter_size": "1B"}}]
 
@@ -66,8 +67,8 @@ class Handler(BaseHTTPRequestHandler):
                 return send({"error": "pull model manifest: file does not exist"})
             for step in range(1, 5):
                 time.sleep(delay)
-                send({"status": "pulling aaa", "digest": "sha256:layer1", "total": 100, "completed": step * 25})
-                send({"status": "pulling bbb", "digest": "sha256:layer2", "total": 300, "completed": step * 75})
+                send({"status": "pulling aaa", "digest": LAYER1, "total": 100, "completed": step * 25})
+                send({"status": "pulling bbb", "digest": LAYER2, "total": 300, "completed": step * 75})
             with LOCK:
                 if not any(m["name"] == name for m in MODELS):
                     MODELS.append({"name": name, "model": name, "size": 400, "digest": "sha256:" + name,

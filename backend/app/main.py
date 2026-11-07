@@ -44,7 +44,7 @@ def create_app(data_dir: Path | None = None, provider: GpuProvider | None = None
         hub = Hub()
         settings = SettingsService(db)
         manager = InstanceManager(db, hub, settings, data_dir)
-        models = ModelService(manager, hub)
+        models = ModelService(manager, hub, data_dir)
         collector = Collector(manager, provider or detect_provider(), settings, hub)
         app.state.db, app.state.hub, app.state.settings = db, hub, settings
         app.state.manager, app.state.collector, app.state.token = manager, collector, token
@@ -53,6 +53,7 @@ def create_app(data_dir: Path | None = None, provider: GpuProvider | None = None
         external = app.state.external = ExternalMonitor(settings, manager, collector)
         log.info("Backend started (data dir: %s)", data_dir)
 
+        await models.store.cleanup_orphan()
         tasks = [asyncio.create_task(collector.run()), asyncio.create_task(manager.restore()), asyncio.create_task(external.apply())]
         try:
             yield

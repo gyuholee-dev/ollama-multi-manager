@@ -32,3 +32,12 @@ CREATE TABLE IF NOT EXISTS instances (
     pid_started   REAL,
     created_at    TEXT    NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))
 );
+
+-- 끝나지 않은 모델 다운로드. 앱을 껐다 켜도 카드가 남고, 다시 받으면 Ollama가 받던 파일에서 이어받는다.
+-- digests = 받던 레이어의 다이제스트 목록(삭제할 때 남은 부분 파일을 찾는 데 쓴다).
+CREATE TABLE IF NOT EXISTS downloads (
+    model     TEXT    PRIMARY KEY,
+    completed INTEGER NOT NULL DEFAULT 0,
+    total     INTEGER NOT NULL DEFAULT 0,
+    digests   TEXT    NOT NULL DEFAULT '[]' CHECK (json_valid(digests))
+);

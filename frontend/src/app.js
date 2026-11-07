@@ -35,7 +35,7 @@ const S = {
   info: null,     // GET /info
   logs: [],       // {ts, src, m, level}
   pulls: {},      // task id -> pull task
-  modelInst: null, modelList: [],
+  modelList: [],
   connected: false,
 };
 const cfg = () => S.cfg;
@@ -403,13 +403,25 @@ const modelInfo = tag => {
   const p = tag.match(/(?:^|[-:])(\d+(?:\.\d+)?)b(?=-|$)/i), q = tag.match(/(q\d+(?:_[a-z0-9]+)*|nvfp\d+|fp\d+|bf\d+)/i);
   return t('mdl.param', { p: p ? p[1] + 'B' : '-', q: q ? q[1].toUpperCase() : '-' });
 };
-const runningInsts = () => view().filter(i => i.state === 'running');
+const dls = () => Object.values(S.pulls).filter(x => x.status !== 'success').sort((a, b) => a.started_at - b.started_at);
+
+function dlCard(d, tg) {
+  const off = d.status !== 'pulling';
+  return `<div class="card" id="dl-${d.id}" data-s="${d.status}" style="margin-top:8px;padding:14px"><div class="top" style="margin:0 0 4px"><b class="tag">${esc(tg)}</b><span class="sub" data-t>${dlText(d)}</span></div>
+  <div class="dl${off ? ' off' : ''}"><i style="width:${d.percent ?? 0}%"></i></div><div class="btns" style="margin-top:6px;justify-content:space-between"><button class="small" onclick="${off ? 'resumeDl' : 'pauseDl'}('${d.id}')">${t(off ? 'btn.resume' : 'btn.pause')}</button><button class="small" onclick="delDl('${d.id}')">${t('btn.delete')}</button></div></div>`;
+}
+const dlText = d => {
+  const pct = `${Math.floor(d.percent ?? 0)}%`, size = d.total ? ` · ${gb(d.completed).toFixed(1)} / ${gb(d.total).toFixed(1)} GB` : '';
+  return d.status === 'paused' ? `${t('mdl.paused')} · ${pct}${size}` : d.status === 'error' ? `${t('mdl.failed')} · ${pct}${size}` : pct + size;
+};
 
 function modelGroups() {
   const g = {};
-  S.modelList.forEach(m => (g[m.name.split(':')[0]] ??= []).push(m));
-  const c = Object.entries(g).map(([f, a]) => `<div class="cat"><b>${esc(f)}</b>${a.map(m => {
-    const tg = m.name.slice(f.length + 1);
+  dls().forEach(d => (g[d.model.split(':')[0]] ??= []).push({ d, tg: d.model.slice(d.model.split(':')[0].length + 1) }));
+  S.modelList.forEach(m => (g[m.name.split(':')[0]] ??= []).push({ m }));
+  const c = Object.entries(g).map(([f, a]) => `<div class="cat"><b>${esc(f)}</b>${a.map(({ m, d, tg }) => {
+    if (d) return dlCard(d, tg);
+    tg = m.name.slice(f.length + 1);
     return `<div class="card" style="margin-top:8px;padding:14px"><div class="top" style="margin:0 0 4px"><b class="tag">${esc(tg)}</b><span class="sub">${gb(m.size).toFixed(1)} GB</span></div>
   <div class="sub spread"><span>${modelInfo(tg)}</span></div><div class="btns" style="margin-top:6px;justify-content:space-between"><a class="btn small" href="https://ollama.com/library/${encodeURI(m.name)}" target="_blank" rel="noopener noreferrer" aria-label="${t('mdl.library')}" title="${t('mdl.library')}">${mi('open_in_new')}</a><button class="small" data-m="${esc(m.name)}" onclick="delModel(this.dataset.m)">${t('btn.delete')}</button></div></div>`;
   }).join('')}</div>`).join('');
@@ -418,21 +430,22 @@ function modelGroups() {
 const modelStats = () => t('mdl.stats', { path: S.cfg.modelsPath || '~/.ollama/models', n: S.modelList.length, gb: gb(S.modelList.reduce((a, m) => a + m.size, 0)).toFixed(1) });
 
 async function loadModels() {
-  try { S.modelList = S.modelInst != null ? await API.get(`/instances/${S.modelInst}/models`) : []; } catch (e) { S.modelList = []; await fail(e); }
+  try { S.modelList = await API.get('/models'); } catch (e) { S.modelList = []; await fail(e); }
 }
-async function openModels(keepInst = false) {
-  const r = runningInsts();
-  if (!keepInst || !r.some(i => i.id == S.modelInst)) S.modelInst = r[0]?.id ?? null;
-  await loadModels();
-  const head = `<h3>${t('hdr.models')} <button style="float:right" onclick="det.close()">${mi('close')}</button></h3>`;
-  if (!r.length) { $('det').innerHTML = head + `<div class="sub" style="margin:12px 0">${t('mdl.needRunning')}</div>`; if (!$('det').open) $('det').showModal(); return; }
-  $('det').innerHTML = head + `
- <div class="f"><div class="f row"><label>${t('mdl.inst')}</label></div><span class="sel"><select id="mi" onchange="S.modelInst=+this.value;openModels(true)">${opt(r.map(i => [i.id, esc(i.name)]), S.modelInst)}</select>${caret}</span></div>
- <div class="f"><div class="f row"><label>${t('mdl.download')}</label></div><div class="pr"><input id="pn" placeholder="${t('mdl.dlPh')}"><button onclick="pull()">${t('mdl.download')}</button></div></div>
+// Builds the whole window from S.modelList and S.pulls; the typed model name and the scroll position survive a rebuild.
+function renderModels() {
+  const keep = $('pn')?.value ?? '', top = $('det').scrollTop;
+  $('det').innerHTML = `<h3 id="mdl">${t('hdr.models')} <button style="float:right" onclick="det.close()">${mi('close')}</button></h3>
+ <div class="f"><div class="f row"><label>${t('mdl.download')}</label></div><div class="pr"><input id="pn" spellcheck="false" placeholder="${t('mdl.dlPh')}"><button onclick="pull()">${t('mdl.download')}</button></div></div>
  <div class="sub" id="pg" style="min-height:16px">${modelStats()}</div>
  ${modelGroups()}`;
+  $('pn').value = keep;
   if (!$('det').open) $('det').showModal();
-  showPullProgress();
+  $('det').scrollTop = top;
+}
+async function openModels() {
+  await loadModels();
+  renderModels();
 }
 
 async function pull() {
@@ -440,33 +453,40 @@ async function pull() {
   if (n && !n.includes(':')) n += ':latest';
   if (!n || S.modelList.some(m => m.name === n)) { notify('warn', t(n ? 'mdl.dup.title' : 'mdl.empty.title'), t(n ? 'mdl.dup.msg' : 'mdl.empty.msg', { n })); return; }
   try {
-    const task = await API.post(`/instances/${S.modelInst}/models/pull`, { model: n });
+    const task = await API.post('/models/pull', { model: n });
     S.pulls[task.id] = task;
-    showPullProgress();
+    $('pn').value = '';
+    renderModels();
   } catch (e) { await fail(e); }
 }
-function showPullProgress() {
-  const pg = $('pg');
-  if (!pg) return;
-  const t0 = Object.values(S.pulls).find(x => x.instance == S.modelInst && x.status === 'pulling');
-  pg.textContent = t0 ? t('mdl.progress', { n: t0.model, p: t0.percent ?? 0 }) : modelStats();
+const dlAct = async (id, act) => {
+  try { S.pulls[id] = await API.post(`/pulls/${id}/${act}`); renderModels(); } catch (e) { await fail(e); }
+};
+const pauseDl = id => dlAct(id, 'pause');
+const resumeDl = id => dlAct(id, 'resume');
+async function delDl(id) {
+  const d = S.pulls[id];
+  if (!d || !await ask(t('mdl.dl.del.title'), t('mdl.dl.del.msg', { n: d.model }), t('btn.delete'), true)) return;
+  try { await API.del(`/pulls/${id}`); delete S.pulls[id]; log(`Deleted download ${d.model}`); } catch (e) { await fail(e); }
+  renderModels();
 }
+// Pushed by the backend: progress ticks update the bar in place; a change of state rebuilds the window.
 async function onPull(task) {
   const prev = S.pulls[task.id];
   S.pulls[task.id] = task;
-  showPullProgress();
-  if (prev?.status === 'pulling' && task.status !== 'pulling') {
-    if (task.status === 'success') {
-      log(`Pulled model ${task.model}`);
-      if ($('pg') && S.modelInst == task.instance) await openModels(true);
-      notify('info', t('mdl.done.title'), t('mdl.done.msg', { n: task.model }));
-    } else if (task.status === 'error') notify('error', t('err.title'), `${task.model}: ${task.error}`);
-  }
+  if (task.status === 'error' && prev?.status === 'pulling') notify('error', t('err.title'), `${task.model}: ${task.error}`);
+  if (task.status === 'success' && prev?.status === 'pulling') log(`Pulled model ${task.model}`);
+  if (!$('mdl')) return;  // another window is showing
+  if (task.status === 'success') { await loadModels(); renderModels(); return; }
+  const card = $(`dl-${task.id}`);
+  if (!card || card.dataset.s !== task.status) { renderModels(); return; }
+  card.querySelector('.dl i').style.width = `${task.percent ?? 0}%`;
+  card.querySelector('[data-t]').textContent = dlText(task);
 }
 async function delModel(n) {
   if (!await ask(t('mdl.del.title'), t('mdl.del.msg', { n }), t('btn.delete'), true)) return;
-  try { await API.del(`/instances/${S.modelInst}/models/${encodeURI(n)}`); log(`Deleted model ${n}`); } catch (e) { await fail(e); }
-  await openModels(true);
+  try { await API.del(`/models/${encodeURI(n)}`); log(`Deleted model ${n}`); } catch (e) { await fail(e); }
+  await openModels();
 }
 
 // ---------------------------------------------------------------- header, static text, theme
@@ -542,6 +562,7 @@ function onMessage(m) {
     case 'instance': loadInstancesSoon(); break;
     case 'log': fromBackendLog(m); break;
     case 'pull': onPull(m.task); break;
+    case 'pull_removed': delete S.pulls[m.id]; if ($('mdl')) renderModels(); break;
   }
 }
 

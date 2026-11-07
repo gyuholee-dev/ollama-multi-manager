@@ -69,7 +69,8 @@
   'mdl.download': 'Download', 'mdl.dlPh': 'Model to download (e.g. qwen3:8b-q4_K_M)',
   'mdl.dup.title': 'Already installed', 'mdl.dup.msg': '{n} is already installed.',
   'mdl.empty.title': 'Model name required', 'mdl.empty.msg': 'Enter the name of the model to download.',
-  'mdl.progress': 'Downloading {n}… {p}%', 'mdl.done.title': 'Download complete', 'mdl.done.msg': '{n} has been installed.',
+  'btn.pause': 'Pause', 'btn.resume': 'Resume', 'mdl.paused': 'Paused', 'mdl.failed': 'Failed',
+  'mdl.dl.del.title': 'Delete download', 'mdl.dl.del.msg': 'The download of {n} will be stopped and the files received so far deleted.',
   'mdl.del.title': 'Delete model', 'mdl.del.msg': 'The file for {n} will be deleted.',
   'mdl.del.used': 'It will also become unavailable to the instances using it ({u}).',
 
@@ -90,6 +91,5 @@
 
   'state.stopping': 'Stopping', 'state.crashed': 'Stopped unexpectedly',
   'err.title': 'Operation failed', 'conn.lost': 'Lost connection to the backend. Reconnecting…',
-  'mdl.inst': 'Instance', 'mdl.needRunning': 'Start an instance to manage models.',
   'up.h': ' h', 'up.m': ' min'
 };

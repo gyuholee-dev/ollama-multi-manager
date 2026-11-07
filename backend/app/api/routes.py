@@ -120,22 +120,22 @@ async def restart_instance(iid: int, request: Request) -> dict[str, Any]:
 
 # ---- models
 
-@api.get("/instances/{iid}/models")
-async def list_models(iid: int, request: Request) -> list[dict[str, Any]]:
-    return await request.app.state.models.list(iid)
+@api.get("/models")
+async def list_models(request: Request) -> list[dict[str, Any]]:
+    return await request.app.state.models.list()
 
 
-@api.post("/instances/{iid}/models/pull", status_code=202)
-async def pull_model(iid: int, body: PullRequest, request: Request, response: Response) -> dict[str, Any]:
-    task, created = request.app.state.models.start_pull(iid, body.model)
+@api.post("/models/pull", status_code=202)
+async def pull_model(body: PullRequest, request: Request, response: Response) -> dict[str, Any]:
+    task, created = await request.app.state.models.start_pull(body.model)
     if not created:
         response.status_code = 200  # the same pull is already running; return it instead of starting another
     return task.to_dict()
 
 
-@api.delete("/instances/{iid}/models/{name:path}", status_code=204)
-async def delete_model(iid: int, name: str, request: Request) -> None:
-    await request.app.state.models.delete(iid, name)
+@api.delete("/models/{name:path}", status_code=204)
+async def delete_model(name: str, request: Request) -> None:
+    await request.app.state.models.delete(name)
 
 
 @api.get("/pulls")
@@ -143,9 +143,20 @@ async def list_pulls(request: Request) -> list[dict[str, Any]]:
     return request.app.state.models.list_tasks()
 
 
+@api.post("/pulls/{task_id}/pause")
+async def pause_pull(task_id: str, request: Request) -> dict[str, Any]:
+    return (await request.app.state.models.pause(task_id)).to_dict()
+
+
+@api.post("/pulls/{task_id}/resume")
+async def resume_pull(task_id: str, request: Request) -> dict[str, Any]:
+    return (await request.app.state.models.resume(task_id)).to_dict()
+
+
 @api.delete("/pulls/{task_id}", status_code=204)
-async def cancel_pull(task_id: str, request: Request) -> None:
-    await request.app.state.models.cancel(task_id)
+async def remove_pull(task_id: str, request: Request) -> None:
+    """Stops the download and deletes the partly downloaded files."""
+    await request.app.state.models.remove(task_id)
 
 
 @api.get("/logs")
