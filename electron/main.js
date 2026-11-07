@@ -8,11 +8,18 @@
 
 const fs = require('node:fs');
 const path = require('node:path');
-const { app, BrowserWindow, dialog, ipcMain, nativeTheme, screen, shell } = require('electron');
+const { app, BrowserWindow, Menu, dialog, ipcMain, nativeTheme, screen, shell } = require('electron');
 const { Backend } = require('./backend-launcher');
 const { AppTray } = require('./tray');
 
 const log = (...a) => console.log(new Date().toISOString(), '[shell]', ...a);
+
+// Developer mode: OMM_DEV=1 (or true/yes/on). Works for `yarn start` and for a packaged app alike.
+const DEV = /^(1|true|yes|on)$/i.test(process.env.OMM_DEV || '');
+const MENU_LABEL = {
+  ko: { reload: '새로고침', freeze: '화면 갱신 중지', resume: '화면 갱신 재개', inspect: '검사' },
+  en: { reload: 'Reload', freeze: 'Pause updates', resume: 'Resume updates', inspect: 'Inspect' },
+};
 
 if (!app.requestSingleInstanceLock()) {
   app.quit();
@@ -73,13 +80,25 @@ if (!app.requestSingleInstanceLock()) {
     });
     if (st.maximized) win.maximize();
     win.once('ready-to-show', () => win.show());
-    win.loadURL(`${backend.url}/#token=${backend.token}`);
+    win.loadURL(`${backend.url}/${DEV ? '?dev=1' : ''}#token=${backend.token}`);
 
     // The page may only ever be the backend's own UI; everything else opens in the system browser.
     const isOwn = u => { try { return new URL(u).origin === backend.url; } catch { return false; } };
     const external = u => { if (/^https?:\/\//i.test(u)) shell.openExternal(u); };
     win.webContents.on('will-navigate', (e, u) => { if (!isOwn(u)) { e.preventDefault(); external(u); } });
     win.webContents.setWindowOpenHandler(({ url }) => { external(url); return { action: 'deny' }; });
+
+    if (DEV) {
+      win.webContents.on('context-menu', async (_e, p) => {
+        const l = MENU_LABEL[String(settings.language || app.getLocale()).slice(0, 2)] || MENU_LABEL.en;
+        const frozen = await win.webContents.executeJavaScript('S.frozen === true').catch(() => false);
+        Menu.buildFromTemplate([
+          { label: l.reload, click: () => win.webContents.reload() },
+          { label: frozen ? l.resume : l.freeze, click: () => win.webContents.executeJavaScript(`setFrozen(${!frozen})`) },
+          { label: l.inspect, click: () => win.webContents.inspectElement(p.x, p.y) },
+        ]).popup({ window: win });
+      });
+    }
 
     win.on('resize', saveState);
     win.on('move', saveState);
@@ -129,6 +148,7 @@ if (!app.requestSingleInstanceLock()) {
       return;
     }
     log(`Backend ready on ${backend.url}`);
+    if (DEV) log('Developer mode is on (OMM_DEV)');
     await refreshSettings();
     createWindow();
   });
