@@ -30,7 +30,7 @@ export function ModelPicker({ value, onChange }: { value: string[]; onChange: (m
               const id = `pick-${m.name}`;
               return (
                 <div className="f row" key={m.name}>
-                  <label htmlFor={id}>{splitModel(m.name).tag} · {gb(m.size).toFixed(1)} GB</label>
+                  <label htmlFor={id}>{m.name} · {gb(m.size).toFixed(1)} GB</label>
                   <input id={id} className="sw" type="checkbox" role="switch" checked={picked.has(normModel(m.name))} onChange={(e) => toggle(m.name, e.target.checked)} />
                 </div>
               );
