@@ -1,0 +1,33 @@
+// chart (monitor window)
+
+.chart {
+  margin-top: 12px;
+
+  &:first-of-type {
+    margin-top: 0;
+  }
+
+  .chh {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    gap: 8px;
+
+    b {
+      font-weight: 500;
+      font-size: .875rem;
+    }
+  }
+
+  .gl {
+    stroke: var(--line);
+    stroke-width: 1;
+  }
+
+  .chf {
+    display: flex;
+    justify-content: space-between;
+    margin-top: 2px;
+    font-size: .75rem;
+  }
+}

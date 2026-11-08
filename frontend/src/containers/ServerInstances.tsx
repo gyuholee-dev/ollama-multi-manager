@@ -37,7 +37,9 @@ function Buttons({ i }: { i: InstanceView }) {
   const guest = useIsGuest();
   const open = useDialogStore((s) => s.open);
   const details = () => open({ kind: 'details', id: i.id });
-  if (guest) return <div className="btns"><button className="small" onClick={details}>{t('btn.details')}</button></div>;
+  const monitor = () => open({ kind: 'monitor', id: i.id });
+  const monitorButton = <button className="small" disabled={i.state !== 'running'} onClick={monitor}>{t('btn.monitor')}</button>;
+  if (guest) return <div className="btns">{monitorButton}<button className="small" onClick={details}>{t('btn.details')}</button></div>;
   const idle = i.state === 'stopped' || i.state === 'crashed';
   const busy = i.state === 'starting' || i.state === 'stopping';
   return (
@@ -45,6 +47,7 @@ function Buttons({ i }: { i: InstanceView }) {
       {idle
         ? <button className="small" onClick={() => void changeState(i.id, 'running')}>{t('btn.start')}</button>
         : <button className="small" disabled={busy} onClick={() => void changeState(i.id, 'stopped')}>{t('btn.stop')}</button>}
+      {monitorButton}
       <button className="small" disabled={busy} onClick={details}>{t('btn.details')}</button>
       <button className="small del" disabled={!idle} title={idle ? undefined : t('del.disabled')} onClick={() => void removeInstance(i.id)}>{t('btn.delete')}</button>
     </div>

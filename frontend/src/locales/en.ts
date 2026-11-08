@@ -30,6 +30,7 @@ const en: Messages = {
   'new.title': 'New instance', 'new.server': 'Server', 'new.general': 'General', 'new.advanced': 'Advanced',
   'new.generalT': 'Expand/collapse General', 'new.advancedT': 'Expand/collapse Advanced',
   'new.modelsHint': 'Select at least one model for this instance to use. Requests for models you did not select are rejected.', 'v.models.t': 'Choose models', 'v.models.m': 'Pick at least one model to serve.',
+  'btn.monitor': 'Monitor', 'im.title': '{n} monitor', 'im.now': 'Now', 'im.ttft': 'First token', 'im.window': 'Last {m} min', 'im.hour': 'Last hour', 'im.total': 'Requests', 'im.tokens': 'Tokens (in/out)', 'im.reqs': 'Requests per minute', 'im.speed': 'Token speed per minute', 'im.latency': 'Average response per minute', 'im.live': 'Live resources', 'im.collecting': 'Collecting data. The graphs appear in a moment.', 'im.span': '{m} min ago', 'im.nowEdge': 'now', 'im.hourAgo': '60 min ago', 'im.conc': 'Concurrent requests (running + queued)', 'im.keepNote': 'Values from before the window was opened are collected since the app started (the last {n} readings).',
   'new.models': 'Served models', 'new.toggle': 'Expand/collapse {n}', 'new.noModels': 'No models downloaded',
 
   'log.all': 'All', 'log.app': 'App',

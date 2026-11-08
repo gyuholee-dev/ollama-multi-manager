@@ -4,6 +4,7 @@ import type { Info, Instance, LogEvent, PullTask, Settings, Snapshot, SocketMess
 import { t } from '@/locales/useT';
 import { useInstancesStore } from '@/stores/instancesStore';
 import { useLogStore, type LogLine } from '@/stores/logStore';
+import { useHistoryStore } from '@/stores/historyStore';
 import { useModelStore } from '@/stores/modelStore';
 import { useMonitorStore } from '@/stores/monitorStore';
 import { usePullStore } from '@/stores/pullStore';
@@ -79,5 +80,7 @@ async function onStatus(up: boolean): Promise<void> {
 export function startApp(): () => void {
   initClient();
   window.__omm = { isFrozen, setFrozen };
-  return connectSocket(onMessage, (up) => { void onStatus(up); });
+  const stopHistory = useMonitorStore.subscribe((state, prev) => { if (state.snap && state.snap !== prev.snap) useHistoryStore.getState().push(state.snap); });
+  const stopSocket = connectSocket(onMessage, (up) => { void onStatus(up); });
+  return () => { stopSocket(); stopHistory(); };
 }
