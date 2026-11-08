@@ -9,6 +9,9 @@ Port = Annotated[int, Field(ge=1024, le=65535)]
 Name = Annotated[str, Field(min_length=1, max_length=40, pattern=r"^\S(.*\S)?$")]
 
 
+ModelNames = Annotated[list[Annotated[str, Field(min_length=1, max_length=200)]], Field(max_length=500)]
+
+
 class InstanceOptions(BaseModel):
     """Per-instance Ollama settings; each field maps to an environment variable (see build_env)."""
 
@@ -26,6 +29,7 @@ class InstanceOptions(BaseModel):
     auto_start: bool = False  # start the instance when a request arrives while it is stopped
     idle_stop_min: Annotated[int, Field(ge=0, le=1440)] = 0  # with auto_start: stop after this many idle minutes (0 = never)
     api_key: Annotated[str, Field(min_length=8, max_length=128, pattern=r"^\S+$")] | None = None  # clients must send it as a Bearer token
+    allowed_models: ModelNames = []  # the models this instance serves; empty = every installed model (enforced by the proxy)
 
 
 class InstanceCreate(BaseModel):
@@ -34,6 +38,12 @@ class InstanceCreate(BaseModel):
     name: Name
     port: Port
     options: InstanceOptions = InstanceOptions()
+
+
+class AllowedModels(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    models: ModelNames
 
 
 class InstanceUpdate(BaseModel):

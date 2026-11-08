@@ -44,3 +44,9 @@ export const splitModel = (name: string): { family: string; tag: string } => {
 /** "Automatic", "CPU" or "GPU 1 · NVIDIA ...": how an instance's device setting is shown. */
 export const gpuLabel = (gpu: 'auto' | 'cpu' | number, devices: { name: string }[], t: Translate): string =>
   gpu === 'auto' ? t('gpu.auto') : gpu === 'cpu' ? 'CPU' : t('gpu.n', { g: gpu, name: devices[gpu]?.name ?? '?' });
+
+/** Ollama treats "llama3" and "llama3:latest" as the same model. */
+export const normModel = (name: string): string => {
+  const n = name.trim();
+  return (n.split('/').pop() ?? n).includes(':') ? n : `${n}:latest`;
+};

@@ -18,6 +18,7 @@ import logging
 import time
 from collections import deque
 from dataclasses import dataclass
+from collections.abc import Iterable
 from typing import Any, AsyncIterator, Awaitable, Callable
 
 import anyio
@@ -133,6 +134,17 @@ def model_of(body: bytes) -> str:
     return m if isinstance(m, str) else ""
 
 
+def norm_model(name: str) -> str:
+    """Ollama treats "llama3" and "llama3:latest" as the same model."""
+    name = name.strip()
+    return name if ":" in name.rsplit("/", 1)[-1] else f"{name}:latest"
+
+
+# Requests that change what is installed; an instance limited to chosen models leaves them to the app's model window.
+MODEL_CHANGING = frozenset({"/api/pull", "/api/push", "/api/create", "/api/copy", "/api/delete"})
+LIST_PATHS = ("/api/tags", "/v1/models")
+
+
 class PerfStats:
     def __init__(self, parallel: int):
         self.parallel = max(1, parallel)
@@ -232,7 +244,43 @@ class InstanceProxy:
         self._server: uvicorn.Server | None = None
         self._task: asyncio.Task | None = None
         self._closing: asyncio.Task | None = None
+        self.allowed: frozenset[str] = frozenset()  # models this instance serves (normalized); empty = all
         self.draining = False  # stopping: new inference requests are refused while the running ones finish
+
+    def set_allowed(self, models: Iterable[str]) -> None:
+        self.allowed = frozenset(norm_model(m) for m in models if m.strip())
+
+    def _not_allowed(self, name: str) -> bool:
+        return bool(name) and norm_model(name) not in self.allowed
+
+    async def _deny(self, request: Request, path: str) -> Response | None:
+        """With a model limit set: refuse what the instance must not do, before it is even woken up."""
+        if path in MODEL_CHANGING and request.method in ("POST", "DELETE"):
+            return JSONResponse({"error": "This instance serves selected models only; manage models in the app"}, status_code=403)
+        if request.method == "POST" and (path in INFERENCE_PATHS or path == "/api/show"):
+            body = await request.body()
+            try:
+                name = json.loads(body).get("model") or json.loads(body).get("name") or ""
+            except (ValueError, AttributeError):
+                name = ""
+            if isinstance(name, str) and self._not_allowed(name):
+                return JSONResponse({"error": f"model '{name}' not found"}, status_code=404)
+        if request.method == "GET" and path.startswith("/v1/models/") and self._not_allowed(path[len("/v1/models/"):]):
+            return JSONResponse({"error": {"message": "model not found", "type": "invalid_request_error"}}, status_code=404)
+        return None
+
+    async def _filtered_list(self, request: Request, path: str, headers: dict[str, str]) -> Response:
+        """The model lists show only the models this instance serves."""
+        url = f"http://127.0.0.1:{self.upstream_port}{path}" + (f"?{request.url.query}" if request.url.query else "")
+        try:
+            r = await self._client.get(url, headers=headers)
+            data = r.json()
+        except (httpx.HTTPError, ValueError) as e:
+            return JSONResponse({"error": f"Could not reach Ollama: {e.__class__.__name__}"}, status_code=502)
+        if r.status_code < 400 and isinstance(data, dict):
+            key, field = ("models", "name") if path == "/api/tags" else ("data", "id")
+            data[key] = [m for m in data.get(key, []) if isinstance(m, dict) and norm_model(str(m.get(field, ""))) in self.allowed]
+        return JSONResponse(data, status_code=r.status_code)
 
     # ---- relaying
 
@@ -251,6 +299,10 @@ class InstanceProxy:
         if not self._authorized(request):
             return JSONResponse({"error": "Missing or invalid API key"}, status_code=401, headers={"WWW-Authenticate": "Bearer"})
         path = request.url.path
+        if self.allowed:
+            denied = await self._deny(request, path)
+            if denied is not None:
+                return denied
         self.last_activity = time.monotonic()
         if not self.ready:  # stopped (standby) or still starting: start it if allowed and wait until it answers
             if self.ensure is None or not await self.ensure():
@@ -259,6 +311,8 @@ class InstanceProxy:
         started = time.monotonic()
         url = f"http://127.0.0.1:{self.upstream_port}" + path + (f"?{request.url.query}" if request.url.query else "")
         headers = {k: v for k, v in request.headers.items() if k.lower() not in HOP_BY_HOP and not (self.api_key and k.lower() == "authorization")}
+        if self.allowed and request.method == "GET" and path in LIST_PATHS:
+            return await self._filtered_list(request, path, headers)
         model = ""
         if measured and self.draining:
             return JSONResponse({"error": "The instance is stopping"}, status_code=503, headers={"Retry-After": "5"})

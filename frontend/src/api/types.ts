@@ -15,6 +15,7 @@ export interface InstanceOptions {
   auto_start: boolean;
   idle_stop_min: number;
   api_key: string | null; // a guest only ever sees "********"
+  allowed_models?: string[]; // the models the instance serves; empty or missing = every installed model
 }
 
 export interface InstanceStatus {

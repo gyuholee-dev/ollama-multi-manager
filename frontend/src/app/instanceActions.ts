@@ -50,3 +50,10 @@ export async function removeInstance(id: number): Promise<void> {
   try { await api.del(`/instances/${id}`); } catch (e) { await fail(e); }
   await reloadInstances();
 }
+
+/** Limits an instance to the chosen models (an empty list = every installed model). Takes effect at once. */
+export async function saveAllowedModels(id: number, models: string[]): Promise<void> {
+  if (isGuest()) return;
+  try { await api.put(`/instances/${id}/allowed-models`, { models }); } catch (e) { await fail(e); }
+  await reloadInstances();
+}

@@ -9,7 +9,7 @@ from typing import Any
 from fastapi import APIRouter, Depends, HTTPException, Request, Response, WebSocket, WebSocketDisconnect
 from fastapi.responses import PlainTextResponse
 
-from app.schemas import InstanceCreate, InstanceUpdate, PullRequest, SettingsPatch, StopRequest
+from app.schemas import AllowedModels, InstanceCreate, InstanceUpdate, PullRequest, SettingsPatch, StopRequest
 from app.services.external import lan_ip
 from app.services.monitor import prometheus
 from app.services.settings import SettingsError
@@ -138,6 +138,12 @@ async def delete_instance(iid: int, request: Request) -> None:
 async def instance_models(iid: int, request: Request) -> list[dict[str, Any]]:
     """Read-only: what this running instance can serve. Managing models is done on /models."""
     return await request.app.state.manager.models(iid)
+
+
+@api.put("/instances/{iid}/allowed-models")
+async def set_allowed_models(iid: int, body: AllowedModels, request: Request) -> dict[str, Any]:
+    """Limits the instance to the given models (empty = every installed model). Works while it runs."""
+    return request.app.state.manager.set_allowed_models(iid, body.models)
 
 
 @api.get("/instances/{iid}/requests")

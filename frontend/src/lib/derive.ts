@@ -24,6 +24,7 @@ export interface InstanceView {
   kvq: string;
   listen: 'local' | 'lan';
   key: string | null;
+  allowed: string[];
   auto: boolean;
   idle: number;
   loaded: LoadedView[];
@@ -41,7 +42,7 @@ export function buildViews(raw: Instance[], snap: Snapshot | null): InstanceView
     return {
       id: i.id, name: i.name, port: i.port, state, pid: i.status.pid, startedAt: (i.status.started_at ?? 0) * 1000,
       ctx: o.context_length, keep: o.keep_alive_min, maxLoaded: o.max_loaded_models, parallel: o.num_parallel,
-      gpu: o.gpu, flash: o.flash_attention, kvq: o.kv_cache_type, listen: o.listen, key: o.api_key, auto: o.auto_start, idle: o.idle_stop_min,
+      gpu: o.gpu, flash: o.flash_attention, kvq: o.kv_cache_type, listen: o.listen, key: o.api_key, allowed: o.allowed_models ?? [], auto: o.auto_start, idle: o.idle_stop_min,
       loaded: (m?.models ?? []).map(toLoaded),
       metrics: m,
     };

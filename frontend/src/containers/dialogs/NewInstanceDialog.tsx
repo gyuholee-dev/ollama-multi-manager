@@ -1,11 +1,15 @@
-import { useEffect, useState, type CSSProperties, type FormEvent, type ReactNode } from 'react';
+import { useEffect, useState, type CSSProperties, type FormEvent } from 'react';
 import { api } from '@/api/client';
 import type { InstanceCreate } from '@/api/types';
 import { reloadInstances } from '@/app/instanceActions';
 import { fail, notify, popup } from '@/app/dialogs';
 import { useDevices, useExternal } from '@/app/hooks';
 import { Dialog, DialogTitle } from '@/components/common/Dialog';
-import { fmtCtx, fmtKeep, fmtN, gpuLabel, KEEP } from '@/lib/format';
+import { Fold } from '@/components/common/Fold';
+import { ModelPicker } from '@/components/common/ModelPicker';
+import { fmtCtx, fmtKeep, fmtN, gpuLabel, KEEP, normModel } from '@/lib/format';
+import { gb } from '@/lib/units';
+import { useModelStore } from '@/stores/modelStore';
 import { useT } from '@/locales/useT';
 import { useDialogStore } from '@/stores/dialogStore';
 import { useInstancesStore } from '@/stores/instancesStore';
@@ -19,20 +23,6 @@ function Slider({ label, shown, min, max, value, onChange }: { label: string; sh
       <div className="f row"><label>{label}</label><span>{shown}</span></div>
       <input className="rg" type="range" min={min} max={max} step={1} value={value} style={{ '--p': `${((value - min) / (max - min)) * 100}%` } as CSSProperties}
         onChange={(e) => onChange(+e.target.value)} />
-    </div>
-  );
-}
-
-/** A section of the form that opens and closes (closed at first). */
-function Fold({ title, hint, children }: { title: string; hint: string; children: ReactNode }) {
-  const [open, setOpen] = useState(false);
-  return (
-    <div className="cat nc">
-      <label className="ch"><b>{title}</b>
-        <input type="checkbox" className="cc" aria-label={hint} checked={open} onChange={(e) => setOpen(e.target.checked)} />
-        <span className="tog"><span className="material-icons">expand_more</span></span>
-      </label>
-      <div className="cb"><div><div className="card" style={{ marginTop: 8, padding: 14 }}>{children}</div></div></div>
     </div>
   );
 }
@@ -63,6 +53,8 @@ function Form({ port: firstPort }: { port: number }) {
   const [idle, setIdle] = useState('10');
   const [lan, setLan] = useState(false);
   const [key, setKey] = useState('');
+  const [allowed, setAllowed] = useState<string[]>([]);
+  const installed = useModelStore((s) => s.list);
 
   const submit = async (ev: FormEvent) => {
     ev.preventDefault();
@@ -79,10 +71,15 @@ function Form({ port: firstPort }: { port: number }) {
       options: {
         gpu: gpu === 'auto' || gpu === 'cpu' ? gpu : +gpu, context_length: 2048 * 2 ** (ctx - 1), keep_alive_min: KEEP[keep] ?? 5,
         max_loaded_models: maxLoaded, num_parallel: parallel, flash_attention: flash, kv_cache_type: kvq,
-        models_path: null, listen: lan ? 'lan' : 'local', api_key: key.trim() || null,
+        models_path: null, listen: lan ? 'lan' : 'local', api_key: key.trim() || null, allowed_models: allowed,
         auto_start: auto, idle_stop_min: auto ? Math.max(0, +idle || 0) : 0,
       },
     };
+    const sizes = installed.filter((m) => allowed.some((a) => normModel(a) === normModel(m.name))).map((m) => gb(m.size)).sort((x, y) => y - x);
+    const need = sizes.slice(0, maxLoaded).reduce((a, x) => a + x, 0); // the biggest models that can sit in memory together
+    const device = gpu === 'cpu' ? undefined : devices[gpu === 'auto' ? 0 : +gpu];
+    if (device && need > gb(device.mem_total)
+      && !(await popup({ kind: 'warn', title: t('w.fit.t'), msg: t('w.fit.m', { need: need.toFixed(1), cap: gb(device.mem_total).toFixed(1) }), ok: t('btn.create'), cancel: t('btn.cancel') }))) return;
     if (body.options.listen === 'lan' && !body.options.api_key
       && !(await popup({ kind: 'warn', title: t('w.lan.t'), msg: t('w.lan.m'), ok: t('btn.open'), cancel: t('btn.cancel') }))) return;
     try {
@@ -122,6 +119,10 @@ function Form({ port: firstPort }: { port: number }) {
               <span className="pr"><input id="ak" autoComplete="off" spellCheck={false} placeholder={t('f.keyPh')} value={key} onChange={(e) => setKey(e.target.value)} />
                 <button type="button" onClick={() => setKey(randomKey())}>{t('btn.genKey')}</button></span></div>
           </Fold>
+        </div>
+        <div className="box"><b>{t('new.models')}</b>
+          <div className="sub">{t('new.modelsHint')}</div>
+          <ModelPicker value={allowed} onChange={setAllowed} />
         </div>
         <div className="btns" style={{ justifyContent: 'flex-end', marginTop: 4 }}>
           <button type="button" onClick={close}>{t('btn.cancel')}</button>

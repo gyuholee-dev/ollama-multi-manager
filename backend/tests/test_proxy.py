@@ -434,3 +434,65 @@ async def test_a_client_that_leaves_right_after_the_last_byte_still_counts(env, 
     await wait_for(lambda: perf(env, inst)["requests"] == 2 and perf(env, inst)["inflight"] == 0)
     p = perf(env, inst)
     assert p["cancelled"] == 0 and p["tokens"] == 12 and p["prompt_tokens"] == 6
+
+
+# ---- instances limited to chosen models
+
+async def allow(env, inst, models):
+    r = await env.client.put(f"/instances/{inst['id']}/allowed-models", json={"models": models})
+    assert r.status_code == 200, r.text
+    return r.json()
+
+
+async def test_a_model_limit_refuses_other_models_and_accepts_the_chosen_ones(env):
+    inst = await start(env)
+    port = inst["port"]
+    assert (await gen(port, model="anything", stream=False)).status_code == 200  # no limit: every model goes through
+    saved = await allow(env, inst, ["fake:1b"])
+    assert saved["options"]["allowed_models"] == ["fake:1b"]
+    assert (await gen(port, model="fake:1b", stream=False)).status_code == 200
+    assert (await gen(port, model="fake", stream=False)).status_code == 404  # "fake" means "fake:latest", another model than "fake:1b"
+    r = await gen(port, model="other:7b", stream=False)
+    assert r.status_code == 404 and "other:7b" in r.json()["error"]
+    assert (await gen(port, model="other:7b", path="/api/chat")).status_code == 404
+    assert (await gen(port, model="other:7b", path="/v1/chat/completions", stream=False)).status_code == 404
+    await allow(env, inst, ["other"])  # a name without a tag means ":latest"
+    assert (await gen(port, model="other:latest", stream=False)).status_code == 200
+    assert (await gen(port, model="other", stream=False)).status_code == 200
+    await allow(env, inst, [])  # back to every model
+    assert (await gen(port, model="other:7b", stream=False)).status_code == 200
+
+
+async def test_a_limited_instance_lists_only_its_models_and_leaves_model_changes_to_the_app(env):
+    inst = await start(env)
+    port = inst["port"]
+    async with httpx.AsyncClient() as c:
+        await allow(env, inst, ["fake:1b"])
+        assert [m["name"] for m in (await c.get(f"http://127.0.0.1:{port}/api/tags")).json()["models"]] == ["fake:1b"]
+        await allow(env, inst, ["not-installed:1b"])
+        assert (await c.get(f"http://127.0.0.1:{port}/api/tags")).json()["models"] == []
+        assert (await c.post(f"http://127.0.0.1:{port}/api/pull", json={"model": "x:1b"})).status_code == 403
+        assert (await c.request("DELETE", f"http://127.0.0.1:{port}/api/delete", json={"model": "fake:1b"})).status_code == 403
+        assert (await c.post(f"http://127.0.0.1:{port}/api/show", json={"model": "fake:1b"})).status_code == 404
+    assert [m["name"] for m in (await env.client.get(f"/instances/{inst['id']}/models")).json()] == []
+    await allow(env, inst, ["fake:1b"])
+    assert [m["name"] for m in (await env.client.get(f"/instances/{inst['id']}/models")).json()] == ["fake:1b"]
+
+
+async def test_a_model_limit_can_be_set_when_creating_and_survives_a_restart_of_the_instance(env):
+    inst = await start(env, allowed_models=["fake:1b"])
+    assert (await gen(inst["port"], model="other:7b", stream=False)).status_code == 404
+    await env.client.post(f"/instances/{inst['id']}/stop")
+    await wait_for(lambda: env.app.state.manager.status(inst["id"])["state"] == "stopped")
+    await env.client.post(f"/instances/{inst['id']}/start")
+    await wait_for(lambda: env.app.state.manager.status(inst["id"])["state"] == "running")
+    assert (await gen(inst["port"], model="other:7b", stream=False)).status_code == 404
+    assert (await gen(inst["port"], model="fake:1b", stream=False)).status_code == 200
+
+
+async def test_a_refused_model_does_not_wake_an_on_demand_instance(env):
+    inst = (await env.client.post("/instances", json={"name": "od", "port": free_port(), "options": {"auto_start": True, "allowed_models": ["fake:1b"]}})).json()
+    await env.app.state.manager.sync_standby(inst["id"])
+    await wait_for(lambda: inst["id"] in env.app.state.manager.proxies)
+    assert (await gen(inst["port"], model="other:7b", stream=False)).status_code == 404
+    assert env.app.state.manager.status(inst["id"])["state"] == "stopped"  # still asleep

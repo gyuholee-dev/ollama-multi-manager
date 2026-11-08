@@ -32,7 +32,7 @@ from app.config import FIRST_INSTANCE_PORT
 from app.db import Database
 from app.schemas import InstanceCreate, InstanceOptions, InstanceUpdate
 from app.services.hub import Hub
-from app.services.proxy import InstanceProxy, ProxyError
+from app.services.proxy import InstanceProxy, ProxyError, norm_model
 from app.services.request_stats import RequestStats
 from app.services.settings import SettingsService
 
@@ -290,6 +290,7 @@ class InstanceManager:
         if proxy is None:
             proxy = await self._open_proxy(iid, row, opts)
         proxy.attach(inner, opts.num_parallel)
+        proxy.set_allowed(opts.allowed_models)
 
         log_path = self.log_dir / f"instance-{iid}.log"
         if log_path.exists() and log_path.stat().st_size > LOG_FILE_MAX_BYTES:
@@ -456,7 +457,22 @@ class InstanceManager:
             r.raise_for_status()
         except httpx.HTTPError as e:
             raise InstanceError("ollama_unreachable", f"Could not reach Ollama: {e}", 502) from e
-        return [{"name": m.get("name"), "size": m.get("size", 0)} for m in r.json().get("models", [])]
+        models = [{"name": m.get("name"), "size": m.get("size", 0)} for m in r.json().get("models", [])]
+        allowed = {norm_model(m) for m in (self._opts(iid) or InstanceOptions()).allowed_models}
+        return [m for m in models if not allowed or norm_model(str(m["name"])) in allowed]
+
+    def set_allowed_models(self, iid: int, models: list[str]) -> dict[str, Any]:
+        """Which models the instance serves. Applies at once, also while it runs (the proxy enforces it)."""
+        row = self._row(iid)
+        opts = json.loads(row["options"])
+        opts["allowed_models"] = list(dict.fromkeys(m.strip() for m in models if m.strip()))
+        opts = InstanceOptions(**opts)  # validates
+        self.db.execute("UPDATE instances SET options=? WHERE id=?", (opts.model_dump_json(), iid))
+        proxy = self.proxies.get(iid)
+        if proxy is not None:
+            proxy.set_allowed(opts.allowed_models)
+        self._log(iid, "info", f"{row['name']}: " + (f"serves {len(opts.allowed_models)} selected model(s)" if opts.allowed_models else "serves every installed model"))
+        return self.get(iid)
 
     # ------------------------------------------------------------- proxies, on-demand start
 
@@ -472,6 +488,7 @@ class InstanceManager:
         proxy = InstanceProxy(row["name"], port, None, opts.num_parallel, recorder=lambda rec: self.request_stats.record(iid, rec),
                               host=host, api_key=opts.api_key)
         proxy.ensure = lambda: self.ensure_running(iid)
+        proxy.set_allowed(opts.allowed_models)
         if opts.listen == "lan" and not opts.api_key:
             self._log(iid, "warn", f"{row['name']} is open to the whole network without an API key")
         try:

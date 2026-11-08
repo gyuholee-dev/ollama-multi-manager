@@ -2,14 +2,16 @@ import { useEffect, useState, type ReactNode } from 'react';
 import { api } from '@/api/client';
 import type { InstalledModel, RequestsResponse, SeriesPoint } from '@/api/types';
 import { useDevices, useViews } from '@/app/hooks';
+import { saveAllowedModels } from '@/app/instanceActions';
 import { Dialog, DialogTitle } from '@/components/common/Dialog';
+import { ModelPicker } from '@/components/common/ModelPicker';
 import { StateBadge } from '@/components/common/StateBadge';
 import type { InstanceView } from '@/lib/derive';
-import { expAt, fmtCtx, fmtKeep, fmtN, fmtUp, gpuLabel, hms } from '@/lib/format';
+import { expAt, fmtCtx, fmtKeep, fmtN, fmtUp, gpuLabel, hms, normModel } from '@/lib/format';
 import { gb } from '@/lib/units';
 import { useT } from '@/locales/useT';
 import { useDialogStore } from '@/stores/dialogStore';
-import { useMonitorStore } from '@/stores/monitorStore';
+import { useIsGuest, useMonitorStore } from '@/stores/monitorStore';
 
 const Row = ({ k, children }: { k: string; children: ReactNode }) => <div className="f row"><label>{k}</label><span>{children}</span></div>;
 
@@ -111,13 +113,19 @@ function Details({ view: i }: { view: InstanceView }) {
   const lanIp = useMonitorStore((s) => s.info?.lan_ip);
   const devices = useDevices();
   const [avail, setAvail] = useState<InstalledModel[]>([]);
+  const guest = useIsGuest();
   const running = i.state === 'running';
+  const allowedKey = i.allowed.join('|');
+  const [draft, setDraft] = useState<string[]>(i.allowed);
+  useEffect(() => { setDraft(i.allowed); }, [allowedKey]); // eslint-disable-line react-hooks/exhaustive-deps
+  const changed = new Set(draft.map(normModel)).size !== new Set(i.allowed.map(normModel)).size
+    || draft.some((d) => !i.allowed.some((a) => normModel(a) === normModel(d)));
   useEffect(() => {
     if (!running) { setAvail([]); return; }
     let alive = true;
     api.get<InstalledModel[]>(`/instances/${i.id}/models`).then((m) => { if (alive) setAvail(m); }, () => { /* shown as "none" */ });
     return () => { alive = false; };
-  }, [i.id, running]);
+  }, [i.id, running, allowedKey]);
 
   const m = i.metrics;
   const vram = m?.vram_bytes != null ? `${gb(m.vram_bytes).toFixed(1)} GB${m.vram_source === 'estimated' ? ' ~' : ''}` : '-';
@@ -142,6 +150,15 @@ function Details({ view: i }: { view: InstanceView }) {
           <div className="f row"><label>{t('d.loaded')}</label><Models empty={t('d.none')} items={i.loaded.map((x) => ({ key: x.name, text: `${x.name} · ${x.gb.toFixed(1)} GB` }))} /></div>
           <div className="f row"><label>{t('d.avail')}</label><Models empty={t('d.none')} items={avail.map((x) => ({ key: x.name, text: `${x.name} · ${gb(x.size).toFixed(1)} GB` }))} /></div>
         </div>
+        {!guest && (
+          <div className="box"><b>{t('d.allowed')}</b>
+            <div className="sub">{t('new.modelsHint')}</div>
+            <ModelPicker value={draft} onChange={setDraft} />
+            <div className="btns" style={{ justifyContent: 'flex-end', marginTop: 8 }}>
+              <button className="primary" disabled={!changed} onClick={() => void saveAllowedModels(i.id, draft)}>{t('d.allowedSave')}</button>
+            </div>
+          </div>
+        )}
         <div className="box"><b>{t('d.req')}</b><div id="rq"><Requests id={i.id} /></div></div>
         <div className="box"><b>{t('d.res')}</b>
           <Row k={t('d.vram')}>{vram}</Row>
