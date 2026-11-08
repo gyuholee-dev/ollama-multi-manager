@@ -152,7 +152,7 @@ function Details({ view: i }: { view: InstanceView }) {
         </div>
         {!guest && (
           <div className="box"><b>{t('d.allowed')}</b>
-            <div className="sub">{t('new.modelsHint')}</div>
+            <div className="sub">{t('d.allowedHint')}</div>
             <ModelPicker value={draft} onChange={setDraft} />
             <div className="btns" style={{ justifyContent: 'flex-end', marginTop: 8 }}>
               <button className="primary" disabled={!changed} onClick={() => void saveAllowedModels(i.id, draft)}>{t('d.allowedSave')}</button>

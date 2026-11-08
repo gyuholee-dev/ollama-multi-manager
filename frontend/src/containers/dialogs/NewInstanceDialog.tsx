@@ -64,7 +64,8 @@ function Form({ port: firstPort }: { port: number }) {
     const bad: [string, string] | null = !nm ? [t('v.nameReq.t'), t('v.nameReq.m')]
       : list.some((i) => i.name === nm) ? [t('v.nameDup.t'), t('v.nameDup.m', { n: nm })]
         : !(p >= 1024 && p <= 65535) ? [t('v.port.t'), t('v.port.m')]
-          : used.includes(p) || p === monPort ? [t('port.conflict'), t('v.used.m', { p })] : null;
+          : used.includes(p) || p === monPort ? [t('port.conflict'), t('v.used.m', { p })]
+            : !allowed.length ? [t('v.models.t'), t('v.models.m')] : null;
     if (bad) { void notify('warn', ...bad); return; }
     const body: InstanceCreate = {
       name: nm, port: p,
@@ -126,7 +127,7 @@ function Form({ port: firstPort }: { port: number }) {
         </div>
         <div className="btns" style={{ justifyContent: 'flex-end', marginTop: 4 }}>
           <button type="button" onClick={close}>{t('btn.cancel')}</button>
-          <button className="primary" id="mk">{t('btn.create')}</button>
+          <button className="primary" id="mk" disabled={!allowed.length}>{t('btn.create')}</button>
         </div>
       </form>
     </Dialog>

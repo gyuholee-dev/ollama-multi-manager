@@ -28,8 +28,8 @@ const ko: Messages = {
 
   'new.title': '새 인스턴스', 'new.server': '서버', 'new.general': '일반', 'new.advanced': '고급',
   'new.generalT': '일반 펼치기/숨기기', 'new.advancedT': '고급 펼치기/숨기기',
-  'new.modelsHint': '고르지 않으면 설치된 모든 모델을 씁니다. 고른 모델 외의 요청은 거절합니다.', 'd.allowed': '허용 모델', 'd.allowedSave': '적용',
-  'new.models': '모델', 'new.toggle': '{n} 펼치기/숨기기', 'new.noModels': '다운로드된 모델이 없습니다',
+  'new.modelsHint': '하나 이상 골라야 합니다. 고른 모델 외의 요청은 거절합니다.', 'd.allowedHint': '비워 두면 설치된 모든 모델을 씁니다. 고른 모델 외의 요청은 거절합니다.', 'v.models.t': '허용 모델 선택', 'v.models.m': '허용 모델을 하나 이상 골라야 합니다.', 'd.allowed': '허용 모델', 'd.allowedSave': '적용',
+  'new.models': '허용 모델', 'new.toggle': '{n} 펼치기/숨기기', 'new.noModels': '다운로드된 모델이 없습니다',
 
   'log.all': '전체', 'log.app': '앱',
   'ext.name': '기본 인스턴스', 'ext.managed': '외부 관리',
