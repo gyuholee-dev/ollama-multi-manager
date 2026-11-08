@@ -29,7 +29,7 @@ const en: Messages = {
 
   'new.title': 'New instance', 'new.server': 'Server', 'new.general': 'General', 'new.advanced': 'Advanced',
   'new.generalT': 'Expand/collapse General', 'new.advancedT': 'Expand/collapse Advanced',
-  'new.modelsHint': 'Pick at least one. Requests for other models are refused.', 'd.allowedHint': 'Leave empty to serve every installed model. Requests for other models are refused.', 'v.models.t': 'Choose models', 'v.models.m': 'Pick at least one model to serve.', 'd.allowed': 'Served models', 'd.allowedSave': 'Apply',
+  'new.modelsHint': 'Select at least one model for this instance to use. Requests for models you did not select are rejected.', 'd.allowedHint': 'Leave empty to serve every installed model. Requests for other models are refused.', 'v.models.t': 'Choose models', 'v.models.m': 'Pick at least one model to serve.', 'd.allowed': 'Served models', 'd.allowedSave': 'Apply',
   'new.models': 'Served models', 'new.toggle': 'Expand/collapse {n}', 'new.noModels': 'No models downloaded',
 
   'log.all': 'All', 'log.app': 'App',
