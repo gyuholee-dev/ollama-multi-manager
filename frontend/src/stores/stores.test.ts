@@ -72,12 +72,12 @@ describe('uiStore', () => {
     expect(useUiStore.getState().sumOn).toEqual(['perf']);
     expect(useUiStore.getState().collapsed).toEqual(['logs']);
   });
-  it('shows every kind of instance monitor information at first and toggles each one', () => {
-    useUiStore.setState({ imOn: ['now', 'hour', 'live', 'models', 'recent'] });
-    useUiStore.getState().toggleIm('live');
-    expect(useUiStore.getState().imOn).toEqual(['now', 'hour', 'models', 'recent']);
-    useUiStore.getState().toggleIm('live');
-    expect(useUiStore.getState().imOn).toContain('live');
+  it('opens every monitor sub-section at first and remembers the ones that are closed', () => {
+    useUiStore.setState({ imFold: [] });
+    useUiStore.getState().toggleImFold('cpu');
+    expect(useUiStore.getState().imFold).toEqual(['cpu']);
+    useUiStore.getState().toggleImFold('cpu');
+    expect(useUiStore.getState().imFold).toEqual([]);
   });
 });
 
