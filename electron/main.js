@@ -104,7 +104,7 @@ if (!app.requestSingleInstanceLock()) {
       return;
     }
     const w = new BrowserWindow({
-      width: 960, height: 820, minWidth: 420, minHeight: 360, show: false, title: 'Ollama Multi Manager',
+      width: 580, height: 820, minWidth: 420, minHeight: 360, show: false, title: 'Ollama Multi Manager',
       backgroundColor: nativeTheme.shouldUseDarkColors ? '#1c1c1c' : '#ebebeb',
       webPreferences: { preload: path.join(__dirname, 'preload.js'), contextIsolation: true, nodeIntegration: false, sandbox: true, spellcheck: false },
     });

@@ -1,6 +1,6 @@
 import { useEffect } from 'react';
 import { useViews } from '@/app/hooks';
-import { CategoryButtons, MonitorBody } from '@/containers/dialogs/MonitorDialog';
+import { CategoryButtons, MonitorBody } from '@/containers/MonitorBody';
 import { translate } from '@/locales';
 import { useT } from '@/locales/useT';
 import { useSettingsStore } from '@/stores/settingsStore';
@@ -27,13 +27,14 @@ export function MonitorWindow({ id }: { id: number }) {
 
   if (!ready) return <div id="boot" role="status">{t('boot.loading')}</div>;
   if (!view) return <div id="boot" role="status">{t('im.removed')}</div>;
+  // laid out and styled like the dialogs: a header (title and category buttons) that stays, and a body that scrolls
   return (
     <div id="det" className="mwin">
-      <div className="mwh">
+      <div className="dh">
         <h3>{t('im.title', { n: view.name })}</h3>
         <div className="btns"><CategoryButtons /></div>
       </div>
-      <div className="mwb"><MonitorBody id={id} view={view} /></div>
+      <div className="dbody"><MonitorBody id={id} view={view} /></div>
     </div>
   );
 }

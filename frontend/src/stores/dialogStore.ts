@@ -15,7 +15,7 @@ export interface PopupRequest {
 }
 
 /** The big dialogs; only one at a time. */
-export type ActiveDialog = { kind: 'new' } | { kind: 'details'; id: number } | { kind: 'monitor'; id: number } | { kind: 'settings' } | { kind: 'models' } | null;
+export type ActiveDialog = { kind: 'new' } | { kind: 'details'; id: number } | { kind: 'settings' } | { kind: 'models' } | null;
 
 interface DialogState {
   popup: PopupRequest | null;

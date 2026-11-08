@@ -1,16 +1,11 @@
 import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react';
 import { api } from '@/api/client';
 import type { InstanceSample, Perf, RequestsResponse, SeriesPoint } from '@/api/types';
-import { useViews } from '@/app/hooks';
 import { BarChart, LineChart } from '@/components/charts/Charts';
 import { Collapse } from '@/components/common/Collapse';
-import { Dialog, DialogBody, DialogTitle } from '@/components/common/Dialog';
-import { Icon } from '@/components/common/Icon';
-import { openMonitorWindow } from '@/desktop';
 import type { InstanceView } from '@/lib/derive';
 import { expAt, fmtUp, hms } from '@/lib/format';
 import { useT } from '@/locales/useT';
-import { useDialogStore } from '@/stores/dialogStore';
 import { useLogStore } from '@/stores/logStore';
 import { MAX_SAMPLES, useHistoryStore, type Sample } from '@/stores/historyStore';
 import { useMonitorStore } from '@/stores/monitorStore';
@@ -216,20 +211,3 @@ export function MonitorBody({ id, view }: { id: number; view: InstanceView }) {
   );
 }
 
-
-/** The monitor as a dialog over the page. */
-export function MonitorDialog({ id }: { id: number }) {
-  const t = useT();
-  const close = useDialogStore((s) => s.close);
-  const view = useViews().find((v) => v.id === id);
-  if (!view) return null;
-  return (
-    <Dialog id="det" onClose={close}>
-      <DialogTitle onClose={close} actions={<><CategoryButtons /><button className="small" title={t('im.newWindow')} aria-label={t('im.newWindow')}
-        onClick={() => { openMonitorWindow(id); close(); }}><Icon name="open_in_new" /></button></>}>{t('im.title', { n: view.name })}</DialogTitle>
-      <DialogBody>
-        <MonitorBody id={id} view={view} />
-      </DialogBody>
-    </Dialog>
-  );
-}

@@ -34,7 +34,8 @@
 
 
 // header of a big dialog with a row of buttons under the title (it does not scroll with the body)
-dialog:not(#pop) > .dh {
+dialog:not(#pop) > .dh,
+.mwin > .dh {
   flex: none;
   background: var(--card);
 
@@ -62,7 +63,7 @@ dialog:not(#pop) > .dh {
   color: var(--sub);
 }
 
-// the monitor in a window of its own (#monitor=<id>)
+// the monitor in a window of its own (#monitor=<id>): the same look as the dialogs
 .mwm {
   display: contents; // only there so that the page's button styles (which look for <main>) apply
 }
@@ -72,45 +73,7 @@ dialog:not(#pop) > .dh {
   flex-direction: column;
   flex: 1;
   min-height: 0;
-
-  .mwh {
-    --surf: var(--bg);
-    flex: none;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    flex-wrap: wrap;
-    gap: 8px;
-    padding: 16px 16px 12px;
-
-    h3 {
-      margin: 0;
-    }
-  }
-
-  .mwb {
-    flex: 1;
-    min-height: 0;
-    overflow: auto;
-    padding: 0 16px 16px;
-  }
-
-  #dt {
-    display: grid;
-    grid-template-columns: repeat(auto-fit,minmax(420px,1fr));
-    gap: 12px;
-    align-items: start;
-  }
-
-  // (the page's own rule for boxes inside #det is by id, so this one has to be as specific)
-  &#det .box {
-    margin: 0;
-    background: var(--card);
-    --surf: var(--card);
-  }
-
-  .box .card {
-    background: var(--bg);
-    --surf: var(--bg);
-  }
+  background: var(--card);
+  color: var(--text);
+  --surf: var(--card);
 }
