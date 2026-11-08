@@ -57,10 +57,20 @@ def provider() -> FakeProvider:
 
 
 @pytest.fixture
-async def env(tmp_path, fake_exe, provider):
+def ui_dir(tmp_path) -> Path:
+    """A tiny stand-in for the built web UI, so tests never depend on a frontend build."""
+    ui = tmp_path / "ui"
+    ui.mkdir()
+    (ui / "index.html").write_text("<!doctype html><title>Ollama Multi Manager</title><script src=\"app.js\"></script>")
+    (ui / "app.js").write_text("// test UI")
+    return ui
+
+
+@pytest.fixture
+async def env(tmp_path, fake_exe, provider, ui_dir):
     """Running app (lifespan included) + HTTP client + handles to its internals."""
     os.environ.pop("OMM_TOKEN", None)
-    app = create_app(data_dir=tmp_path / "data", provider=provider, token=None)
+    app = create_app(data_dir=tmp_path / "data", provider=provider, token=None, frontend_dir=ui_dir)
     async with app.router.lifespan_context(app):
         transport = httpx.ASGITransport(app=app)
         async with httpx.AsyncClient(transport=transport, base_url="http://test") as client:

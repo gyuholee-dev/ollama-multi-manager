@@ -36,7 +36,7 @@ function commandFor(isPackaged) {
     const exe = path.join(process.resourcesPath, 'backend', WIN ? 'ollama-multi-manager-backend.exe' : 'ollama-multi-manager-backend');
     return { cmd: exe, args: [], cwd: path.dirname(exe), frontend: path.join(process.resourcesPath, 'frontend') };
   }
-  return { cmd: pythonPath(), args: ['-m', 'app'], cwd: path.join(ROOT, 'backend'), frontend: path.join(ROOT, 'frontend', 'src') };
+  return { cmd: pythonPath(), args: ['-m', 'app'], cwd: path.join(ROOT, 'backend'), frontend: path.join(ROOT, 'frontend', 'legacy') };
 }
 
 function alive(pid) {

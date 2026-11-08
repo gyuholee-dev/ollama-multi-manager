@@ -28,7 +28,7 @@ VERSION = "0.1.0"
 
 
 def default_frontend_dir() -> Path:
-    return Path(os.environ.get("OMM_FRONTEND_DIR") or Path(__file__).resolve().parents[2] / "frontend" / "src")
+    return Path(os.environ.get("OMM_FRONTEND_DIR") or Path(__file__).resolve().parents[2] / "frontend" / "legacy")
 
 
 def create_app(data_dir: Path | None = None, provider: GpuProvider | None = None, token: str | None = None,
