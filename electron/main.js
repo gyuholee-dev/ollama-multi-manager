@@ -91,10 +91,10 @@ if (!app.requestSingleInstanceLock()) {
     if (DEV) {
       win.webContents.on('context-menu', async (_e, p) => {
         const l = MENU_LABEL[String(settings.language || app.getLocale()).slice(0, 2)] || MENU_LABEL.en;
-        const frozen = await win.webContents.executeJavaScript('S.frozen === true').catch(() => false);
+        const frozen = await win.webContents.executeJavaScript('window.__omm?.isFrozen() === true').catch(() => false);
         Menu.buildFromTemplate([
           { label: l.reload, click: () => win.webContents.reload() },
-          { label: frozen ? l.resume : l.freeze, click: () => win.webContents.executeJavaScript(`setFrozen(${!frozen})`) },
+          { label: frozen ? l.resume : l.freeze, click: () => win.webContents.executeJavaScript(`window.__omm?.setFrozen(${!frozen})`) },
           { label: l.inspect, click: () => win.webContents.inspectElement(p.x, p.y) },
         ]).popup({ window: win });
       });

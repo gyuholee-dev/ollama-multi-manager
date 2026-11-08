@@ -8,12 +8,12 @@
   "author": "gyuholee-dev",
   "license": "MIT",
   "scripts": {
-    "start": "electron .",
+    "start": "yarn build:frontend && electron .",
     "build:backend": "node scripts/build-backend.js",
-    "dist:dir": "yarn build:backend && electron-builder --dir",
-    "dist": "yarn build:backend && electron-builder",
-    "dev:frontend": "vite --config frontend/vite.config.ts",
-    "build:frontend": "tsc --noEmit -p frontend && vite build --config frontend/vite.config.ts",
+    "dist:dir": "yarn build:frontend && yarn build:backend && electron-builder --dir",
+    "dist": "yarn build:frontend && yarn build:backend && electron-builder",
+    "dev:frontend": "vite --config frontend/vite.config.mts",
+    "build:frontend": "tsc --noEmit -p frontend && vite build --config frontend/vite.config.mts",
     "typecheck": "tsc --noEmit -p frontend",
     "test:frontend": "vitest run --config frontend/vitest.config.ts"
   },
@@ -45,7 +45,7 @@
         "to": "backend"
       },
       {
-        "from": "frontend/legacy",
+        "from": "frontend/dist",
         "to": "frontend"
       }
     ],
