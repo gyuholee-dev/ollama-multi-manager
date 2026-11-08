@@ -597,11 +597,12 @@ function applyStatic() {
 }
 // Guest mode: the page was opened on the web access port. The backend refuses every change there; the page also
 // hides the controls so it does not offer what would only fail.
-const isGuest = () => !!S.info?.guest;
+// Until the server has said which kind of page this is, treat it as a guest: nothing is offered before it is known.
+const isGuest = () => S.info?.guest !== false;
 function applyGuest() {
-  document.documentElement.dataset.guest = isGuest() ? '1' : '';
+  document.documentElement.dataset.mode = S.info ? (S.info.guest ? 'guest' : 'admin') : '';
   const b = $('gst');
-  b.hidden = !isGuest();
+  b.hidden = !S.info?.guest;
   b.textContent = t('guest.badge');
 }
 function apply() { document.documentElement.dataset.theme = S.cfg.theme; applyStatic(); applyGuest(); syncSrv(); render(); renderLogs(); }
@@ -671,8 +672,9 @@ function onMessage(m) {
 let first = true;
 async function onConnection(up) {
   S.connected = up;
-  if (!up) { $('status').textContent = t('conn.lost'); return; }
+  if (!up) { $('status').textContent = t('conn.lost'); document.documentElement.dataset.ready = '1'; return; }
   try { await loadAll(); if (first) log('Connected to backend'); else log('Reconnected to backend'); first = false; } catch (e) { $('status').textContent = e.message; }
+  document.documentElement.dataset.ready = '1';  // the first load is over: show the page (before this only a loading note is visible)
 }
 
 apply();                       // static text and theme first, so the page is readable before data arrives
