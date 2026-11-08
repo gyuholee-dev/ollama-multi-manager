@@ -2,7 +2,7 @@ import type { ReactNode } from 'react';
 import { useDevices, useViews } from '@/app/hooks';
 import { Bar, Legend, type Segment } from '@/components/common/Bar';
 import { Section } from '@/components/common/Section';
-import { vramByGpu } from '@/lib/derive';
+import { instanceColor, vramByGpu } from '@/lib/derive';
 import { gpuLabel } from '@/lib/format';
 import { gb } from '@/lib/units';
 import { useT } from '@/locales/useT';
@@ -57,22 +57,24 @@ export function Monitor() {
   const show = (k: string) => available.includes(k) && monOn.includes(k);
   const systemLabel = t('mon.system');
   const otherLabel = t('mon.other');
-  const instances = Object.values(snap?.instances ?? {});
+  // One share per running instance (the colour is the same as in the VRAM bar); nothing is shown for Ollama as a whole.
+  const mine = views.map((v, n) => ({ name: v.name, color: instanceColor(n), m: v.metrics })).filter((x) => x.m);
+  const memText = (g: number): string => (g < 1 ? `${Math.round(g * 1024)} MB` : `${g.toFixed(1)} GB`);
 
   const cores = sys.cpu_count || 1;
   const cpuTotal = Math.round(sys.cpu_percent);
-  const cpuOllama = Math.min(cpuTotal, Math.round(instances.reduce((a, m) => a + m.cpu_percent, 0) / cores));
-  const cpuOther = cpuTotal - cpuOllama;
-  const running = instances.length > 0; // without a running instance there is no Ollama share to show
-  const cpuSegments: Segment[] = [...(running ? [['Ollama', cpuOllama, 'var(--accent)', `${cpuOllama}%`] as Segment] : []), [otherLabel, cpuOther, 'var(--sub)', `${cpuOther}%`]];
+  const cpuParts = mine.map((x) => ({ ...x, pct: Math.round((x.m?.cpu_percent ?? 0) / cores) }));
+  const cpuOther = Math.max(0, cpuTotal - cpuParts.reduce((a, x) => a + x.pct, 0));
+  const cpuSegments: Segment[] = [...cpuParts.map((x): Segment => [x.name, x.pct, x.color, `${x.pct}%`]), [otherLabel, cpuOther, 'var(--sub)', `${cpuOther}%`]];
 
-  const ramOllama = gb(instances.reduce((a, m) => a + m.rss, 0));
+  const ramParts = mine.map((x) => ({ ...x, g: gb(x.m?.rss ?? 0) }));
+  const ramOllama = ramParts.reduce((a, x) => a + x.g, 0);
   const ramUsed = gb(sys.mem_used);
   const ramTotal = gb(sys.mem_total);
   const ramOther = Math.max(0, ramUsed - ramOllama);
   const ramSegments: Segment[] = [
     [systemLabel, (ramOther / ramTotal) * 100, 'var(--sub)', `${ramOther.toFixed(1)} GB`],
-    ...(running ? [['Ollama', (ramOllama / ramTotal) * 100, 'var(--accent)', ramOllama < 1 ? `${Math.round(ramOllama * 1024)} MB` : `${ramOllama.toFixed(1)} GB`] as Segment] : []),
+    ...ramParts.map((x): Segment => [x.name, (x.g / ramTotal) * 100, x.color, memText(x.g)]),
   ];
 
   const usage = vramByGpu(views, devices);

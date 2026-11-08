@@ -168,14 +168,14 @@ function renderSum(){
 function render(){
  $('mtabs').innerHTML=MONS.map(t=>`<button class="small${monOn.has(t)?' on':''}" onclick="togMon('${t}')">${t}</button>`).join('');
  $('stabs').innerHTML=SO.map(([k,x])=>`<button class="small${so.k==k?' on':''}" onclick="setSort('${k}')">${t(x)}${so.k==k?mi(so.d>0?'arrow_upward':'arrow_downward'):''}</button>`).join('');
- const anyRun=list.some(i=>i.state=='running'),S=t('mon.system'),O=t('mon.other'),V=vramByGpu(),used=V.reduce((t,g)=>t+g.used,0),total=V.reduce((t,g)=>t+g.total,0),pct=Math.round(used/total*100),pmax=Math.max(...V.map(g=>g.pct));
+ const runL=list.filter(i=>i.state=='running'),anyRun=runL.length>0,S=t('mon.system'),O=t('mon.other'),V=vramByGpu(),used=V.reduce((t,g)=>t+g.used,0),total=V.reduce((t,g)=>t+g.total,0),pct=Math.round(used/total*100),pmax=Math.max(...V.map(g=>g.pct));
  const mb=(t,v,body,w='')=>monOn.has(t)?`<div class="sb"><div class="top" style="margin:0"><b>${t}</b><span class="sub"${w}>${v}</span></div>${body}</div>`:'',
   bar=(ps)=>`<div class="bar">${ps.map(p=>`<i title="${p[0]}" style="width:${p[1]}%;background:${p[2]}"></i>`).join('')}</div>`,
   leg=(ps)=>`<div class="leg">${ps.map(p=>`<span><s style="background:${p[2]}"></s>${p[0]} ${p[3]}</span>`).join('')}</div>`,
   gpuRows=[[62,58,214,5],[4,41,28,2]].map(([u,tc,w,sy],n)=>{const ps=V[n].parts,tp=ps.reduce((x,p)=>x+p.v,0),sysU=ps.length?Math.min(sy,u):u,segs=[[S,sysU,'var(--sub)',sysU+'%'],...ps.map(p=>[p.name,(u-sysU)*p.v/tp,p.col,Math.round((u-sysU)*p.v/tp)+'%'])];return `<div class="top" style="margin:${n?14:8}px 0 0"><span>${gpuName(n)}</span><span class="sub">${u}% · ${tc}°C · ${w} W</span></div>${bar(segs)}${leg(segs)}`}).join('');
  $('mon').innerHTML=[
-  mb('CPU',t('mon.cpu',{pct:23,n:12}),bar([...(anyRun?[['Ollama',9,'var(--accent)']]:[]),[O,14,'var(--sub)']])+leg([...(anyRun?[['Ollama',9,'var(--accent)','9%']]:[]),[O,14,'var(--sub)','14%']])),
-  mb('RAM','21.8 / 64 GB (34%)',bar([[S,15/64*100,'var(--sub)'],...(anyRun?[['Ollama',6.8/64*100,'var(--accent)']]:[])])+leg([[S,15,'var(--sub)','15.0 GB'],...(anyRun?[['Ollama',6.8,'var(--accent)','6.8 GB']]:[])])),
+  mb('CPU',t('mon.cpu',{pct:23,n:12}),bar([...runL.map(i=>[i.name,9/runL.length,`hsl(${list.indexOf(i)*70+210} 60% 55%)`]),[O,14,'var(--sub)']])+leg([...runL.map(i=>[i.name,9/runL.length,`hsl(${list.indexOf(i)*70+210} 60% 55%)`,Math.round(9/runL.length)+'%']),[O,14,'var(--sub)','14%']])),
+  mb('RAM','21.8 / 64 GB (34%)',bar([[S,15/64*100,'var(--sub)'],...runL.map(i=>[i.name,6.8/runL.length/64*100,`hsl(${list.indexOf(i)*70+210} 60% 55%)`])])+leg([[S,15,'var(--sub)','15.0 GB'],...runL.map(i=>[i.name,6.8/runL.length,`hsl(${list.indexOf(i)*70+210} 60% 55%)`,(6.8/runL.length).toFixed(1)+' GB'])])),
   mb('GPU',t('mon.gpus',{n:GPUS.length}),gpuRows),
   mb('VRAM',`${used.toFixed(1)} / ${total} GB (${pct}%)`,V.map((g,n)=>{const ps=[[S,GSYS/g.total*100,'var(--sub)',GSYS.toFixed(1)+' GB'],...g.parts.map(p=>[p.name,p.v/g.total*100,p.col,p.v.toFixed(1)+' GB'])];return `<div class="top" style="margin:${n?14:8}px 0 0"><span>${gpuName(n)}</span><span class="sub"${g.pct>85?' style="color:var(--warn)"':''}>${g.used.toFixed(1)} / ${g.total} GB (${g.pct}%)</span></div>`+bar(ps)+leg(ps.map(p=>[p[0],p[1],p[2],p[3]]))}).join(''),pmax>85?' style="color:var(--warn)"':'')].join('')||`<div class="sub" style="grid-column:1/-1">${t('sum.empty')}</div>`;
  renderSum();
