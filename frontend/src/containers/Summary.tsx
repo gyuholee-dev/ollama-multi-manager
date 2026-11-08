@@ -66,8 +66,8 @@ export function Summary() {
     <Section id="sum" tabs={tabs}>
       <div id="sum">
         <Box id="ins">
-          <Cell label={t('c.total')} value={views.length + (external ? 1 : 0)} />
-          <Cell label={t('c.running')} value={count('running') + (external ? 1 : 0)} />
+          <Cell label={t('c.total')} value={views.length} />
+          <Cell label={t('c.running')} value={count('running')} />
           <Cell label={t('c.stopped')} value={count('stopped')} />
           <Cell label={t('c.unreach')} value={bad} />
         </Box>
