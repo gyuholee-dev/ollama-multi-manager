@@ -8,5 +8,5 @@ export default defineConfig({
   root,
   resolve: { alias: { '@': `${root}src` } },
   esbuild: { jsx: 'automatic' },
-  test: { environment: 'node', include: ['src/**/*.test.{ts,tsx}'] },
+  test: { environment: 'node', include: ['src/**/*.test.{ts,tsx}'], setupFiles: ['src/test/setup.ts'] },
 });
