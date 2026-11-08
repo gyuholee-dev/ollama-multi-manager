@@ -23,3 +23,21 @@ async def test_null_clears_nullable_setting(env):
     assert r.json()["default_models_path"] == "/tmp/x"
     r = await env.client.put("/settings", json={"default_models_path": None})
     assert r.json()["default_models_path"] is None
+
+
+def test_an_old_database_gets_web_access_switched_off_once(tmp_path):
+    """Web access used to be on by default and served only /metrics; now it serves the web UI to the network."""
+    from app.db import Database
+    db = Database(tmp_path / "app.db")
+    db.migrate()
+    assert db.one("SELECT value FROM settings WHERE key='external_monitoring_enabled'")["value"] == "false"  # fresh: off
+    db.execute("UPDATE settings SET value='true' WHERE key='external_monitoring_enabled'")
+    db.execute("INSERT INTO settings(key, value) VALUES('external_monitoring_web', 'true')")
+    db.execute("PRAGMA user_version=1")                                                                      # as an old database
+    db.migrate()
+    assert db.one("SELECT value FROM settings WHERE key='external_monitoring_enabled'")["value"] == "false"
+    assert db.one("SELECT 1 FROM settings WHERE key='external_monitoring_web'") is None
+    assert db.one("PRAGMA user_version")[0] == 2
+    db.execute("UPDATE settings SET value='true' WHERE key='external_monitoring_enabled'")                   # the user's later choice
+    db.migrate()
+    assert db.one("SELECT value FROM settings WHERE key='external_monitoring_enabled'")["value"] == "true"

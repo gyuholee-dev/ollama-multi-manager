@@ -236,6 +236,7 @@ const sorted = () => view().sort((a, b) => so.d * (so.k === 'state' ? SORD.index
 const setSort = k => { if (so.k === k) so.d = -so.d; else { so.k = k; so.d = 1; } render(); };
 
 function btns(i) {
+  if (isGuest()) return `<button class="small" onclick="show(${i.id})">${t('btn.details')}</button>`;
   const idle = i.state === 'stopped' || i.state === 'crashed', busy = i.state === 'starting' || i.state === 'stopping';
   return (idle ? `<button class="small" onclick="setState(${i.id},'running')">${t('btn.start')}</button>`
     : `<button class="small" onclick="setState(${i.id},'stopped')" ${busy ? 'disabled' : ''}>${t('btn.stop')}</button>`)
@@ -257,7 +258,7 @@ function render() { renderMon(); renderSum(); renderCards(); }
 // ---------------------------------------------------------------- instance actions
 async function setState(id, state) {
   const i = byId(id);
-  if (!i) return;
+  if (!i || isGuest()) return;
   if (state === 'running') {
     const V = vramByGpu(), pct = V.length ? Math.max(...V.map(g => g.pct)) : 0;
     if (pct > 85 && !await popup({ kind: 'warn', title: t('w.vram.t'), msg: t('w.vram.m', { pct, n: i.name }), ok: t('btn.start'), cancel: t('btn.cancel') })) return;
@@ -279,7 +280,7 @@ async function setState(id, state) {
 
 async function del(id) {
   const i = byId(id);
-  if (!i || !await ask(t('inst.del.title'), t('inst.del.msg', { n: i.name }), t('btn.delete'), true)) return;
+  if (!i || isGuest() || !await ask(t('inst.del.title'), t('inst.del.msg', { n: i.name }), t('btn.delete'), true)) return;
   try { await API.del(`/instances/${id}`); } catch (e) { await fail(e); }
   await loadInstances();
 }
@@ -341,6 +342,7 @@ const rgFill = e => e.style.setProperty('--p', (e.value - e.min) / (e.max - e.mi
 document.addEventListener('input', e => { if (e.target.matches?.('.rg')) rgFill(e.target); });
 
 async function openNew() {
+  if (isGuest()) return;
   const dlg = $('dlg');
   let port = 11435;
   try { port = (await API.get('/instances/next-port')).port; } catch (e) { await fail(e); return; }
@@ -399,6 +401,7 @@ const chk = (id, label, v) => `<div class="f row"><label>${label}</label><input 
 const opt = (a, v) => a.map(([k, label]) => `<option value="${k}" ${k == v ? 'selected' : ''}>${label}`).join('');
 
 function openCfg() {
+  if (isGuest()) return;
   const v = S.cfg, det = $('det');
   det.innerHTML = `<h3>${t('set.title')} <button style="float:right" onclick="det.close()">${mi('close')}</button></h3>
  <div oninput="upd()" onchange="chg(event)"><div class="box"><b>${t('set.general')}</b>
@@ -408,6 +411,7 @@ function openCfg() {
  <div class="f"><div class="f row"><label>${t('set.theme')}</label></div><span class="sel"><select id="t">${opt([['system', t('theme.system')], ['light', t('theme.light')], ['dark', t('theme.dark')]], v.theme)}</select>${caret}</span></div>
  </div><div class="box"><b>${t('set.monitor')}</b>
  ${chk('em', t('set.ext'), v.extMon)}
+ <div class="sub" style="margin-top:-4px">${t('set.extHint')}</div>
  <div class="f"><div class="f row"><label>${t('set.extPort')}</label></div><input id="mport" type="number" min="1024" max="65535" value="${v.monPort}"></div>
  <div class="f"><div class="f row"><label>${t('set.interval')}</label></div><span class="sel"><select id="iv">${opt([1, 3, 5, 10].map(n => [n, t('sec.n', { n })]), v.interval)}</select>${caret}</span></div>
  </div><div class="box"><b>${t('new.server')}</b>
@@ -522,6 +526,7 @@ function renderModels() {
   $('det').scrollTop = top;
 }
 async function openModels() {
+  if (isGuest()) return;
   await loadModels();
   renderModels();
 }
@@ -590,7 +595,16 @@ function applyStatic() {
   document.querySelectorAll('[data-i-aria]').forEach(e => e.setAttribute('aria-label', t(e.dataset.iAria)));
   document.querySelectorAll('main > section').forEach(secLbl);
 }
-function apply() { document.documentElement.dataset.theme = S.cfg.theme; applyStatic(); syncSrv(); render(); renderLogs(); }
+// Guest mode: the page was opened on the web access port. The backend refuses every change there; the page also
+// hides the controls so it does not offer what would only fail.
+const isGuest = () => !!S.info?.guest;
+function applyGuest() {
+  document.documentElement.dataset.guest = isGuest() ? '1' : '';
+  const b = $('gst');
+  b.hidden = !isGuest();
+  b.textContent = t('guest.badge');
+}
+function apply() { document.documentElement.dataset.theme = S.cfg.theme; applyStatic(); applyGuest(); syncSrv(); render(); renderLogs(); }
 
 // ---------------------------------------------------------------- sections, dialogs (layout behaviour)
 document.querySelectorAll('dialog').forEach(d => {

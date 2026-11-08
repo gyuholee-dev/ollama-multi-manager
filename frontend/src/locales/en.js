@@ -6,7 +6,7 @@
   'app.title': 'Ollama Multi Manager',
 
   'hdr.new': 'New instance', 'hdr.models': 'Models', 'hdr.settings': 'Settings',
-  'srv.title': 'External monitoring · {a}',
+  'srv.title': 'Web access · {a}',
 
   'sec.sum': 'Summary', 'sec.mon': 'System monitor', 'sec.inst': 'Server instances', 'sec.logs': 'Logs',
   'sec.hide': 'Hide', 'sec.show': 'Show',
@@ -50,7 +50,7 @@
   'set.title': 'Settings', 'set.general': 'General', 'set.login': 'Launch at system startup',
   'set.tray': 'Minimize to tray', 'set.lang': 'Language', 'set.theme': 'Theme',
   'theme.system': 'System', 'theme.light': 'Light', 'theme.dark': 'Dark',
-  'set.monitor': 'Monitor', 'set.ext': 'External monitoring', 'set.extPort': 'External monitoring port',
+  'set.monitor': 'Monitor', 'set.ext': 'Web access', 'set.extPort': 'Web access port',
   'set.interval': 'Refresh interval', 'sec.n': '{n} s',
   'set.exe': 'Ollama executable', 'set.exePh': 'Auto-detect if empty', 'set.browse': 'Browse',
   'set.models': 'Model path (OLLAMA_MODELS default)', 'set.update': 'Update',
@@ -60,8 +60,8 @@
   'upd.title': 'Update check', 'upd.latest': 'You are up to date. ({v})',
   'rst.title': 'Reset settings', 'rst.msg': 'All settings will be reset to their defaults and saved.', 'rst.ok': 'Reset',
   'port.conflict': 'Port conflict',
-  'sv.portMsg': 'External monitoring port {p} is used by an instance.\nChoose a different port.',
-  'ext.title': 'External monitoring', 'ext.msg': 'The external monitoring server will restart on port {p}.',
+  'sv.portMsg': 'Web access port {p} is used by an instance.\nChoose a different port.',
+  'ext.title': 'Web access', 'ext.msg': 'The web access server will restart on port {p}.',
   'rr.t': 'Restart required', 'rr.m': 'Restart the running instances to apply the new executable or model path.',
 
   'mdl.param': 'Parameters {p} · Quantization {q}', 'mdl.estimate': 'Estimate for the current environment',
@@ -94,6 +94,7 @@
   'f.lan': 'Allow access from the network', 'f.key': 'API key', 'f.keyPh': 'Leave empty for no authentication', 'btn.genKey': 'Generate', 'd.addr': 'Address',
   'w.lan.t': 'Open to the network without a key', 'w.lan.m': 'Every device on the same network will be able to use this instance without authentication. Setting an API key is recommended.', 'btn.open': 'Open it',
   'f.auto': 'Start when a request arrives', 'f.idle': 'Stop when idle (minutes, 0 = never)', 'card.auto': 'Starts when a request arrives', 'auto.idle': 'On · stops after {n} idle min',
+  'set.extHint': 'When on, opening the address of the port below in a browser shows this screen read-only (guest). There is no login, so turn it on only on a network you trust.', 'guest.badge': 'Read-only',
   'w.busy.t': 'Requests are running',
   'w.busy.m': '{n} is handling {k} request(s).\nYou can wait for them to finish and then stop, or stop right now, which cuts the running answers off.',
   'btn.drainStop': 'Stop when done', 'btn.stopNow': 'Stop now',

@@ -11,30 +11,36 @@ from tests.conftest import free_port
 FAKE = str(Path(__file__).parent / "fake_ollama.py")
 
 
-async def test_external_endpoint_follows_settings(env):
+async def test_web_access_follows_settings(env):
+    assert (await env.client.get("/settings")).json()["external_monitoring_enabled"] is False   # off until switched on
     port = free_port()
     r = await env.client.put("/settings", json={"external_monitoring_enabled": True, "external_monitoring_port": port})
     assert r.status_code == 200
     ext = env.app.state.external
     assert ext.active and ext.status()["port"] == port
-    env.app.state.collector.latest = await env.app.state.collector.collect()
     async with httpx.AsyncClient() as c:
-        text = (await c.get(f"http://127.0.0.1:{port}/metrics")).text
-        assert "omm_system_cpu_percent" in text
-        assert (await c.get(f"http://127.0.0.1:{port}/settings")).status_code == 404  # nothing but /metrics is exposed
+        page = await c.get(f"http://127.0.0.1:{port}/")
+        assert page.status_code == 200 and "Ollama Multi Manager" in page.text      # the web UI is what this port serves
+        assert (await c.get(f"http://127.0.0.1:{port}/metrics")).status_code == 404  # exporting metrics here is deferred
 
     new = free_port()                                    # rebind without a restart
     await env.client.put("/settings", json={"external_monitoring_port": new})
     async with httpx.AsyncClient() as c:
-        assert (await c.get(f"http://127.0.0.1:{new}/metrics")).status_code == 200
+        assert (await c.get(f"http://127.0.0.1:{new}/")).status_code == 200
         try:
-            await c.get(f"http://127.0.0.1:{port}/metrics")
+            await c.get(f"http://127.0.0.1:{port}/")
             raise AssertionError("old port should be closed")
         except httpx.ConnectError:
             pass
 
     await env.client.put("/settings", json={"external_monitoring_enabled": False})
     assert not ext.active
+    async with httpx.AsyncClient() as c:
+        try:
+            await c.get(f"http://127.0.0.1:{new}/")
+            raise AssertionError("nothing should listen once it is switched off")
+        except httpx.ConnectError:
+            pass
 
 
 async def test_busy_port_is_reported_not_fatal(env):

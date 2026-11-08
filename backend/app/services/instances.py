@@ -232,7 +232,7 @@ class InstanceManager:
 
     def _check_port(self, port: int) -> None:
         if port == self.settings.get("external_monitoring_port"):
-            raise InstanceError("port_reserved", f"Port {port} is used by external monitoring", 409)
+            raise InstanceError("port_reserved", f"Port {port} is used by web access", 409)
 
     @staticmethod
     def _conflict(e: sqlite3.IntegrityError) -> InstanceError:

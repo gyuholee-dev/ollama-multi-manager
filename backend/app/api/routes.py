@@ -1,6 +1,7 @@
 """HTTP and WebSocket routes."""
 from __future__ import annotations
 
+import asyncio
 import secrets
 import sys
 from typing import Any
@@ -18,7 +19,22 @@ def _token_ok(expected: str | None, given: str) -> bool:
     return not expected or secrets.compare_digest(given, expected)
 
 
+def is_guest(scope_owner: Any) -> bool:
+    """True for requests that came through the read-only guest listener (see services/external.py)."""
+    return bool(scope_owner.scope.get("omm_guest"))
+
+
+def hide_secrets(inst: dict[str, Any]) -> dict[str, Any]:
+    """Guests may see that an API key is set, never the key."""
+    opts = dict(inst["options"])
+    if opts.get("api_key"):
+        opts["api_key"] = "********"
+    return {**inst, "options": opts}
+
+
 def require_token(request: Request) -> None:
+    if is_guest(request):  # the guest listener only lets read-only paths through
+        return
     auth = request.headers.get("authorization", "")
     given = auth[7:] if auth.lower().startswith("bearer ") else ""
     if not _token_ok(request.app.state.token, given):
@@ -38,7 +54,10 @@ async def health() -> dict[str, str]:
 
 @api.get("/settings")
 async def get_settings(request: Request) -> dict[str, Any]:
-    return request.app.state.settings.all()
+    values = request.app.state.settings.all()
+    if is_guest(request):  # paths on this PC are of no use to a guest
+        values = {k: v for k, v in values.items() if k not in ("ollama_executable_path", "default_models_path")}
+    return values
 
 
 @api.put("/settings")
@@ -68,14 +87,15 @@ async def shutdown(request: Request) -> dict[str, str]:
 @api.get("/info")
 async def info(request: Request) -> dict[str, Any]:
     return {"version": request.app.state.version, "platform": sys.platform, "lan_ip": lan_ip(),
-            "external_monitoring": request.app.state.external.status()}
+            "external_monitoring": request.app.state.external.status(), "guest": is_guest(request)}
 
 
 # ---- instances
 
 @api.get("/instances")
 async def list_instances(request: Request) -> list[dict[str, Any]]:
-    return request.app.state.manager.list()
+    items = request.app.state.manager.list()
+    return [hide_secrets(i) for i in items] if is_guest(request) else items
 
 
 @api.get("/instances/next-port")
@@ -92,7 +112,8 @@ async def create_instance(body: InstanceCreate, request: Request) -> dict[str, A
 
 @api.get("/instances/{iid}")
 async def get_instance(iid: int, request: Request) -> dict[str, Any]:
-    return request.app.state.manager.get(iid)
+    inst = request.app.state.manager.get(iid)
+    return hide_secrets(inst) if is_guest(request) else inst
 
 
 @api.patch("/instances/{iid}")
@@ -216,17 +237,32 @@ ws_router = APIRouter()
 @ws_router.websocket("/ws")
 async def ws(websocket: WebSocket) -> None:
     st = websocket.app.state
-    if not _token_ok(st.token, websocket.query_params.get("token", "")):
+    if not is_guest(websocket) and not _token_ok(st.token, websocket.query_params.get("token", "")):
         await websocket.close(code=1008)
         return
     await websocket.accept()
     q = st.hub.subscribe()
+
+    async def client_left() -> None:
+        try:
+            while True:
+                await websocket.receive_text()
+        except (WebSocketDisconnect, RuntimeError):
+            return
+
+    left = asyncio.create_task(client_left())  # notices a closed connection even while no event is being sent
     try:
         if st.collector.latest:
             await websocket.send_json({"type": "metrics", "data": st.collector.latest})
         while True:
-            await websocket.send_json(await q.get())
+            event = asyncio.create_task(q.get())
+            await asyncio.wait({event, left}, return_when=asyncio.FIRST_COMPLETED)
+            if left.done():
+                event.cancel()
+                break
+            await websocket.send_json(event.result())
     except (WebSocketDisconnect, RuntimeError):
         pass
     finally:
+        left.cancel()
         st.hub.unsubscribe(q)

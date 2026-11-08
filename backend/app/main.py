@@ -35,6 +35,7 @@ def create_app(data_dir: Path | None = None, provider: GpuProvider | None = None
                frontend_dir: Path | None = None) -> FastAPI:
     data_dir = data_dir or default_data_dir()
     token = token if token is not None else os.environ.get("OMM_TOKEN") or None
+    ui = frontend_dir or default_frontend_dir()
 
     @contextlib.asynccontextmanager
     async def lifespan(app: FastAPI):
@@ -50,7 +51,7 @@ def create_app(data_dir: Path | None = None, provider: GpuProvider | None = None
         app.state.manager, app.state.collector, app.state.token = manager, collector, token
         app.state.models = models
         app.state.version = VERSION
-        external = app.state.external = ExternalMonitor(settings, manager, collector)
+        external = app.state.external = ExternalMonitor(settings, manager, collector, app, ui if ui.is_dir() else None)
         log.info("Backend started (data dir: %s)", data_dir)
 
         await models.store.cleanup_orphan()
@@ -81,7 +82,6 @@ def create_app(data_dir: Path | None = None, provider: GpuProvider | None = None
     app.include_router(routes.public)
     app.include_router(routes.api)
     app.include_router(routes.ws_router)
-    ui = frontend_dir or default_frontend_dir()
     if ui.is_dir():  # same-origin UI: no CORS, and Electron can load it straight from the backend
         app.mount("/", StaticFiles(directory=ui, html=True), name="ui")
     return app

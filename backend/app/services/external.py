@@ -1,24 +1,27 @@
-"""External monitoring endpoint: a second, tiny HTTP server that only serves /metrics.
+"""Web access: the app's own web UI, served read-only to guests on a port that can listen on the LAN.
 
-Separate from the main API so it can listen on the LAN (0.0.0.0) without exposing anything else.
-Started/stopped/rebound whenever the external_monitoring_* settings change.
+It is a second HTTP server, apart from the main API. Guests need no login: only GET and the live WebSocket are
+accepted, only a fixed list of read endpoints is reachable, and no secrets are included. Anything that changes state
+is refused here, whatever the page does. Started/stopped/rebound whenever the external_monitoring_* settings change.
+(Exporting Prometheus metrics on this port is deferred; see the backlog doc.)
 """
 from __future__ import annotations
 
 import asyncio
 import logging
 import os
+import re
 import socket
+from pathlib import Path
 from typing import Any
 
 import uvicorn
 from starlette.applications import Starlette
-from starlette.requests import Request
-from starlette.responses import PlainTextResponse
-from starlette.routing import Route
+from starlette.responses import JSONResponse, PlainTextResponse
+from starlette.routing import Mount
+from starlette.staticfiles import StaticFiles
 
 from app.services.instances import InstanceManager, port_free
-from app.services.monitor import prometheus
 from app.services.monitor.collector import Collector
 from app.services.settings import SettingsService
 
@@ -37,21 +40,56 @@ def lan_ip() -> str:
         s.close()
 
 
+# The only API paths a guest may read (GET). /models is left out on purpose: reading it starts the model store server.
+GUEST_READ_PATHS = re.compile(r"^/(info|settings|instances|pulls|logs|monitor/(snapshot|history|requests)|instances/\d+(/(models|requests))?)$")
+MAX_GUEST_SOCKETS = 20
+
+
+class GuestGate:
+    """ASGI front door of the web access port."""
+
+    def __init__(self, main_app: Any, static_app: Any):
+        self.main_app, self.static_app = main_app, static_app
+        self.sockets = 0
+
+    async def __call__(self, scope: dict, receive: Any, send: Any) -> None:
+        if scope["type"] not in ("http", "websocket"):
+            return
+        path = scope["path"]
+        if scope["type"] == "websocket":
+            if path != "/ws" or self.sockets >= MAX_GUEST_SOCKETS:
+                await send({"type": "websocket.close", "code": 1008})
+                return
+            self.sockets += 1
+            try:
+                await self.main_app({**scope, "omm_guest": True}, receive, send)
+            finally:
+                self.sockets -= 1
+            return
+        if scope["method"] not in ("GET", "HEAD"):
+            return await JSONResponse({"error": "Read-only (guest) access"}, status_code=403)(scope, receive, send)
+        if GUEST_READ_PATHS.match(path):
+            return await self.main_app({**scope, "omm_guest": True}, receive, send)
+        if self.static_app is None:
+            return await PlainTextResponse("Not found", status_code=404)(scope, receive, send)
+        await self.static_app(scope, receive, send)  # the UI's own files
+
+
 class ExternalMonitor:
-    def __init__(self, settings: SettingsService, manager: InstanceManager, collector: Collector):
+    def __init__(self, settings: SettingsService, manager: InstanceManager, collector: Collector,
+                 main_app: Any = None, frontend_dir: Path | None = None):
         self.settings, self.manager, self.collector = settings, manager, collector
+        self.main_app, self.frontend_dir = main_app, frontend_dir
         self.host = os.environ.get("OMM_EXTERNAL_HOST", "0.0.0.0")
         self.error: str | None = None
         self._server: uvicorn.Server | None = None
         self._task: asyncio.Task | None = None
         self._port: int | None = None
 
-    def _app(self) -> Starlette:
-        async def metrics(_: Request) -> PlainTextResponse:
-            names = {i["id"]: i["name"] for i in self.manager.list()}
-            return PlainTextResponse(prometheus.render(self.collector.latest, names), media_type="text/plain; version=0.0.4")
-
-        return Starlette(routes=[Route("/metrics", metrics)])
+    def _app(self) -> Any:
+        # Wrapped in an app so a missing file becomes a plain 404 instead of an unhandled exception.
+        static = Starlette(routes=[Mount("/", app=StaticFiles(directory=self.frontend_dir, html=True))]) if self.frontend_dir else None
+        return GuestGate(self.main_app, static)
 
     @property
     def active(self) -> bool:
@@ -77,9 +115,9 @@ class ExternalMonitor:
         self.error = None
         if not port_free(port):
             self.error = f"Port {port} is already in use"
-            log.warning("External monitoring not started: %s", self.error)
+            log.warning("Web access not started: %s", self.error)
             return
-        server = uvicorn.Server(uvicorn.Config(self._app(), host=self.host, port=port, log_level="warning", lifespan="off"))
+        server = uvicorn.Server(uvicorn.Config(self._app(), host=self.host, port=port, log_level="warning", lifespan="off", timeout_graceful_shutdown=2))
         server.install_signal_handlers = lambda: None  # the main server owns signal handling
         self._server, self._port = server, port
         self._task = asyncio.create_task(self._serve(server))
@@ -88,7 +126,7 @@ class ExternalMonitor:
                 break
             await asyncio.sleep(0.05)
         if server.started:
-            log.info("External monitoring listening on %s:%d", self.host, port)
+            log.info("Web access listening on %s:%d", self.host, port)
         else:
             self.error = self.error or "Failed to start"
             await self._stop()

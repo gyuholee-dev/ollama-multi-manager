@@ -7,7 +7,7 @@ from pathlib import Path
 from typing import Any, Iterable
 
 SCHEMA_PATH = Path(__file__).resolve().parent.parent / "schema.sql"
-SCHEMA_VERSION = 1
+SCHEMA_VERSION = 2
 
 
 class Database:
@@ -18,9 +18,15 @@ class Database:
         self._conn.execute("PRAGMA journal_mode=WAL")
 
     def migrate(self) -> None:
-        """Apply schema.sql (idempotent) and record the schema version."""
+        """Apply schema.sql (idempotent), then the data migrations an older database still needs, and record the version."""
         with self._lock:
+            old = self._conn.execute("PRAGMA user_version").fetchone()[0]
             self._conn.executescript(SCHEMA_PATH.read_text(encoding="utf-8"))
+            if 0 < old < 2:
+                # v2: the old "external monitoring" (on by default, only /metrics) became "web access", which serves the web UI. A
+                # database that predates this would silently open the UI to the network: switch it off once.
+                self._conn.execute("UPDATE settings SET value='false' WHERE key='external_monitoring_enabled'")
+                self._conn.execute("DELETE FROM settings WHERE key='external_monitoring_web'")
             self._conn.execute(f"PRAGMA user_version={SCHEMA_VERSION}")
 
     def query(self, sql: str, params: Iterable[Any] = ()) -> list[sqlite3.Row]:
