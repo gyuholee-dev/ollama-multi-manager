@@ -39,7 +39,7 @@ const ko: Messages = {
   'c.total': '전체', 'c.running': '실행 중', 'c.stopped': '중지', 'c.unreach': '응답 없음',
   'c.mem': '메모리', 'c.models': '로드 모델', 'c.reqs': '처리 중 요청', 'c.queued': '대기', 'c.latency': '평균 응답',
   'c.speed': '평균 속도', 'c.warn': '경고', 'c.ok': '정상', 'c.errs': '최근 오류',
-  'c.mon': '모니터링', 'c.on': '켬', 'c.off': '끔', 'c.updated': '갱신',
+  'c.mon': '웹 접속', 'c.on': '켬', 'c.off': '끔', 'c.updated': '갱신',
 
   'mon.cpu': '{pct}% · {n} 코어', 'mon.system': '시스템', 'mon.other': '기타', 'mon.gpus': '{n}개',
 
