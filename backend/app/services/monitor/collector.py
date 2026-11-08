@@ -26,6 +26,7 @@ class Collector:
         self.history: deque = deque(maxlen=history)
         self._procs: dict[int, psutil.Process] = {}
         self._client = httpx.AsyncClient(timeout=2.0)
+        self.store: Any = None  # the model store server (set by the app); its CPU and memory count as Ollama's too
         self.external_port = 11434  # the user's own Ollama, shown read-only when it is not one of ours
         psutil.cpu_percent(None)  # prime: the first call always returns 0.0
 
@@ -70,12 +71,17 @@ class Collector:
             seen |= res["pids"]
         for pid in set(self._procs) - seen:
             del self._procs[pid]
+        store = None
+        if self.store is not None and self.store.running:
+            _, cpu, rss = await asyncio.to_thread(self._proc_stats, self.store._h.ps)
+            store = {"cpu_percent": round(cpu, 1), "rss": rss}
         return {
             "ts": time.time(),
             "system": system,
             "gpu": {"provider": self.provider.name, "devices": [g.to_dict() for g in gpus]},
             "instances": instances,
             "external": external,
+            "store": store,
         }
 
     async def _external(self) -> dict[str, Any] | None:

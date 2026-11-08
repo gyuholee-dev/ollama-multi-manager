@@ -58,20 +58,21 @@ export function Monitor() {
   const systemLabel = t('mon.system');
   const otherLabel = t('mon.other');
   const instances = Object.values(snap?.instances ?? {});
+  const store = snap?.store ?? { cpu_percent: 0, rss: 0 }; // the model store server is Ollama too
 
   const cores = sys.cpu_count || 1;
   const cpuTotal = Math.round(sys.cpu_percent);
-  const cpuOllama = Math.min(cpuTotal, Math.round(instances.reduce((a, m) => a + m.cpu_percent, 0) / cores));
+  const cpuOllama = Math.min(cpuTotal, Math.round((instances.reduce((a, m) => a + m.cpu_percent, 0) + store.cpu_percent) / cores));
   const cpuOther = cpuTotal - cpuOllama;
   const cpuSegments: Segment[] = [['Ollama', cpuOllama, 'var(--accent)', `${cpuOllama}%`], [otherLabel, cpuOther, 'var(--sub)', `${cpuOther}%`]];
 
-  const ramOllama = gb(instances.reduce((a, m) => a + m.rss, 0));
+  const ramOllama = gb(instances.reduce((a, m) => a + m.rss, 0) + store.rss);
   const ramUsed = gb(sys.mem_used);
   const ramTotal = gb(sys.mem_total);
   const ramOther = Math.max(0, ramUsed - ramOllama);
   const ramSegments: Segment[] = [
     [systemLabel, (ramOther / ramTotal) * 100, 'var(--sub)', `${ramOther.toFixed(1)} GB`],
-    ['Ollama', (ramOllama / ramTotal) * 100, 'var(--accent)', `${ramOllama.toFixed(1)} GB`],
+    ['Ollama', (ramOllama / ramTotal) * 100, 'var(--accent)', ramOllama < 1 ? `${Math.round(ramOllama * 1024)} MB` : `${ramOllama.toFixed(1)} GB`],
   ];
 
   const usage = vramByGpu(views, devices);

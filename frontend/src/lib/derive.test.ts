@@ -18,7 +18,7 @@ const metrics = (over: Partial<InstanceMetrics> = {}): InstanceMetrics => ({
 
 const snapshot = (instances: Record<string, InstanceMetrics>, devices: GpuDevice[] = []): Snapshot => ({
   ts: 1, system: { cpu_percent: 1, cpu_count: 4, mem_total: 8 * GiB, mem_used: 4 * GiB, disk_total: null, disk_used: null },
-  gpu: { provider: 'fake', devices }, instances, external: null,
+  gpu: { provider: 'fake', devices }, instances, external: null, store: null,
 });
 
 const gpu = (index: number, used: number, total: number): GpuDevice => ({ index, uuid: `u${index}`, name: `GPU ${index}`, mem_total: total * GiB, mem_used: used * GiB, util_percent: null, temperature_c: null });

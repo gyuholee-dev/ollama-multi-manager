@@ -47,6 +47,7 @@ def create_app(data_dir: Path | None = None, provider: GpuProvider | None = None
         manager = InstanceManager(db, hub, settings, data_dir)
         models = ModelService(manager, hub, data_dir)
         collector = Collector(manager, provider or detect_provider(), settings, hub)
+        collector.store = models.store
         app.state.db, app.state.hub, app.state.settings = db, hub, settings
         app.state.manager, app.state.collector, app.state.token = manager, collector, token
         app.state.models = models

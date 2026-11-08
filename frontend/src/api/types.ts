@@ -150,6 +150,7 @@ export interface Snapshot {
   gpu: { provider: string; devices: GpuDevice[] };
   instances: Record<string, InstanceMetrics>;
   external: ExternalOllama | null;
+  store: { cpu_percent: number; rss: number } | null; // the hidden model store server
 }
 
 // ---- logs, downloads, requests
