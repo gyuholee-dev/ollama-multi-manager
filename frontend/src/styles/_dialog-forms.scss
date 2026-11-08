@@ -39,6 +39,7 @@
 }
 
 .ch {
+  position: relative; // the hidden checkbox stays inside its header: focusing it must not scroll the dialog
   cursor: pointer;
   display: flex;
   align-items: center;

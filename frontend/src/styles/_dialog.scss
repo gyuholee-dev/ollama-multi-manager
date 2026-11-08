@@ -51,7 +51,7 @@ dialog {
 // The big dialogs: the title stays put, only the body below it scrolls (so the scrollbar does not run beside the title)
 dialog:not(#pop) {
   padding: 0;
-  overflow: hidden;
+  overflow: clip; // clipped, not scrollable: only the body scrolls, even when something inside takes focus
 
   &[open] {
     display: flex;
