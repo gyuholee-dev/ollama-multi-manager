@@ -1,5 +1,6 @@
 import { useEffect } from 'react';
 import { startApp } from '@/app/bootstrap';
+import { DialogHost } from '@/containers/DialogHost';
 import { Footer } from '@/containers/Footer';
 import { Header } from '@/containers/Header';
 import { Logs } from '@/containers/Logs';
@@ -31,6 +32,7 @@ export default function App() {
         <div id="boot" role="status">{t('boot.loading')}</div>
       )}
       <Footer />
+      <DialogHost />
     </>
   );
 }
