@@ -1,10 +1,9 @@
 'use strict';
 // UI logic. State comes from the backend (REST for commands, WebSocket for live updates);
-// nothing here is mock data, except the one fake download card shown in developer mode (?dev=1, set by OMM_DEV).
+// nothing here is mock data.
 
 const $ = id => document.getElementById(id);
 const esc = s => String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
-const DEV = new URLSearchParams(location.search).get('dev') === '1';
 const GiB = 2 ** 30;
 const gb = b => (b || 0) / GiB;
 
@@ -539,7 +538,6 @@ async function pull() {
   } catch (e) { await fail(e); }
 }
 const dlAct = async (id, act) => {
-  if (id === 'fake') { S.pulls.fake.status = act === 'pause' ? 'paused' : 'pulling'; renderModels(); return; }  // developer-mode card: local only
   try { S.pulls[id] = await API.post(`/pulls/${id}/${act}`); renderModels(); } catch (e) { await fail(e); }
 };
 const pauseDl = id => dlAct(id, 'pause');
@@ -547,7 +545,7 @@ const resumeDl = id => dlAct(id, 'resume');
 async function delDl(id) {
   const d = S.pulls[id];
   if (!d || !await ask(t('mdl.dl.del.title'), t('mdl.dl.del.msg', { n: d.model }), t('btn.delete'), true)) return;
-  try { if (id !== 'fake') await API.del(`/pulls/${id}`); delete S.pulls[id]; log(`Deleted download ${d.model}`); } catch (e) { await fail(e); }
+  try { await API.del(`/pulls/${id}`); delete S.pulls[id]; log(`Deleted download ${d.model}`); } catch (e) { await fail(e); }
   renderModels();
 }
 // Pushed by the backend: progress ticks update the bar in place; a change of state rebuilds the window.
@@ -630,7 +628,6 @@ async function loadAll() {
   ]);
   S.cfg = cfgFromApi(settings); S.saved = { ...S.cfg }; S.info = info; S.raw = instances;
   S.pulls = Object.fromEntries(pulls.map(x => [x.id, x]));
-  if (DEV) S.pulls.fake = { id: 'fake', model: 'fake-model:7b-q4_K_M', status: 'pulling', percent: 40, completed: 2.8 * GiB, total: 7 * GiB, started_at: 0 };
   S.snap = await API.get('/monitor/snapshot').catch(() => null);
   S.logs = logs.map(e => ({ ts: e.ts * 1000, src: nameOf(e.instance), m: e.msg, level: e.level }));
   $('ver').textContent = 'ollama-multi-manager v' + info.version;

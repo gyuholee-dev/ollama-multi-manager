@@ -80,7 +80,7 @@ if (!app.requestSingleInstanceLock()) {
     });
     if (st.maximized) win.maximize();
     win.once('ready-to-show', () => win.show());
-    win.loadURL(`${backend.url}/${DEV ? '?dev=1' : ''}#token=${backend.token}`);
+    win.loadURL(`${backend.url}/#token=${backend.token}`);
 
     // The page may only ever be the backend's own UI; everything else opens in the system browser.
     const isOwn = u => { try { return new URL(u).origin === backend.url; } catch { return false; } };
