@@ -63,7 +63,8 @@ export function Monitor() {
   const cpuTotal = Math.round(sys.cpu_percent);
   const cpuOllama = Math.min(cpuTotal, Math.round(instances.reduce((a, m) => a + m.cpu_percent, 0) / cores));
   const cpuOther = cpuTotal - cpuOllama;
-  const cpuSegments: Segment[] = [['Ollama', cpuOllama, 'var(--accent)', `${cpuOllama}%`], [otherLabel, cpuOther, 'var(--sub)', `${cpuOther}%`]];
+  const running = instances.length > 0; // without a running instance there is no Ollama share to show
+  const cpuSegments: Segment[] = [...(running ? [['Ollama', cpuOllama, 'var(--accent)', `${cpuOllama}%`] as Segment] : []), [otherLabel, cpuOther, 'var(--sub)', `${cpuOther}%`]];
 
   const ramOllama = gb(instances.reduce((a, m) => a + m.rss, 0));
   const ramUsed = gb(sys.mem_used);
@@ -71,7 +72,7 @@ export function Monitor() {
   const ramOther = Math.max(0, ramUsed - ramOllama);
   const ramSegments: Segment[] = [
     [systemLabel, (ramOther / ramTotal) * 100, 'var(--sub)', `${ramOther.toFixed(1)} GB`],
-    ['Ollama', (ramOllama / ramTotal) * 100, 'var(--accent)', ramOllama < 1 ? `${Math.round(ramOllama * 1024)} MB` : `${ramOllama.toFixed(1)} GB`],
+    ...(running ? [['Ollama', (ramOllama / ramTotal) * 100, 'var(--accent)', ramOllama < 1 ? `${Math.round(ramOllama * 1024)} MB` : `${ramOllama.toFixed(1)} GB`] as Segment] : []),
   ];
 
   const usage = vramByGpu(views, devices);
