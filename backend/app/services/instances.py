@@ -14,6 +14,7 @@ import asyncio
 import json
 import logging
 import os
+import re
 import shutil
 import signal
 import socket
@@ -143,6 +144,14 @@ class Handle:
     tasks: list[asyncio.Task] = field(default_factory=list)
     inner_port: int = 0  # where ollama really listens (0 = same as port, no proxy)
     proxy: InstanceProxy | None = None
+
+
+POLL_NOISE = re.compile(r'\[GIN\].*\|\s*GET\s+"/api/(?:ps|version)"\s*$')
+
+
+def is_poll_noise(line: str) -> bool:
+    """Ollama's access-log line for a status poll (GET /api/ps, /api/version), which the app sends every few seconds."""
+    return bool(POLL_NOISE.search(line))
 
 
 class InstanceManager:
@@ -346,6 +355,7 @@ class InstanceManager:
             await asyncio.sleep(0.3 if n < 60 else 2.0)
 
     async def _tail(self, h: Handle, pos: int) -> None:
+        # Lines about the app's own status polling are left out of the shown log (the log file keeps everything).
         buf = b""
         while True:
             alive = self.handles.get(h.iid) is h
@@ -360,12 +370,14 @@ class InstanceManager:
                 buf += data
                 *lines, buf = buf.split(b"\n")
                 for ln in lines:
-                    self._log(h.iid, "info", ln.decode("utf-8", "replace").rstrip("\r"))
+                    text = ln.decode("utf-8", "replace").rstrip("\r")
+                    if not is_poll_noise(text):
+                        self._log(h.iid, "info", text)
                 continue
             if not alive:
                 break
             await asyncio.sleep(0.3)
-        if buf:
+        if buf and not is_poll_noise(buf.decode("utf-8", "replace")):
             self._log(h.iid, "info", buf.decode("utf-8", "replace"))
 
     async def _watch(self, h: Handle) -> None:

@@ -129,3 +129,12 @@ async def test_orphans_from_a_crashed_run_are_cleaned_up(tmp_path, fake_exe, pro
     app2 = create_app(data_dir=data, provider=provider, token=None)
     async with app2.router.lifespan_context(app2):
         await wait_for(lambda: not psutil.pid_exists(pid) or psutil.Process(pid).status() == psutil.STATUS_ZOMBIE)
+
+
+def test_status_poll_lines_are_not_shown_but_other_access_lines_are():
+    from app.services.instances import is_poll_noise
+    ps = '[GIN] 2026/11/08 - 17:44:48 | 200 |      13.167µs |       127.0.0.1 | GET      "/api/ps"'
+    ver = '[GIN] 2026/11/08 - 17:44:48 | 200 |      71.792µs |       127.0.0.1 | GET      "/api/version"'
+    chat = '[GIN] 2026/11/08 - 17:44:48 | 200 |  1.8s |       127.0.0.1 | POST     "/api/chat"'
+    assert is_poll_noise(ps) and is_poll_noise(ver)
+    assert not is_poll_noise(chat) and not is_poll_noise('time=... level=INFO msg="vram-based default context"')
