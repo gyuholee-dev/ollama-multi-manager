@@ -176,7 +176,6 @@ class ModelService:
     def _set_paused(self, task: PullTask) -> None:
         task.status = "paused"
         self._save(task)
-        self.store.touch()
         self._emit(task)
 
     async def resume(self, task_id: str) -> PullTask:
@@ -219,7 +218,6 @@ class ModelService:
     def _finish(self, task: PullTask, status: str, error: str | None = None) -> None:
         task.status, task.error, task.finished_at = status, error, time.time()
         self._jobs.pop(task.id, None)
-        self.store.touch()
         if status == "success":
             self.manager.db.execute("DELETE FROM downloads WHERE model=?", (task.model,))
         else:

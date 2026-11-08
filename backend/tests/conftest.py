@@ -41,6 +41,7 @@ def free_port() -> int:
 def loopback_only(monkeypatch):
     """Never open the external monitoring listener on the LAN while testing."""
     monkeypatch.setenv("OMM_EXTERNAL_HOST", "127.0.0.1")
+    monkeypatch.setenv("OMM_NO_STORE_WARM", "1")  # the store server starts on demand in tests, never a real Ollama
 
 
 @pytest.fixture

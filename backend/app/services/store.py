@@ -2,8 +2,9 @@
 
 Managing models (list / pull / delete) needs an Ollama API, but it must not depend on any instance:
 on first launch there are no instances and no models. So the backend runs one hidden `ollama serve`
-bound to the default models directory, on demand, and stops it again after a quiet period.
-It never loads models, so it is kept off the GPUs.
+bound to the default models directory. It is started in the background when the backend starts
+(see `warm`) and stays up until the backend ends; if it dies or a setting it depends on changes,
+the next use starts it again. It never loads models, so it is kept off the GPUs and idles at almost nothing.
 """
 from __future__ import annotations
 
@@ -24,7 +25,6 @@ from app.services.instances import Handle, InstanceError, InstanceManager, find_
 
 log = logging.getLogger("omm.store")
 
-IDLE_STOP_SECONDS = 120.0
 READY_TIMEOUT = 30.0
 
 
@@ -42,16 +42,11 @@ class StoreServer:
         self._h: Handle | None = None
         self._key: tuple[str | None, str | None] | None = None
         self._lock = asyncio.Lock()
-        self._idle: asyncio.Task | None = None
-        self.last_use = time.monotonic()
 
     def models_dir(self) -> Path:
         """Where this server keeps models (the default models path setting, else OLLAMA_MODELS, else Ollama's default)."""
         configured = self.manager.settings.get("default_models_path") or os.environ.get("OLLAMA_MODELS") or "~/.ollama/models"
         return Path(os.path.expanduser(configured))
-
-    def touch(self) -> None:
-        self.last_use = time.monotonic()
 
     @property
     def running(self) -> bool:
@@ -66,9 +61,6 @@ class StoreServer:
                 await self._stop()  # exited, or the executable / models path setting changed
             if self._h is None:
                 await self._start(key)
-            self.touch()
-            if self._idle is None or self._idle.done():
-                self._idle = asyncio.create_task(self._idle_loop())
             return f"http://127.0.0.1:{self._h.port}"
 
     async def _start(self, key: tuple[str | None, str | None]) -> None:
@@ -124,16 +116,13 @@ class StoreServer:
             pass
         self.manager._log(0, "info", "Model store server stopped")
 
-    async def _idle_loop(self) -> None:
-        while True:
-            await asyncio.sleep(5)
-            if self._h is None:
-                return
-            if not self.busy() and time.monotonic() - self.last_use > IDLE_STOP_SECONDS:
-                async with self._lock:
-                    if self._h is not None and not self.busy() and time.monotonic() - self.last_use > IDLE_STOP_SECONDS:
-                        await self._stop()
-                        return
+    async def warm(self) -> None:
+        """Starts the server ahead of the first request. A failure (no Ollama installed yet) is only logged:
+        the first real use tries again and reports the error to the caller."""
+        try:
+            await self.base()
+        except InstanceError as e:
+            log.info("Model store server not started yet: %s", e.message)
 
     async def cleanup_orphan(self) -> None:
         """A previous run that was killed may have left its store server behind."""
@@ -152,8 +141,5 @@ class StoreServer:
             pass
 
     async def close(self) -> None:
-        if self._idle:
-            self._idle.cancel()
-            await asyncio.gather(self._idle, return_exceptions=True)
         async with self._lock:
             await self._stop()

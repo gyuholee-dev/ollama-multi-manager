@@ -55,6 +55,8 @@ def create_app(data_dir: Path | None = None, provider: GpuProvider | None = None
         log.info("Backend started (data dir: %s)", data_dir)
 
         await models.store.cleanup_orphan()
+        app.state.background = set()
+        warm = asyncio.create_task(models.store.warm()) if not os.environ.get("OMM_NO_STORE_WARM") else None  # tests: no real Ollama at startup
         tasks = [asyncio.create_task(collector.run()), asyncio.create_task(manager.restore()), asyncio.create_task(external.apply()), asyncio.create_task(manager.idle_loop())]
         try:
             yield
@@ -63,6 +65,9 @@ def create_app(data_dir: Path | None = None, provider: GpuProvider | None = None
             tasks[3].cancel()
             await asyncio.gather(tasks[0], tasks[3], return_exceptions=True)
             await asyncio.gather(*tasks[1:3], return_exceptions=True)  # let restore finish so shutdown sees a consistent state
+            for t in [*([warm] if warm else []), *app.state.background]:
+                t.cancel()
+            await asyncio.gather(*([warm] if warm else []), *app.state.background, return_exceptions=True)
             await external.close()
             await models.close()
             await manager.shutdown()

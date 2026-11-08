@@ -79,13 +79,17 @@ async def test_guests_cannot_change_anything(env):
 
 
 async def test_only_listed_read_paths_are_reachable(env):
+    store = env.app.state.models.store
+    calls = []
+    real_base = store.base
+    store.base = lambda: (calls.append(1), real_base())[1]
     port = await open_port(env)
     g = f"http://127.0.0.1:{port}"
     async with httpx.AsyncClient() as c:
         for path in ("/models", "/instances/next-port", "/shutdown", "/health", "/instances/1/start", "/../../etc/passwd"):
             r = await c.get(f"{g}{path}")
             assert r.status_code in (404, 405, 403), (path, r.status_code)
-    assert not env.app.state.models.store.running                              # reading /models would have started it
+    assert not calls                                                           # reading /models would have used the store server
 
 
 async def test_live_updates_reach_guests_and_other_sockets_are_refused(env):

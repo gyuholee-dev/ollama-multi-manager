@@ -4,6 +4,7 @@ import type { Info, Instance, LogEvent, PullTask, Settings, Snapshot, SocketMess
 import { t } from '@/locales/useT';
 import { useInstancesStore } from '@/stores/instancesStore';
 import { useLogStore, type LogLine } from '@/stores/logStore';
+import { useModelStore } from '@/stores/modelStore';
 import { useMonitorStore } from '@/stores/monitorStore';
 import { usePullStore } from '@/stores/pullStore';
 import { useSettingsStore } from '@/stores/settingsStore';
@@ -33,6 +34,8 @@ export async function loadAll(): Promise<void> {
   useMonitorStore.setState({ info, snap });
   usePullStore.getState().setAll(pulls);
   useLogStore.getState().set(logs.map(toLogLine));
+  // The models window opens with this copy and refreshes it; the backend starts its model store server for this.
+  if (info.guest === false) void useModelStore.getState().load().catch(() => { /* the window tries again and says so */ });
 }
 
 function onMessage(m: SocketMessage): void {

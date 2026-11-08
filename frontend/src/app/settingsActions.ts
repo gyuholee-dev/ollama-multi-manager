@@ -6,6 +6,7 @@ import { useInstancesStore } from '@/stores/instancesStore';
 import { useMonitorStore } from '@/stores/monitorStore';
 import { useSettingsStore, type Cfg } from '@/stores/settingsStore';
 import { ask, fail, notify } from './dialogs';
+import { loadModels } from './modelActions';
 import { log } from './log';
 
 const portProblem = (port: number): [string, string] | null => {
@@ -42,6 +43,7 @@ export async function commitSetting(field: keyof Cfg): Promise<void> {
     const x = useMonitorStore.getState().info?.external_monitoring;
     if (x?.enabled && !x.active) void notify('warn', t('ext.title'), x.error ?? '');
   }
+  if (field === 'exe' || field === 'modelsPath') void loadModels(); // another executable or folder: another list
   if ((field === 'exe' || field === 'modelsPath') && useInstancesStore.getState().list.some((i) => i.status.state === 'running' || i.status.state === 'starting')) {
     void notify('info', t('rr.t'), t('rr.m'));
   }
@@ -51,5 +53,6 @@ export async function resetSettings(): Promise<void> {
   if (!(await ask(t('rst.title'), t('rst.msg'), t('rst.ok'), true))) return;
   try { await useSettingsStore.getState().reset(); } catch (e) { await fail(e); return; }
   notifySettingsChanged();
+  void loadModels();
   log('Settings reset to defaults');
 }

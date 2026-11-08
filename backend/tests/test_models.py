@@ -13,12 +13,18 @@ async def test_models_work_without_any_instance(env):
     assert [m["name"] for m in models] == ["fake:1b"]
 
 
-async def test_store_server_stops_when_idle_and_restarts(env, monkeypatch):
-    monkeypatch.setattr("app.services.store.IDLE_STOP_SECONDS", 0.1)
+async def test_store_server_starts_when_the_executable_is_set_and_stays_up(env):
     store = env.app.state.models.store
-    await env.client.get("/models")
-    assert store.running
-    store.last_use -= 10
+    await wait_for(lambda: store.running, timeout=15)
+    pid = store._h.ps.pid
+    assert (await env.client.get("/models")).status_code == 200
+    assert store.running and store._h.ps.pid == pid  # the same process serves the request
+
+
+async def test_store_server_restarts_after_it_died(env):
+    store = env.app.state.models.store
+    await wait_for(lambda: store.running, timeout=15)
+    store._h.ps.kill()
     await wait_for(lambda: not store.running, timeout=15)
     assert (await env.client.get("/models")).status_code == 200 and store.running
 

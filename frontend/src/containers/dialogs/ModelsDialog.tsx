@@ -40,10 +40,7 @@ export function ModelsDialog() {
   const finished = Object.values(tasks).filter((x) => x.status === 'success').length;
   const seen = useRef(finished);
 
-  useEffect(() => {
-    void loadModels();
-    return () => useModelStore.getState().reset();
-  }, []);
+  useEffect(() => { void loadModels(); }, []);
   // A download that has just finished is installed now: read the list again.
   useEffect(() => {
     if (finished !== seen.current) { seen.current = finished; void loadModels(); }
