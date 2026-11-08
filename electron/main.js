@@ -30,19 +30,45 @@ if (!app.requestSingleInstanceLock()) {
   const stateFile = () => path.join(app.getPath('userData'), 'window-state.json');
 
   // ---- window state
+  // OMM_NO_WINDOW_STATE=1: windows neither remember nor restore their place and size (to tell whether that is behind a
+  // problem with moving windows between displays).
+  const NO_STATE = /^(1|true|yes|on)$/i.test(process.env.OMM_NO_WINDOW_STATE || '');
+
+  /**
+   * Calls `save` when the user has finished moving or resizing the window. It must not run on every step of a drag:
+   * asking the window for its geometry and writing a file while macOS is still tracking the mouse makes moving a
+   * window between displays stutter and misbehave. macOS and Windows tell when a gesture ends ('moved', 'resized');
+   * Linux only has the continuous events, so there a short pause stands for the end.
+   */
+  function trackBounds(w, save) {
+    if (NO_STATE) return;
+    let timer = null;
+    const soon = () => { clearTimeout(timer); timer = setTimeout(() => { if (!w.isDestroyed()) save(); }, 600); };
+    if (process.platform === 'linux') { w.on('move', soon); w.on('resize', soon); }
+    else { w.on('moved', soon); w.on('resized', soon); }
+    w.on('maximize', soon); w.on('unmaximize', soon);
+    w.on('close', () => clearTimeout(timer));
+  }
+
   // true when the window's title bar area is still on some display (a display may have been unplugged since)
   const onScreen = s => Number.isFinite(s?.x) && Number.isFinite(s?.y) && screen.getAllDisplays().some(d => {
     const b = d.workArea;
     return s.x < b.x + b.width - 40 && s.x + s.width > b.x + 40 && s.y < b.y + b.height - 40 && s.y + 40 > b.y;
   });
   function loadState() {
+    if (NO_STATE) return {};
     try {
       const s = JSON.parse(fs.readFileSync(stateFile(), 'utf8'));
       return { ...s, ...(onScreen(s) ? {} : { x: undefined, y: undefined }) };
     } catch { return {}; }
   }
   function saveState() {
-    if (!win || win.isDestroyed()) return;
+    if (NO_STATE || !win || win.isDestroyed()) return;
+    const b = win.getNormalBounds();
+    fs.writeFile(stateFile(), JSON.stringify({ ...b, maximized: win.isMaximized() }), () => { /* not critical */ });
+  }
+  function saveStateNow() { // while the window closes: the process may end right after
+    if (NO_STATE || !win || win.isDestroyed()) return;
     const b = win.getNormalBounds();
     try { fs.writeFileSync(stateFile(), JSON.stringify({ ...b, maximized: win.isMaximized() })); } catch { /* not critical */ }
   }
@@ -51,15 +77,17 @@ if (!app.requestSingleInstanceLock()) {
   // where the last monitor window was (shifted a little so it does not hide that one).
   const monitorStateFile = () => path.join(app.getPath('userData'), 'monitor-window-state.json');
   const readMonitorState = () => { try { return JSON.parse(fs.readFileSync(monitorStateFile(), 'utf8')); } catch { return {}; } };
-  function saveMonitorState(id, w) {
-    if (w.isDestroyed()) return;
+  function saveMonitorState(id, w, sync = false) {
+    if (NO_STATE || w.isDestroyed()) return;
     const st = readMonitorState();
     const b = { ...w.getNormalBounds(), maximized: w.isMaximized() };
     st.byId = { ...st.byId, [id]: b };
     st.last = b;
+    if (!sync) { fs.writeFile(monitorStateFile(), JSON.stringify(st), e => { if (e) log('Could not save the monitor window state:', e.message); }); return; }
     try { fs.writeFileSync(monitorStateFile(), JSON.stringify(st)); } catch (e) { log('Could not save the monitor window state:', e.message); }
   }
   function monitorBounds(id) {
+    if (NO_STATE) return null;
     const st = readMonitorState();
     if (onScreen(st.byId?.[id])) return st.byId[id];
     if (onScreen(st.last)) {
@@ -134,13 +162,9 @@ if (!app.requestSingleInstanceLock()) {
       webPreferences: { preload: path.join(__dirname, 'preload.js'), contextIsolation: true, nodeIntegration: false, sandbox: true, spellcheck: false },
     });
     monitors.set(id, w);
-    if (saved?.maximized) w.maximize();
-    w.once('ready-to-show', () => w.show());
-    let timer = null;
-    const later = () => { clearTimeout(timer); timer = setTimeout(() => saveMonitorState(id, w), 400); };
-    w.on('resize', later);
-    w.on('move', later);
-    w.on('close', () => { clearTimeout(timer); saveMonitorState(id, w); });
+    w.once('ready-to-show', () => { w.show(); if (saved?.maximized) w.maximize(); }); // maximized only once it is on screen
+    trackBounds(w, () => saveMonitorState(id, w));
+    w.on('close', () => saveMonitorState(id, w, true));
     w.loadURL(`${backend.url}/#token=${backend.token}&monitor=${id}`);
     guard(w);
     w.on('closed', () => { if (monitors.get(id) === w) monitors.delete(id); });
@@ -154,16 +178,14 @@ if (!app.requestSingleInstanceLock()) {
       show: false, title: 'Ollama Multi Manager', backgroundColor: nativeTheme.shouldUseDarkColors ? '#1c1c1c' : '#ebebeb',
       webPreferences: { preload: path.join(__dirname, 'preload.js'), contextIsolation: true, nodeIntegration: false, sandbox: true, spellcheck: false },
     });
-    if (st.maximized) win.maximize();
-    win.once('ready-to-show', () => win.show());
+    win.once('ready-to-show', () => { win.show(); if (st.maximized) win.maximize(); }); // maximized only once it is on screen
     win.loadURL(`${backend.url}/#token=${backend.token}`);
 
     guard(win);
 
-    win.on('resize', saveState);
-    win.on('move', saveState);
+    trackBounds(win, saveState);
     win.on('close', e => {
-      saveState();
+      saveStateNow();
       if (!quitting && settings.minimize_to_tray && tray) { e.preventDefault(); win.hide(); monitors.forEach(w => w.hide()); }
     });
     win.on('closed', () => { win = null; closeMonitors(); });
