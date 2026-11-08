@@ -187,7 +187,7 @@ if (!app.requestSingleInstanceLock()) {
     }
     const saved = monitorBounds(id);
     const w = new BrowserWindow({
-      width: saved?.width || 580, height: saved?.height || 820, x: saved?.x, y: saved?.y, minWidth: 420, minHeight: 360, show: false, title: 'Ollama Multi Manager',
+      width: saved?.width || 960, height: saved?.height || 820, x: saved?.x, y: saved?.y, minWidth: 420, minHeight: 360, show: false, title: 'Ollama Multi Manager',
       backgroundColor: nativeTheme.shouldUseDarkColors ? '#1c1c1c' : '#ebebeb', ...titleBar(16),
       webPreferences: webPrefs(),
     });
