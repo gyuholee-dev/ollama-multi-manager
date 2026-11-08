@@ -1,4 +1,4 @@
-import { useEffect, useState, type ReactNode } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react';
 import { api } from '@/api/client';
 import type { Perf, RequestsResponse, SeriesPoint } from '@/api/types';
 import { useViews } from '@/app/hooks';
@@ -8,6 +8,7 @@ import { Dialog, DialogBody, DialogTitle } from '@/components/common/Dialog';
 import { expAt, fmtUp, hms } from '@/lib/format';
 import { useT } from '@/locales/useT';
 import { useDialogStore } from '@/stores/dialogStore';
+import { useLogStore } from '@/stores/logStore';
 import { MAX_SAMPLES, useHistoryStore, type Sample } from '@/stores/historyStore';
 import { useMonitorStore } from '@/stores/monitorStore';
 import { useUiStore } from '@/stores/uiStore';
@@ -15,7 +16,7 @@ import { useUiStore } from '@/stores/uiStore';
 const NONE: Sample[] = [];
 
 /** The four kinds of information of the window; the buttons under its title switch each one on or off. */
-const CATEGORIES: [string, string][] = [['models', 'd.models'], ['state', 'f.state'], ['res', 'd.res'], ['log', 'sec.logs']];
+const CATEGORIES: [string, string][] = [['models', 'd.models'], ['state', 'f.state'], ['res', 'd.res'], ['log', 'im.history']];
 
 function Cell({ label, value, unit, tone }: { label: string; value: ReactNode; unit?: string; tone?: '--err' | '--warn' }) {
   return (
@@ -24,6 +25,21 @@ function Cell({ label, value, unit, tone }: { label: string; value: ReactNode; u
       <b style={tone ? { color: `var(${tone})` } : undefined}>{value}{unit ? <small>{unit}</small> : null}</b>
     </div>
   );
+}
+
+/** The instance's own output (what the log section of the page shows for it), following the newest line. */
+function InstanceLog({ name }: { name: string }) {
+  const t = useT();
+  const lines = useLogStore((s) => s.lines);
+  const box = useRef<HTMLDivElement>(null);
+  const atEnd = useRef(true);
+  const text = lines.filter((l) => l.src === name).map((l) => `[${hms(l.ts)}] ${l.m}`).join('\n');
+  const el = box.current;
+  if (el) atEnd.current = el.scrollTop + el.clientHeight >= el.scrollHeight - 4;
+  useLayoutEffect(() => {
+    if (box.current && atEnd.current) box.current.scrollTop = box.current.scrollHeight;
+  }, [text]);
+  return text ? <div className="ilog" ref={box}>{text}</div> : <div className="sub">{t('im.logNone')}</div>;
 }
 
 const fixed = (v: number | null | undefined, digits = 1): string => (v == null ? '-' : v.toFixed(digits));
@@ -161,7 +177,7 @@ export function MonitorDialog({ id }: { id: number }) {
           )}
 
           {shown('log') && (
-          <div className="box"><b>{t('sec.logs')}</b>
+          <div className="box"><b>{t('im.history')}</b>
             <Collapse id="recent" title={t('rq.recent')}>
               {recent.length ? (
                 <div className="rqw"><table className="rq"><tbody>
@@ -174,6 +190,9 @@ export function MonitorDialog({ id }: { id: number }) {
                   ))}
                 </tbody></table></div>
               ) : <div className="sub">{t('rq.none')}</div>}
+            </Collapse>
+            <Collapse id="ilog" title={t('im.log')}>
+              <InstanceLog name={view.name} />
             </Collapse>
           </div>
           )}

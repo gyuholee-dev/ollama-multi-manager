@@ -50,3 +50,14 @@ dialog:not(#pop) > .dh {
     padding: 0 16px 10px;
   }
 }
+
+// the instance's own log in the monitor window
+.ilog {
+  max-height: 180px;
+  overflow-x: hidden;
+  overflow-y: auto;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  font: .75rem/20px ui-monospace,SFMono-Regular,Menlo,monospace;
+  color: var(--sub);
+}
