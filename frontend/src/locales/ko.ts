@@ -31,6 +31,7 @@ const ko: Messages = {
   'new.modelsHint': '이 인스턴스가 사용할 모델을 하나 이상 선택하세요. 선택하지 않은 모델의 요청은 거절됩니다.', 'v.models.t': '허용 모델 선택', 'v.models.m': '허용 모델을 하나 이상 골라야 합니다.',
   'btn.monitor': '모니터', 'im.title': '{n} 모니터', 'im.now': '현재 상태', 'im.ttft': '첫 토큰', 'im.window': '최근 {m}분 기준', 'im.hour': '최근 1시간', 'im.total': '요청 합계', 'im.tokens': '토큰 (입력/출력)', 'im.reqs': '분당 요청 수', 'im.speed': '분당 토큰 속도', 'im.latency': '분당 평균 응답', 'im.live': '실시간 리소스', 'im.collecting': '데이터를 모으는 중입니다. 잠시 뒤 그래프가 나타납니다.', 'im.span': '{m}분 전', 'im.nowEdge': '지금', 'im.hourAgo': '60분 전', 'im.conc': '동시 요청(처리 + 대기)', 'im.keepNote': '창을 열기 전의 값은 앱을 켠 뒤부터 모은 것입니다(최근 {n}회 측정).',
   'im.history': '내역', 'im.log': '로그', 'im.logNone': '아직 로그가 없습니다.',
+  'im.newWindow': '새 창으로', 'im.removed': '이 인스턴스가 삭제되었습니다. 창을 닫습니다.',
   'new.models': '허용 모델', 'new.toggle': '{n} 펼치기/숨기기', 'new.noModels': '다운로드된 모델이 없습니다',
 
   'log.all': '전체', 'log.app': '앱',

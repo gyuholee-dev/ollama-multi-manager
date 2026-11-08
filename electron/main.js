@@ -26,6 +26,7 @@ if (!app.requestSingleInstanceLock()) {
   app.quit();
 } else {
   let win = null, backend = null, tray = null, settings = {}, quitting = false, mockup = null;
+  const monitors = new Map(); // instance id -> its monitor window (one per instance)
   const stateFile = () => path.join(app.getPath('userData'), 'window-state.json');
 
   // ---- window state
@@ -70,7 +71,50 @@ if (!app.requestSingleInstanceLock()) {
     if (win.isMinimized()) win.restore();
     win.show();
     win.focus();
+    monitors.forEach(w => { if (!w.isVisible()) w.show(); });
   }
+
+  // The page may only ever be the backend's own UI; everything else opens in the system browser.
+  // In developer mode a right-click menu offers reload, pausing the page's live updates, and inspect.
+  function guard(w) {
+    const isOwn = u => { try { return new URL(u).origin === backend.url; } catch { return false; } };
+    const external = u => { if (/^https?:\/\//i.test(u)) shell.openExternal(u); };
+    w.webContents.on('will-navigate', (e, u) => { if (!isOwn(u)) { e.preventDefault(); external(u); } });
+    w.webContents.setWindowOpenHandler(({ url }) => { external(url); return { action: 'deny' }; });
+    if (DEV) {
+      w.webContents.on('context-menu', async (_e, p) => {
+        const l = MENU_LABEL[String(settings.language || app.getLocale()).slice(0, 2)] || MENU_LABEL.en;
+        const frozen = await w.webContents.executeJavaScript('window.__omm?.isFrozen() === true').catch(() => false);
+        Menu.buildFromTemplate([
+          { label: l.reload, click: () => w.webContents.reload() },
+          { label: frozen ? l.resume : l.freeze, click: () => w.webContents.executeJavaScript(`window.__omm?.setFrozen(${!frozen})`) },
+          { label: l.inspect, click: () => w.webContents.inspectElement(p.x, p.y) },
+        ]).popup({ window: w });
+      });
+    }
+  }
+
+  // One monitor window per instance: a second request for the same instance brings the first to the front.
+  function openMonitor(id) {
+    if (!backend || !Number.isInteger(id) || id < 1) return;
+    const open = monitors.get(id);
+    if (open && !open.isDestroyed()) {
+      if (open.isMinimized()) open.restore();
+      open.show(); open.focus();
+      return;
+    }
+    const w = new BrowserWindow({
+      width: 960, height: 820, minWidth: 420, minHeight: 360, show: false, title: 'Ollama Multi Manager',
+      backgroundColor: nativeTheme.shouldUseDarkColors ? '#1c1c1c' : '#ebebeb',
+      webPreferences: { preload: path.join(__dirname, 'preload.js'), contextIsolation: true, nodeIntegration: false, sandbox: true, spellcheck: false },
+    });
+    monitors.set(id, w);
+    w.once('ready-to-show', () => w.show());
+    w.loadURL(`${backend.url}/#token=${backend.token}&monitor=${id}`);
+    guard(w);
+    w.on('closed', () => { if (monitors.get(id) === w) monitors.delete(id); });
+  }
+  const closeMonitors = () => { monitors.forEach(w => { if (!w.isDestroyed()) w.close(); }); monitors.clear(); };
 
   function createWindow() {
     const st = loadState();
@@ -83,31 +127,15 @@ if (!app.requestSingleInstanceLock()) {
     win.once('ready-to-show', () => win.show());
     win.loadURL(`${backend.url}/#token=${backend.token}`);
 
-    // The page may only ever be the backend's own UI; everything else opens in the system browser.
-    const isOwn = u => { try { return new URL(u).origin === backend.url; } catch { return false; } };
-    const external = u => { if (/^https?:\/\//i.test(u)) shell.openExternal(u); };
-    win.webContents.on('will-navigate', (e, u) => { if (!isOwn(u)) { e.preventDefault(); external(u); } });
-    win.webContents.setWindowOpenHandler(({ url }) => { external(url); return { action: 'deny' }; });
-
-    if (DEV) {
-      win.webContents.on('context-menu', async (_e, p) => {
-        const l = MENU_LABEL[String(settings.language || app.getLocale()).slice(0, 2)] || MENU_LABEL.en;
-        const frozen = await win.webContents.executeJavaScript('window.__omm?.isFrozen() === true').catch(() => false);
-        Menu.buildFromTemplate([
-          { label: l.reload, click: () => win.webContents.reload() },
-          { label: frozen ? l.resume : l.freeze, click: () => win.webContents.executeJavaScript(`window.__omm?.setFrozen(${!frozen})`) },
-          { label: l.inspect, click: () => win.webContents.inspectElement(p.x, p.y) },
-        ]).popup({ window: win });
-      });
-    }
+    guard(win);
 
     win.on('resize', saveState);
     win.on('move', saveState);
     win.on('close', e => {
       saveState();
-      if (!quitting && settings.minimize_to_tray && tray) { e.preventDefault(); win.hide(); }
+      if (!quitting && settings.minimize_to_tray && tray) { e.preventDefault(); win.hide(); monitors.forEach(w => w.hide()); }
     });
-    win.on('closed', () => { win = null; });
+    win.on('closed', () => { win = null; closeMonitors(); });
   }
 
   // ---- IPC
@@ -116,6 +144,7 @@ if (!app.requestSingleInstanceLock()) {
     return r.canceled ? null : r.filePaths[0];
   });
   ipcMain.on('settings-changed', () => refreshSettings());
+  ipcMain.on('open-monitor', (_e, id) => openMonitor(Number(id)));
 
   // ---- lifecycle
   app.on('second-instance', showWindow);

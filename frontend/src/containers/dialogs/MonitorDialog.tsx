@@ -1,10 +1,13 @@
 import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react';
 import { api } from '@/api/client';
-import type { Perf, RequestsResponse, SeriesPoint } from '@/api/types';
+import type { InstanceSample, Perf, RequestsResponse, SeriesPoint } from '@/api/types';
 import { useViews } from '@/app/hooks';
 import { BarChart, LineChart } from '@/components/charts/Charts';
 import { Collapse } from '@/components/common/Collapse';
 import { Dialog, DialogBody, DialogTitle } from '@/components/common/Dialog';
+import { Icon } from '@/components/common/Icon';
+import { openMonitorWindow } from '@/desktop';
+import type { InstanceView } from '@/lib/derive';
 import { expAt, fmtUp, hms } from '@/lib/format';
 import { useT } from '@/locales/useT';
 import { useDialogStore } from '@/stores/dialogStore';
@@ -45,16 +48,27 @@ function InstanceLog({ name }: { name: string }) {
 const fixed = (v: number | null | undefined, digits = 1): string => (v == null ? '-' : v.toFixed(digits));
 const sum = (xs: number[]): number => xs.reduce((a, x) => a + x, 0);
 
-/** Live numbers and graphs of one running instance: what it is doing now, the last hour, and its resources. */
-export function MonitorDialog({ id }: { id: number }) {
+/** The buttons that switch the four categories of the monitor on or off (they sit in the header of the dialog or window). */
+export function CategoryButtons() {
   const t = useT();
-  const close = useDialogStore((s) => s.close);
-  const view = useViews().find((v) => v.id === id);
+  const imHide = useUiStore((s) => s.imHide);
+  const toggleCat = useUiStore((s) => s.toggleImCat);
+  return (
+    <>
+      {CATEGORIES.map(([key, label]) => (
+        <button key={key} className={`small${imHide.includes(key) ? '' : ' on'}`} onClick={() => toggleCat(key)}>{t(label)}</button>
+      ))}
+    </>
+  );
+}
+
+/** Live numbers and graphs of one running instance: what it is doing now, the last hour, and its resources. */
+export function MonitorBody({ id, view }: { id: number; view: InstanceView }) {
+  const t = useT();
   const snap = useMonitorStore((s) => s.snap);
   const samples = useHistoryStore((s) => s.series[String(id)] ?? NONE);
   const imFold = useUiStore((s) => s.imFold);
   const imHide = useUiStore((s) => s.imHide);
-  const toggleCat = useUiStore((s) => s.toggleImCat);
   const shown = (cat: string) => !imHide.includes(cat);
   const open = (key: string) => !imFold.includes(key);
   const [hour, setHour] = useState<SeriesPoint[] | null>(null);
@@ -70,7 +84,14 @@ export function MonitorDialog({ id }: { id: number }) {
     return () => { alive = false; };
   }, [id, snap, imFold, imHide]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  if (!view) return null;
+  // the readings the backend kept so far: the graphs start full, also in a window that was just opened
+  useEffect(() => {
+    let alive = true;
+    api.get<{ samples: InstanceSample[] }>(`/monitor/instances/${id}/history`)
+      .then((r) => { if (alive) useHistoryStore.getState().seed(String(id), r.samples); }, () => { /* the graphs fill as snapshots arrive */ });
+    return () => { alive = false; };
+  }, [id]);
+
   const p: Perf | null = view.metrics?.perf ?? null;
   const m = view.metrics;
   const running = view.state === 'running';
@@ -91,11 +112,6 @@ export function MonitorDialog({ id }: { id: number }) {
   const collecting = <div className="sub">{t('im.collecting')}</div>;
 
   return (
-    <Dialog id="det" onClose={close}>
-      <DialogTitle onClose={close} actions={CATEGORIES.map(([key, label]) => (
-        <button key={key} className={`small${shown(key) ? ' on' : ''}`} onClick={() => toggleCat(key)}>{t(label)}</button>
-      ))}>{t('im.title', { n: view.name })}</DialogTitle>
-      <DialogBody>
         <div id="dt">
           {shown('models') && (
           <div className="box"><b>{t('d.models')}</b>
@@ -197,6 +213,22 @@ export function MonitorDialog({ id }: { id: number }) {
           </div>
           )}
         </div>
+  );
+}
+
+
+/** The monitor as a dialog over the page. */
+export function MonitorDialog({ id }: { id: number }) {
+  const t = useT();
+  const close = useDialogStore((s) => s.close);
+  const view = useViews().find((v) => v.id === id);
+  if (!view) return null;
+  return (
+    <Dialog id="det" onClose={close}>
+      <DialogTitle onClose={close} actions={<><CategoryButtons /><button className="small" title={t('im.newWindow')} aria-label={t('im.newWindow')}
+        onClick={() => { openMonitorWindow(id); close(); }}><Icon name="open_in_new" /></button></>}>{t('im.title', { n: view.name })}</DialogTitle>
+      <DialogBody>
+        <MonitorBody id={id} view={view} />
       </DialogBody>
     </Dialog>
   );

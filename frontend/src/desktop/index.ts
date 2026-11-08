@@ -5,6 +5,7 @@ interface OmmBridge {
   desktop: true;
   pickPath(kind: 'file' | 'dir'): Promise<string | null>;
   settingsChanged(): void;
+  openMonitor(id: number): void;
 }
 
 declare global {
@@ -26,3 +27,12 @@ export async function pickPath(kind: 'file' | 'dir', current: string, label: str
 
 /** Tells the shell that settings changed so it can apply tray, launch at login and theme. */
 export const notifySettingsChanged = (): void => window.omm?.settingsChanged();
+
+/**
+ * Opens the monitor of an instance in a window of its own. The desktop shell makes a window (one per instance);
+ * in a browser a named popup does, so a second click on the same instance brings the same window back.
+ */
+export function openMonitorWindow(id: number): void {
+  if (window.omm?.openMonitor) { window.omm.openMonitor(id); return; }
+  window.open(`${location.origin}${location.pathname}#monitor=${id}`, `omm-monitor-${id}`, 'popup,width=960,height=820');
+}

@@ -8,4 +8,6 @@ contextBridge.exposeInMainWorld('omm', {
   pickPath: kind => ipcRenderer.invoke('pick-path', kind === 'dir' ? 'dir' : 'file'),
   // tell the shell that settings changed so it can apply tray / login / theme
   settingsChanged: () => ipcRenderer.send('settings-changed'),
+  // open an instance's monitor in a window of its own
+  openMonitor: id => ipcRenderer.send('open-monitor', Number(id)),
 });

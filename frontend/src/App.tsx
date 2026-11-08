@@ -3,6 +3,7 @@ import { startApp } from '@/app/bootstrap';
 import { DialogHost } from '@/containers/DialogHost';
 import { Footer } from '@/containers/Footer';
 import { Header } from '@/containers/Header';
+import { MonitorWindow } from '@/containers/MonitorWindow';
 import { Logs } from '@/containers/Logs';
 import { Monitor } from '@/containers/Monitor';
 import { ServerInstances } from '@/containers/ServerInstances';
@@ -12,7 +13,8 @@ import { useT } from '@/locales/useT';
 import { useSettingsStore } from '@/stores/settingsStore';
 import { useUiStore } from '@/stores/uiStore';
 
-export default function App() {
+/** `monitor`: show only that instance's monitor (a window of its own) instead of the whole page. */
+export default function App({ monitor }: { monitor?: number }) {
   const t = useT();
   const ready = useUiStore((s) => s.ready);
   const theme = useSettingsStore((s) => s.cfg.theme);
@@ -20,7 +22,19 @@ export default function App() {
 
   useEffect(() => startApp(), []);
   useEffect(() => { document.documentElement.dataset.theme = theme; }, [theme]);
-  useEffect(() => { document.documentElement.lang = lang; document.title = translate(lang, 'app.title'); }, [lang]);
+  useEffect(() => {
+    document.documentElement.lang = lang;
+    if (!monitor) document.title = translate(lang, 'app.title');
+  }, [lang, monitor]);
+
+  if (monitor) {
+    return (
+      <>
+        <main className="mwm"><MonitorWindow id={monitor} /></main>
+        <DialogHost />
+      </>
+    );
+  }
 
   return (
     <>

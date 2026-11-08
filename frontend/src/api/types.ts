@@ -202,6 +202,16 @@ export interface RequestsResponse {
   models: Record<string, ModelStats>;
 }
 
+/** One reading of a running instance as the backend keeps it. */
+export interface InstanceSample {
+  ts: number; // seconds
+  cpu: number; // % of the whole machine
+  rss: number; // bytes
+  vram: number | null; // bytes
+  processing: number;
+  queued: number;
+}
+
 export interface SeriesPoint {
   minute: number;
   requests: number;

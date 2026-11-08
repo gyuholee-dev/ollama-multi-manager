@@ -14,6 +14,8 @@ export class ApiError extends Error {
   }
 }
 
+import { withoutToken } from '@/lib/route';
+
 const TOKEN_KEY = 'omm-token';
 
 function readToken(): string {
@@ -21,7 +23,7 @@ function readToken(): string {
   if (m?.[1]) {
     const token = decodeURIComponent(m[1]);
     try { sessionStorage.setItem(TOKEN_KEY, token); } catch { /* storage unavailable: a reload will need the fragment again */ }
-    history.replaceState(null, '', location.pathname + location.search);
+    history.replaceState(null, '', location.pathname + location.search + withoutToken(location.hash)); // other parts (#monitor=3) stay
     return token;
   }
   try { return sessionStorage.getItem(TOKEN_KEY) ?? ''; } catch { return ''; }

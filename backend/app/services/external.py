@@ -41,7 +41,7 @@ def lan_ip() -> str:
 
 
 # The only API paths a guest may read (GET). /models is left out on purpose: reading it starts the model store server.
-GUEST_READ_PATHS = re.compile(r"^/(info|settings|instances|pulls|logs|monitor/(snapshot|history|requests)|instances/\d+(/(models|requests))?)$")
+GUEST_READ_PATHS = re.compile(r"^/(info|settings|instances|pulls|logs|monitor/(snapshot|history|requests)|monitor/instances/\d+/history|instances/\d+(/(models|requests))?)$")
 MAX_GUEST_SOCKETS = 20
 
 

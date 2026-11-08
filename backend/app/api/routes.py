@@ -233,6 +233,12 @@ async def history(request: Request) -> list[dict[str, Any]]:
     return list(request.app.state.collector.history)
 
 
+@api.get("/monitor/instances/{iid}/history")
+async def instance_history(iid: int, request: Request) -> dict[str, Any]:
+    """The latest readings of one running instance: ts (s), cpu (% of the whole machine), rss and vram (bytes), processing, queued."""
+    return {"samples": list(request.app.state.collector.inst_history.get(iid, []))}
+
+
 @api.get("/metrics", response_class=PlainTextResponse)
 async def metrics(request: Request) -> str:
     st = request.app.state

@@ -89,5 +89,6 @@
   'w.fit.m': '동시에 로드될 모델이 약 {need} GB로, 선택한 장치의 사용 가능 VRAM({cap} GB)을 넘습니다.\n그래도 생성할까요?',
   'btn.monitor': '모니터', 'im.title': '{n} 모니터', 'im.now': '현재 상태', 'im.ttft': '첫 토큰', 'im.window': '최근 {m}분 기준', 'im.hour': '최근 1시간', 'im.total': '요청 합계', 'im.tokens': '토큰 (입력/출력)', 'im.reqs': '분당 요청 수', 'im.speed': '분당 토큰 속도', 'im.latency': '분당 평균 응답', 'im.live': '실시간 리소스', 'im.collecting': '데이터를 모으는 중입니다. 잠시 뒤 그래프가 나타납니다.', 'im.span': '{m}분 전', 'im.nowEdge': '지금', 'im.hourAgo': '60분 전', 'im.conc': '동시 요청(처리 + 대기)', 'im.keepNote': '창을 열기 전의 값은 앱을 켠 뒤부터 모은 것입니다(최근 {n}회 측정).', 'new.modelsHint': '이 인스턴스가 사용할 모델을 하나 이상 선택하세요. 선택하지 않은 모델의 요청은 거절됩니다.', 'rq.byModel': '모델별 (최근 5분)', 'rq.recent': '최근 요청', 'rq.none': '아직 요청이 없습니다.', 'rq.model': '모델', 'rq.count': '요청', 'rq.speed': '속도', 'rq.avg': '평균 응답', 'rq.time': '시각', 'rq.path': '경로', 'rq.status': '상태', 'rq.dur': '소요', 'rq.tok': '토큰 (입력/출력)', 'rq.cancelled': '취소', 'mdl.paused': '중지됨', 'mdl.failed': '오류', 'btn.pause': '중지', 'btn.resume': '재개', 'c.queued': '대기', 'c.fail': '실패',
   'mdl.dl.del.title': '다운로드 삭제', 'mdl.dl.del.msg': '{n} 다운로드를 중단하고 받은 파일을 지웁니다.',
-  'im.history': '내역', 'im.log': '로그', 'im.logNone': '아직 로그가 없습니다.'
+  'im.history': '내역', 'im.log': '로그', 'im.logNone': '아직 로그가 없습니다.',
+  'im.newWindow': '새 창으로'
 };

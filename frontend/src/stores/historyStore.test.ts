@@ -24,4 +24,16 @@ describe('history store', () => {
     useHistoryStore.getState().push(snap(999, { '1': metrics(0, 0, null) }));
     expect(useHistoryStore.getState().series['2']).toBeUndefined();
   });
+
+  it('puts readings the backend kept in front of the ones collected here', () => {
+    useHistoryStore.getState().push(snap(100, { '1': metrics(0, 2 ** 30, null) }));
+    useHistoryStore.getState().seed('1', [
+      { ts: 90, cpu: 5, rss: 2 ** 30, vram: null, processing: 0, queued: 0 },
+      { ts: 99, cpu: 6, rss: 2 ** 30, vram: 2 ** 30, processing: 1, queued: 0 },
+      { ts: 100, cpu: 7, rss: 2 ** 30, vram: null, processing: 0, queued: 0 }, // already here: not doubled
+    ]);
+    const series = useHistoryStore.getState().series['1'] ?? [];
+    expect(series.map((x) => x.ts)).toEqual([90000, 99000, 100000]);
+    expect(series[1]).toMatchObject({ cpu: 6, vram: 1, processing: 1 });
+  });
 });

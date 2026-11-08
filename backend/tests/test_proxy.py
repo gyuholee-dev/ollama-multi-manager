@@ -496,3 +496,21 @@ async def test_a_refused_model_does_not_wake_an_on_demand_instance(env):
     await wait_for(lambda: inst["id"] in env.app.state.manager.proxies)
     assert (await gen(inst["port"], model="other:7b", stream=False)).status_code == 404
     assert env.app.state.manager.status(inst["id"])["state"] == "stopped"  # still asleep
+
+
+async def test_instance_history_keeps_readings_of_a_running_instance_and_forgets_it_after_stop(env, monkeypatch):
+    inst = await start(env)
+    iid = inst["id"]
+    collector = env.app.state.collector
+    snap = await collector.collect()
+    collector._record(snap)
+    collector._record(await collector.collect())
+    r = await env.client.get(f"/monitor/instances/{iid}/history")
+    samples = r.json()["samples"]
+    assert r.status_code == 200 and len(samples) >= 2
+    assert set(samples[0]) == {"ts", "cpu", "rss", "vram", "processing", "queued"} and samples[0]["rss"] > 0
+    assert (await env.client.get("/monitor/instances/999/history")).json() == {"samples": []}
+    await env.client.post(f"/instances/{iid}/stop")
+    await wait_for(lambda: env.app.state.manager.status(iid)["state"] == "stopped")
+    collector._record(await collector.collect())
+    assert (await env.client.get(f"/monitor/instances/{iid}/history")).json() == {"samples": []}

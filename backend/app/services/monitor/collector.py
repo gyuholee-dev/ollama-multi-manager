@@ -19,11 +19,15 @@ from app.services.settings import SettingsService
 log = logging.getLogger("omm.monitor")
 
 
+INSTANCE_HISTORY = 240  # readings kept per instance (about 12 minutes at the default interval)
+
+
 class Collector:
     def __init__(self, manager: InstanceManager, provider: GpuProvider, settings: SettingsService, hub: Hub, history: int = 600):
         self.manager, self.provider, self.settings, self.hub = manager, provider, settings, hub
         self.latest: dict[str, Any] | None = None
         self.history: deque = deque(maxlen=history)
+        self.inst_history: dict[int, deque] = {}  # per instance: its latest readings (for graphs that start full)
         self._procs: dict[int, psutil.Process] = {}
         self._client = httpx.AsyncClient(timeout=2.0)
         self.external_port = 11434  # the user's own Ollama, shown read-only when it is not one of ours
@@ -37,6 +41,7 @@ class Collector:
                 snap = await self.collect()
                 self.latest = snap
                 self.history.append({"ts": snap["ts"], "cpu": snap["system"]["cpu_percent"], "mem": snap["system"]["mem_used"]})
+                self._record(snap)
                 self.hub.publish({"type": "metrics", "data": snap})
             except asyncio.CancelledError:
                 raise
@@ -44,6 +49,21 @@ class Collector:
                 log.exception("Metrics collection failed")
             interval = self.settings.get("refresh_interval_seconds") or 3
             await asyncio.sleep(max(0.2, interval - (time.monotonic() - t0)))
+
+    def _record(self, snap: dict[str, Any]) -> None:
+        """Keeps the last readings of every running instance (cpu as a share of the whole machine)."""
+        cores = snap["system"].get("cpu_count") or 1
+        live: set[int] = set()
+        for key, m in snap["instances"].items():
+            iid = int(key)
+            live.add(iid)
+            perf = m.get("perf") or {}
+            self.inst_history.setdefault(iid, deque(maxlen=INSTANCE_HISTORY)).append({
+                "ts": snap["ts"], "cpu": m["cpu_percent"] / cores, "rss": m["rss"], "vram": m.get("vram_bytes"),
+                "processing": perf.get("processing", 0), "queued": perf.get("queued", 0),
+            })
+        for iid in set(self.inst_history) - live:
+            del self.inst_history[iid]
 
     async def close(self) -> None:
         await self._client.aclose()
