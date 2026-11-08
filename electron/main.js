@@ -11,6 +11,7 @@ const path = require('node:path');
 const { app, BrowserWindow, Menu, dialog, ipcMain, nativeTheme, screen, shell } = require('electron');
 const { Backend } = require('./backend-launcher');
 const { AppTray } = require('./tray');
+const { startMockupServer } = require('./dev-mockup');
 
 const log = (...a) => console.log(new Date().toISOString(), '[shell]', ...a);
 
@@ -24,7 +25,7 @@ const MENU_LABEL = {
 if (!app.requestSingleInstanceLock()) {
   app.quit();
 } else {
-  let win = null, backend = null, tray = null, settings = {}, quitting = false;
+  let win = null, backend = null, tray = null, settings = {}, quitting = false, mockup = null;
   const stateFile = () => path.join(app.getPath('userData'), 'window-state.json');
 
   // ---- window state
@@ -126,6 +127,7 @@ if (!app.requestSingleInstanceLock()) {
     if (quitting) return;
     e.preventDefault();
     quitting = true;
+    mockup?.close();
     log('Quitting: stopping the backend (this stops the instances)');
     backend.stop().catch(err => log('Backend stop failed:', err.message)).finally(() => app.quit());
   });
@@ -148,7 +150,10 @@ if (!app.requestSingleInstanceLock()) {
       return;
     }
     log(`Backend ready on ${backend.url}`);
-    if (DEV) log('Developer mode is on (OMM_DEV)');
+    if (DEV) {
+      log('Developer mode is on (OMM_DEV)');
+      mockup = await startMockupServer({ dir: path.join(__dirname, '..', 'frontend', 'mockup'), log });
+    }
     await refreshSettings();
     createWindow();
   });
