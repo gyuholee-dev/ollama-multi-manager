@@ -319,5 +319,5 @@ sd(880,'worker-1','Process started (pid 4237) on port 11435');sd(878,'worker-1',
 sd(860,'worker-2','Process started (pid 4311) on port 11436');sd(852,'worker-2','Model loaded: mistral:7b-instruct-q4_K_M (4.1 GB) in 4.9s');sd(600,'worker-1','POST /api/chat 200 1.84s');sd(420,'worker-1','POST /api/generate 200 0.92s');
 sd(300,'worker-3','Health check timed out (3 consecutive failures)');sd(298,'worker-3','State changed to unreachable');
 log('App started');apply();
-if(/monitor=(\d+)/.test(location.hash))showMon(+RegExp.$1,true);
+if(/monitor=(\d+)/.test(location.hash)){showMon(+RegExp.$1,true);if(window.opener){const fit=()=>{if(outerWidth!==960||outerHeight!==820)try{resizeTo(960,820)}catch(e){}};fit();addEventListener('load',fit);setTimeout(fit,300)}}
 </script>
