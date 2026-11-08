@@ -1,7 +1,7 @@
 import type { ReactNode } from 'react';
 import { log } from '@/app/log';
 import { commitSetting, resetSettings } from '@/app/settingsActions';
-import { Dialog, DialogTitle } from '@/components/common/Dialog';
+import { Dialog, DialogBody, DialogTitle } from '@/components/common/Dialog';
 import { pickPath } from '@/desktop';
 import { LOCALES } from '@/locales';
 import { useT } from '@/locales/useT';
@@ -46,6 +46,7 @@ export function SettingsDialog() {
   return (
     <Dialog id="det" onClose={close}>
       <DialogTitle onClose={close}>{t('set.title')}</DialogTitle>
+      <DialogBody>
       <div>
         <Box title={t('set.general')}>
           <Switch id="lg" label={t('set.login')} checked={cfg.login} onChange={(v) => apply({ login: v }, 'login')} />
@@ -84,6 +85,7 @@ export function SettingsDialog() {
         <button type="button" onClick={() => void resetSettings()}>{t('set.reset')}</button>
         <button type="button" className="primary" onClick={save}>{t('set.save')}</button>
       </div>
+      </DialogBody>
     </Dialog>
   );
 }

@@ -41,3 +41,8 @@ export function DialogTitle({ children, id, onClose }: { children: ReactNode; id
     <h3 id={id}>{children} <button type="button" style={{ float: 'right' }} onClick={onClose}><span className="material-icons">close</span></button></h3>
   );
 }
+
+/** What sits below the title of a big dialog: the part that scrolls. */
+export function DialogBody({ children }: { children: ReactNode }) {
+  return <div className="dbody">{children}</div>;
+}

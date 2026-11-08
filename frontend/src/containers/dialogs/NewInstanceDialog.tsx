@@ -4,7 +4,7 @@ import type { InstanceCreate } from '@/api/types';
 import { reloadInstances } from '@/app/instanceActions';
 import { fail, notify, popup } from '@/app/dialogs';
 import { useDevices, useExternal } from '@/app/hooks';
-import { Dialog, DialogTitle } from '@/components/common/Dialog';
+import { Dialog, DialogBody, DialogTitle } from '@/components/common/Dialog';
 import { Fold } from '@/components/common/Fold';
 import { ModelPicker } from '@/components/common/ModelPicker';
 import { fmtCtx, fmtKeep, fmtN, gpuLabel, KEEP, normModel } from '@/lib/format';
@@ -92,8 +92,8 @@ function Form({ port: firstPort }: { port: number }) {
 
   return (
     <Dialog id="dlg" onClose={close}>
-      <form onSubmit={(e) => void submit(e)}>
-        <DialogTitle onClose={close}>{t('new.title')}</DialogTitle>
+      <DialogTitle onClose={close}>{t('new.title')}</DialogTitle>
+      <DialogBody><form onSubmit={(e) => void submit(e)}>
         <div className="box" id="sv"><b>{t('new.server')}</b>
           <div className="f"><div className="f row"><label htmlFor="n">{t('f.name')}</label></div><input id="n" required placeholder="worker-4" value={name} onChange={(e) => setName(e.target.value)} /></div>
           <div className="f"><div className="f row"><label htmlFor="p">{t('f.port')}</label></div><input id="p" type="number" required placeholder="11438" value={port} onChange={(e) => setPort(e.target.value)} /></div>
@@ -129,7 +129,7 @@ function Form({ port: firstPort }: { port: number }) {
           <button type="button" onClick={close}>{t('btn.cancel')}</button>
           <button className="primary" id="mk" disabled={!allowed.length}>{t('btn.create')}</button>
         </div>
-      </form>
+      </form></DialogBody>
     </Dialog>
   );
 }

@@ -2,7 +2,7 @@ import { useEffect, useState, type ReactNode } from 'react';
 import { api } from '@/api/client';
 import type { InstalledModel, RequestsResponse, SeriesPoint } from '@/api/types';
 import { useDevices, useViews } from '@/app/hooks';
-import { Dialog, DialogTitle } from '@/components/common/Dialog';
+import { Dialog, DialogBody, DialogTitle } from '@/components/common/Dialog';
 import { StateBadge } from '@/components/common/StateBadge';
 import type { InstanceView } from '@/lib/derive';
 import { expAt, fmtCtx, fmtKeep, fmtN, fmtUp, gpuLabel, hms, normModel } from '@/lib/format';
@@ -136,7 +136,7 @@ function Details({ view: i }: { view: InstanceView }) {
   return (
     <Dialog id="det" onClose={close}>
       <DialogTitle onClose={close}>{i.name}</DialogTitle>
-      <div id="dt">
+      <DialogBody><div id="dt">
         <div className="box"><b>{t('new.server')}</b>
           <Row k={t('f.state')}><StateBadge state={i.state} /></Row>
           <Row k={t('f.port')}>{i.port}</Row>
@@ -162,7 +162,7 @@ function Details({ view: i }: { view: InstanceView }) {
           <Row k={t('f.kvq')}>{i.kvq}</Row>
           <Row k={t('f.flash')}>{on(i.flash)}</Row>
         </div>
-      </div>
+      </div></DialogBody>
     </Dialog>
   );
 }

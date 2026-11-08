@@ -47,3 +47,28 @@ dialog {
     width: 100%;
   }
 }
+
+// The big dialogs: the title stays put, only the body below it scrolls (so the scrollbar does not run beside the title)
+dialog:not(#pop) {
+  padding: 0;
+  overflow: hidden;
+
+  &[open] {
+    display: flex;
+    flex-direction: column;
+  }
+
+  >h3 {
+    flex: none;
+    position: static;
+    margin: 0;
+    padding: 16px 16px 8px;
+  }
+
+  .dbody {
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow: auto;
+    padding: 0 16px 16px;
+  }
+}

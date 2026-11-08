@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import type { PullTask } from '@/api/types';
 import { loadModels, pullAction, removeModel, removePull, startPull } from '@/app/modelActions';
-import { Dialog, DialogTitle } from '@/components/common/Dialog';
+import { Dialog, DialogBody, DialogTitle } from '@/components/common/Dialog';
 import { Icon } from '@/components/common/Icon';
 import { modelInfo, splitModel } from '@/lib/format';
 import { gb } from '@/lib/units';
@@ -58,6 +58,7 @@ export function ModelsDialog() {
   return (
     <Dialog id="det" onClose={close}>
       <DialogTitle id="mdl" onClose={close}>{t('hdr.models')}</DialogTitle>
+      <DialogBody>
       <div className="f"><div className="f row"><label htmlFor="pn">{t('mdl.download')}</label></div>
         <div className="pr">
           <input id="pn" spellCheck={false} placeholder={t('mdl.dlPh')} value={name} onChange={(e) => setName(e.target.value)}
@@ -84,6 +85,7 @@ export function ModelsDialog() {
           </div>
         ))}
       </div>
+      </DialogBody>
     </Dialog>
   );
 }
