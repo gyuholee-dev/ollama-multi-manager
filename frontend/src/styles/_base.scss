@@ -15,3 +15,8 @@ body {
   background: var(--bg);
   color: var(--text);
 }
+
+// React mounts into #root; its children (header, main, footer) are laid out as direct children of body
+#root {
+  display: contents;
+}
