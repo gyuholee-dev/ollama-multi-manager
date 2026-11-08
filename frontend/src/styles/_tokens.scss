@@ -1,4 +1,5 @@
 // tokens
+
 :root {
   color-scheme: light dark;
   --bg: light-dark(#ebebeb,#1c1c1c);
@@ -19,12 +20,12 @@
   --surf: var(--bg);
   --ghost-hover: light-dark(#dcdcdc,#151515);
   --ghost-active: light-dark(#cdcdcd,#0d0d0d);
-}
 
-:root[data-theme=light] {
-  color-scheme: light;
-}
+  &[data-theme=light] {
+    color-scheme: light;
+  }
 
-:root[data-theme=dark] {
-  color-scheme: dark;
+  &[data-theme=dark] {
+    color-scheme: dark;
+  }
 }

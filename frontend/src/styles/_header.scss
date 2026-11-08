@@ -1,4 +1,5 @@
 // header
+
 header,
 main {
   max-width: 960px;
@@ -26,23 +27,23 @@ header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-}
 
-header i.material-icons {
-  display: none;
-}
+  i.material-icons {
+    display: none;
+  }
 
-header button {
-  height: 30px;
-}
+  button {
+    height: 30px;
+  }
 
-header .btns {
-  margin-left: auto;
-  flex: none;
-}
+  .btns {
+    margin-left: auto;
+    flex: none;
+  }
 
-header button {
-  white-space: nowrap;
+  button {
+    white-space: nowrap;
+  }
 }
 
 #srv {
@@ -58,36 +59,36 @@ header button {
   min-width: 0;
   color: var(--sub);
   font-size: .75rem;
-}
 
-#srv:hover {
-  background: var(--ghost-hover);
+  &:hover {
+    background: var(--ghost-hover);
+  }
 }
 
 #srv {
   border-radius: 8px;
   transition: background-color .1s;
-}
 
-#srv:active,
-#srv.pressed {
-  background: var(--ghost-active);
-}
+  &:active,
+  &.pressed {
+    background: var(--ghost-active);
+  }
 
-#srv::before {
-  content: "";
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  background: var(--ok);
-  flex: none;
-}
+  &::before {
+    content: "";
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: var(--ok);
+    flex: none;
+  }
 
-#srv .d {
-  min-width: 0;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  .d {
+    min-width: 0;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
 }
 
 @media (max-width:639px) {

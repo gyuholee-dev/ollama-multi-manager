@@ -1,4 +1,5 @@
 // sections
+
 section {
   margin-bottom: 16px;
 }
@@ -22,19 +23,19 @@ section {
   align-items: center;
   justify-content: center;
   color: var(--sub);
-}
 
-.tog:hover {
-  background: var(--ghost-hover);
-}
+  &:hover {
+    background: var(--ghost-hover);
+  }
 
-.tog:active {
-  background: var(--ghost-active);
-}
+  &:active {
+    background: var(--ghost-active);
+  }
 
-.tog .material-icons {
-  transform: rotate(180deg);
-  transition: transform .25s ease;
+  .material-icons {
+    transform: rotate(180deg);
+    transition: transform .25s ease;
+  }
 }
 
 section.off .tog .material-icons {
@@ -45,20 +46,20 @@ section.off .tog .material-icons {
   display: grid;
   grid-template-rows: 1fr;
   transition: grid-template-rows .25s ease;
-}
 
-.body>div {
-  min-height: 0;
-  overflow: hidden;
-  transition: opacity .25s ease,visibility 0s;
+  > div {
+    min-height: 0;
+    overflow: hidden;
+    transition: opacity .25s ease,visibility 0s;
+  }
 }
 
 section.off .body {
   grid-template-rows: 0fr;
-}
 
-section.off .body>div {
-  opacity: 0;
-  visibility: hidden;
-  transition: opacity .25s ease,visibility 0s .25s;
+  > div {
+    opacity: 0;
+    visibility: hidden;
+    transition: opacity .25s ease,visibility 0s .25s;
+  }
 }

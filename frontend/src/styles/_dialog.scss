@@ -1,4 +1,5 @@
 // dialog
+
 dialog h3 button {
   width: 26px;
   height: 26px;
@@ -36,13 +37,13 @@ dialog {
   bottom: 46px;
   padding: 0 16px 16px;
   overflow: auto;
-}
 
-dialog::backdrop {
-  background: rgba(0,0,0,.5);
-}
+  &::backdrop {
+    background: rgba(0,0,0,.5);
+  }
 
-dialog input,
-dialog select {
-  width: 100%;
+  input,
+  select {
+    width: 100%;
+  }
 }
