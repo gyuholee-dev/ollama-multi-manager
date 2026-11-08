@@ -14,7 +14,7 @@ import { useUiStore } from '@/stores/uiStore';
 const NONE: Sample[] = [];
 
 /** The kinds of information the window can show; the buttons at its top choose which ones are on. */
-const CATEGORIES: [string, string][] = [['now', 'im.now'], ['hour', 'im.hour'], ['live', 'im.live'], ['models', 'd.models'], ['recent', 'rq.recent']];
+const CATEGORIES: [string, string][] = [['models', 'd.models'], ['now', 'im.now'], ['hour', 'im.hour'], ['live', 'im.live'], ['recent', 'rq.recent']];
 
 function Cell({ label, value, unit, tone }: { label: string; value: ReactNode; unit?: string; tone?: '--err' | '--warn' }) {
   return (
@@ -79,6 +79,29 @@ export function MonitorDialog({ id }: { id: number }) {
         </div>
         <div id="dt">
           {!imOn.length && <div className="sub">{t('sum.empty')}</div>}
+          {on('models') && (
+            <div className="box"><b>{t('d.models')}</b>
+              <div className="sub">{t('d.loaded')}</div>
+              {view.loaded.length ? view.loaded.map((x) => (
+                <div className="f row" key={x.name}><label>{x.name} · {x.gb.toFixed(1)} GB</label><span className="sub">{expAt(x.exp, view.keep, t)}</span></div>
+              )) : <div className="sub">{t('d.none')}</div>}
+              {p && Object.keys(p.models).length > 0 && (
+                <>
+                  <div className="sub" style={{ marginTop: 12 }}>{t('rq.byModel')}</div>
+                  <div className="rqw"><table className="rq"><tbody>
+                    <tr><th>{t('rq.model')}</th><th className="r">{t('rq.count')}</th><th className="r">{t('rq.speed')}</th><th className="r">{t('rq.avg')}</th></tr>
+                    {Object.entries(p.models).map(([name, x]) => (
+                      <tr key={name}><td>{name}</td>
+                        <td className="r">{x.requests}{x.errors > 0 && <> <span className="bad">({x.errors})</span></>}</td>
+                        <td className="r">{x.tok_per_s != null ? `${Math.round(x.tok_per_s)} tok/s` : '-'}</td>
+                        <td className="r">{x.latency_avg != null ? `${x.latency_avg.toFixed(1)} s` : '-'}</td></tr>
+                    ))}
+                  </tbody></table></div>
+                </>
+              )}
+            </div>
+          )}
+
           {on('now') && (
             <div className="box"><b>{t('im.now')}</b>
               <div className="sc">
@@ -130,29 +153,6 @@ export function MonitorDialog({ id }: { id: number }) {
                 </>
               )}
             </div>
-          )}
-
-          {on('models') && (
-            <>
-              <div className="box"><b>{t('d.loaded')}</b>
-                {view.loaded.length ? view.loaded.map((x) => (
-                  <div className="f row" key={x.name}><label>{x.name} · {x.gb.toFixed(1)} GB</label><span className="sub">{expAt(x.exp, view.keep, t)}</span></div>
-                )) : <div className="sub">{t('d.none')}</div>}
-              </div>
-              {p && Object.keys(p.models).length > 0 && (
-                <div className="box"><b>{t('rq.byModel')}</b>
-                  <div className="rqw"><table className="rq"><tbody>
-                    <tr><th>{t('rq.model')}</th><th className="r">{t('rq.count')}</th><th className="r">{t('rq.speed')}</th><th className="r">{t('rq.avg')}</th></tr>
-                    {Object.entries(p.models).map(([name, x]) => (
-                      <tr key={name}><td>{name}</td>
-                        <td className="r">{x.requests}{x.errors > 0 && <> <span className="bad">({x.errors})</span></>}</td>
-                        <td className="r">{x.tok_per_s != null ? `${Math.round(x.tok_per_s)} tok/s` : '-'}</td>
-                        <td className="r">{x.latency_avg != null ? `${x.latency_avg.toFixed(1)} s` : '-'}</td></tr>
-                    ))}
-                  </tbody></table></div>
-                </div>
-              )}
-            </>
           )}
 
           {on('recent') && (

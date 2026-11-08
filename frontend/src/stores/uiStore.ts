@@ -47,7 +47,7 @@ export const useUiStore = create<UiState>()(
       sortDir: 1,
       sumOn: ['ins', 'usage'],
       monOn: ['CPU', 'RAM', 'GPU', 'VRAM'],
-      imOn: ['now', 'hour', 'live', 'models', 'recent'],
+      imOn: ['models', 'now', 'hour', 'live', 'recent'],
       collapsed: [],
 
       setReady: () => set({ ready: true }),
