@@ -205,7 +205,7 @@ if (!app.requestSingleInstanceLock()) {
     const st = loadState();
     win = new BrowserWindow({
       width: st.width || 1100, height: st.height || 760, x: st.x, y: st.y, minWidth: 480, minHeight: 480,
-      show: false, title: 'Ollama Multi Manager', backgroundColor: nativeTheme.shouldUseDarkColors ? '#1c1c1c' : '#ebebeb', ...titleBar(24),
+      show: false, title: 'Ollama Multi Manager', backgroundColor: nativeTheme.shouldUseDarkColors ? '#1c1c1c' : '#ebebeb', ...titleBar(13),
       webPreferences: webPrefs(),
     });
     win.once('ready-to-show', () => { win.show(); if (st.maximized) win.maximize(); }); // maximized only once it is on screen

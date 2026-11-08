@@ -9,8 +9,8 @@ html[data-titlebar=custom] {
     user-select: none;
   }
 
-  header {
-    padding-left: 88px;
+  header .hr1 {
+    padding-left: 88px; // the traffic-light buttons sit in the first row
   }
 
   .mwin > .dh > h3 {
@@ -19,6 +19,7 @@ html[data-titlebar=custom] {
 
   header button,
   header #srv,
+  header .btns,
   .mwin > .dh .btns,
   .mwin > .dh .btns button {
     -webkit-app-region: no-drag;
