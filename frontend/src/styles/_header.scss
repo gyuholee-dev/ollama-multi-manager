@@ -107,11 +107,11 @@ header {
 }
 
 @media (max-width:639px) {
-  header i.material-icons {
+  header:not(.mwh) i.material-icons {
     display: inline-block;
     font-size: 1.25rem;
   }
-  header button {
+  header:not(.mwh) button {
     width: 30px;
     height: 30px;
     padding: 0;
@@ -119,7 +119,7 @@ header {
     align-items: center;
     justify-content: center;
   }
-  header span {
+  header:not(.mwh) span {
     display: none;
   }
 }

@@ -34,8 +34,7 @@
 
 
 // header of a big dialog with a row of buttons under the title (it does not scroll with the body)
-dialog:not(#pop) > .dh,
-.mwin > .dh {
+dialog:not(#pop) > .dh {
   flex: none;
   background: var(--card);
 
