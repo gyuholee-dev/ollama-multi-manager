@@ -30,20 +30,44 @@ if (!app.requestSingleInstanceLock()) {
   const stateFile = () => path.join(app.getPath('userData'), 'window-state.json');
 
   // ---- window state
+  // true when the window's title bar area is still on some display (a display may have been unplugged since)
+  const onScreen = s => Number.isFinite(s?.x) && Number.isFinite(s?.y) && screen.getAllDisplays().some(d => {
+    const b = d.workArea;
+    return s.x < b.x + b.width - 40 && s.x + s.width > b.x + 40 && s.y < b.y + b.height - 40 && s.y + 40 > b.y;
+  });
   function loadState() {
     try {
       const s = JSON.parse(fs.readFileSync(stateFile(), 'utf8'));
-      const visible = screen.getAllDisplays().some(d => {
-        const b = d.workArea;
-        return s.x < b.x + b.width - 40 && s.x + s.width > b.x + 40 && s.y < b.y + b.height - 40 && s.y + 40 > b.y;
-      });
-      return { ...s, ...(visible ? {} : { x: undefined, y: undefined }) };
+      return { ...s, ...(onScreen(s) ? {} : { x: undefined, y: undefined }) };
     } catch { return {}; }
   }
   function saveState() {
     if (!win || win.isDestroyed()) return;
     const b = win.getNormalBounds();
     try { fs.writeFileSync(stateFile(), JSON.stringify({ ...b, maximized: win.isMaximized() })); } catch { /* not critical */ }
+  }
+
+  // The monitor windows remember their place and size, per instance. A window of an instance that has none yet opens
+  // where the last monitor window was (shifted a little so it does not hide that one).
+  const monitorStateFile = () => path.join(app.getPath('userData'), 'monitor-window-state.json');
+  const readMonitorState = () => { try { return JSON.parse(fs.readFileSync(monitorStateFile(), 'utf8')); } catch { return {}; } };
+  function saveMonitorState(id, w) {
+    if (w.isDestroyed()) return;
+    const st = readMonitorState();
+    const b = { ...w.getNormalBounds(), maximized: w.isMaximized() };
+    st.byId = { ...st.byId, [id]: b };
+    st.last = b;
+    try { fs.writeFileSync(monitorStateFile(), JSON.stringify(st)); } catch (e) { log('Could not save the monitor window state:', e.message); }
+  }
+  function monitorBounds(id) {
+    const st = readMonitorState();
+    if (onScreen(st.byId?.[id])) return st.byId[id];
+    if (onScreen(st.last)) {
+      const shift = 28 * monitors.size; // the windows already open
+      const moved = { ...st.last, x: st.last.x + shift, y: st.last.y + shift, maximized: false };
+      return onScreen(moved) ? moved : { ...st.last, maximized: false };
+    }
+    return null;
   }
 
   // ---- settings only the shell can apply
@@ -103,13 +127,20 @@ if (!app.requestSingleInstanceLock()) {
       open.show(); open.focus();
       return;
     }
+    const saved = monitorBounds(id);
     const w = new BrowserWindow({
-      width: 580, height: 820, minWidth: 420, minHeight: 360, show: false, title: 'Ollama Multi Manager',
+      width: saved?.width || 580, height: saved?.height || 820, x: saved?.x, y: saved?.y, minWidth: 420, minHeight: 360, show: false, title: 'Ollama Multi Manager',
       backgroundColor: nativeTheme.shouldUseDarkColors ? '#1c1c1c' : '#ebebeb',
       webPreferences: { preload: path.join(__dirname, 'preload.js'), contextIsolation: true, nodeIntegration: false, sandbox: true, spellcheck: false },
     });
     monitors.set(id, w);
+    if (saved?.maximized) w.maximize();
     w.once('ready-to-show', () => w.show());
+    let timer = null;
+    const later = () => { clearTimeout(timer); timer = setTimeout(() => saveMonitorState(id, w), 400); };
+    w.on('resize', later);
+    w.on('move', later);
+    w.on('close', () => { clearTimeout(timer); saveMonitorState(id, w); });
     w.loadURL(`${backend.url}/#token=${backend.token}&monitor=${id}`);
     guard(w);
     w.on('closed', () => { if (monitors.get(id) === w) monitors.delete(id); });
