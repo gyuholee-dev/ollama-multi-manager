@@ -123,7 +123,7 @@ const mi=n=>`<span class="material-icons">${n}</span>`;
 const SI={running:'circle',stopped:'radio_button_unchecked',starting:'more_horiz',unreachable:'warning'},stL=s=>mi(SI[s])+t('state.'+s);
 let list=[
  {id:1,name:'worker-1',port:11435,exp:[Date.now()+3*60000],models:['llama3.1:8b-instruct-q4_K_M','mistral:7b-instruct-q4_K_M'],ctx:8192,keep:5,loaded:['llama3.1:8b-instruct-q4_K_M · 4.7 GB'],state:'running'},
- {id:2,name:'worker-2',port:11436,models:['mistral:7b-instruct-q4_K_M'],ctx:4096,keep:15,loaded:[],state:'stopped'},
+ {id:2,name:'worker-2',port:11436,exp:[Date.now()+9*60000],models:['mistral:7b-instruct-q4_K_M'],ctx:4096,keep:15,loaded:['mistral:7b-instruct-q4_K_M · 4.1 GB'],state:'running'},
  {id:3,name:'worker-3',port:11437,models:['llama3.1:8b-instruct-q8_0'],ctx:8192,keep:5,loaded:[],state:'unreachable'}];
 const ext={get name(){return t('ext.name')},port:11434,exp:[Date.now()+4*60000],ctx:4096,keep:15,loaded:['qwen2.5:3b-instruct-q4_K_M · 2.1 GB']};
 const $=id=>document.getElementById(id),by=id=>list.find(i=>i.id==id);
@@ -168,14 +168,14 @@ function renderSum(){
 function render(){
  $('mtabs').innerHTML=MONS.map(t=>`<button class="small${monOn.has(t)?' on':''}" onclick="togMon('${t}')">${t}</button>`).join('');
  $('stabs').innerHTML=SO.map(([k,x])=>`<button class="small${so.k==k?' on':''}" onclick="setSort('${k}')">${t(x)}${so.k==k?mi(so.d>0?'arrow_upward':'arrow_downward'):''}</button>`).join('');
- const runL=list.filter(i=>i.state=='running'),anyRun=runL.length>0,S=t('mon.system'),O=t('mon.other'),V=vramByGpu(),used=V.reduce((t,g)=>t+g.used,0),total=V.reduce((t,g)=>t+g.total,0),pct=Math.round(used/total*100),pmax=Math.max(...V.map(g=>g.pct));
+ const runL=list.filter(i=>i.state=='running'),wt=i=>GB(i.loaded)||1,wsum=runL.reduce((a,i)=>a+wt(i),0),share=(i,total)=>total*wt(i)/wsum,anyRun=runL.length>0,S=t('mon.system'),O=t('mon.other'),V=vramByGpu(),used=V.reduce((t,g)=>t+g.used,0),total=V.reduce((t,g)=>t+g.total,0),pct=Math.round(used/total*100),pmax=Math.max(...V.map(g=>g.pct));
  const mb=(t,v,body,w='')=>monOn.has(t)?`<div class="sb"><div class="top" style="margin:0"><b>${t}</b><span class="sub"${w}>${v}</span></div>${body}</div>`:'',
   bar=(ps)=>`<div class="bar">${ps.map(p=>`<i title="${p[0]}" style="width:${p[1]}%;background:${p[2]}"></i>`).join('')}</div>`,
   leg=(ps)=>`<div class="leg">${ps.map(p=>`<span><s style="background:${p[2]}"></s>${p[0]} ${p[3]}</span>`).join('')}</div>`,
   gpuRows=[[62,58,214,5],[4,41,28,2]].map(([u,tc,w,sy],n)=>{const ps=V[n].parts,tp=ps.reduce((x,p)=>x+p.v,0),sysU=ps.length?Math.min(sy,u):u,segs=[[S,sysU,'var(--sub)',sysU+'%'],...ps.map(p=>[p.name,(u-sysU)*p.v/tp,p.col,Math.round((u-sysU)*p.v/tp)+'%'])];return `<div class="top" style="margin:${n?14:8}px 0 0"><span>${gpuName(n)}</span><span class="sub">${u}% · ${tc}°C · ${w} W</span></div>${bar(segs)}${leg(segs)}`}).join('');
  $('mon').innerHTML=[
-  mb('CPU',t('mon.cpu',{pct:23,n:12}),bar([...runL.map(i=>[i.name,9/runL.length,`hsl(${list.indexOf(i)*70+210} 60% 55%)`]),[O,14,'var(--sub)']])+leg([...runL.map(i=>[i.name,9/runL.length,`hsl(${list.indexOf(i)*70+210} 60% 55%)`,Math.round(9/runL.length)+'%']),[O,14,'var(--sub)','14%']])),
-  mb('RAM','21.8 / 64 GB (34%)',bar([[S,15/64*100,'var(--sub)'],...runL.map(i=>[i.name,6.8/runL.length/64*100,`hsl(${list.indexOf(i)*70+210} 60% 55%)`])])+leg([[S,15,'var(--sub)','15.0 GB'],...runL.map(i=>[i.name,6.8/runL.length,`hsl(${list.indexOf(i)*70+210} 60% 55%)`,(6.8/runL.length).toFixed(1)+' GB'])])),
+  mb('CPU',t('mon.cpu',{pct:23,n:12}),bar([...runL.map(i=>[i.name,share(i,9),`hsl(${list.indexOf(i)*70+210} 60% 55%)`]),[O,14,'var(--sub)']])+leg([...runL.map(i=>[i.name,share(i,9),`hsl(${list.indexOf(i)*70+210} 60% 55%)`,Math.round(share(i,9))+'%']),[O,14,'var(--sub)','14%']])),
+  mb('RAM','21.8 / 64 GB (34%)',bar([[S,15/64*100,'var(--sub)'],...runL.map(i=>[i.name,share(i,6.8)/64*100,`hsl(${list.indexOf(i)*70+210} 60% 55%)`])])+leg([[S,15,'var(--sub)','15.0 GB'],...runL.map(i=>[i.name,share(i,6.8),`hsl(${list.indexOf(i)*70+210} 60% 55%)`,share(i,6.8).toFixed(1)+' GB'])])),
   mb('GPU',t('mon.gpus',{n:GPUS.length}),gpuRows),
   mb('VRAM',`${used.toFixed(1)} / ${total} GB (${pct}%)`,V.map((g,n)=>{const ps=[[S,GSYS/g.total*100,'var(--sub)',GSYS.toFixed(1)+' GB'],...g.parts.map(p=>[p.name,p.v/g.total*100,p.col,p.v.toFixed(1)+' GB'])];return `<div class="top" style="margin:${n?14:8}px 0 0"><span>${gpuName(n)}</span><span class="sub"${g.pct>85?' style="color:var(--warn)"':''}>${g.used.toFixed(1)} / ${g.total} GB (${g.pct}%)</span></div>`+bar(ps)+leg(ps.map(p=>[p[0],p[1],p[2],p[3]]))}).join(''),pmax>85?' style="color:var(--warn)"':'')].join('')||`<div class="sub" style="grid-column:1/-1">${t('sum.empty')}</div>`;
  renderSum();
@@ -308,7 +308,7 @@ $('ver').textContent='ollama-multi-manager '+VERSION;const sd=(ago,src,m)=>logs.
 sd(900,'app','Loaded settings from database');sd(895,'app','Restoring instances from last session');
 sd(890,'default','Listening on 127.0.0.1:11434 (externally managed)');sd(884,'default','Model loaded: qwen2.5:3b-instruct-q4_K_M (2.1 GB)');
 sd(880,'worker-1','Process started (pid 4237) on port 11435');sd(878,'worker-1','Listening on 127.0.0.1:11435');sd(872,'worker-1','Model loaded: llama3.1:8b-instruct-q4_K_M (4.7 GB) in 5.8s');
-sd(600,'worker-1','POST /api/chat 200 1.84s');sd(420,'worker-1','POST /api/generate 200 0.92s');
+sd(860,'worker-2','Process started (pid 4311) on port 11436');sd(852,'worker-2','Model loaded: mistral:7b-instruct-q4_K_M (4.1 GB) in 4.9s');sd(600,'worker-1','POST /api/chat 200 1.84s');sd(420,'worker-1','POST /api/generate 200 0.92s');
 sd(300,'worker-3','Health check timed out (3 consecutive failures)');sd(298,'worker-3','State changed to unreachable');
 log('App started');apply();
 </script>
