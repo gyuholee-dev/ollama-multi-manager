@@ -22,7 +22,7 @@ function Cell({ label, value, unit, tone }: CellProps) {
   return (
     <div>
       <div className="sub">{label}</div>
-      <b style={tone ? { color: `var(${tone})` } : undefined}>{value}{unit ? <small>{unit}</small> : null}</b>
+      <span className="val" style={tone ? { color: `var(${tone})` } : undefined}>{value}{unit ? <small>{unit}</small> : null}</span>
     </div>
   );
 }
@@ -31,7 +31,7 @@ function Box({ id, children }: { id: (typeof SUMS)[number]; children: ReactNode 
   const t = useT();
   const on = useUiStore((s) => s.sumOn.includes(id));
   if (!on) return null;
-  return <div className="sb"><b>{t(`sum.${id}`)}</b><div className="sc">{children}</div></div>;
+  return <div className="sb"><span className="ti">{t(`sum.${id}`)}</span><div className="sc">{children}</div></div>;
 }
 
 export function Summary() {

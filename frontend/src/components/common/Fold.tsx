@@ -5,7 +5,7 @@ export function Fold({ title, hint, children }: { title: string; hint: string; c
   const [open, setOpen] = useState(false);
   return (
     <div className="cat nc">
-      <label className="ch"><b>{title}</b>
+      <label className="ch"><span className="ti">{title}</span>
         <input type="checkbox" className="cc" aria-label={hint} checked={open} onChange={(e) => setOpen(e.target.checked)} />
         <span className="tog"><span className="material-icons">expand_more</span></span>
       </label>

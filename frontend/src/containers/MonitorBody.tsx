@@ -20,7 +20,7 @@ function Cell({ label, value, unit, tone }: { label: string; value: ReactNode; u
   return (
     <div>
       <div className="sub">{label}</div>
-      <b style={tone ? { color: `var(${tone})` } : undefined}>{value}{unit ? <small>{unit}</small> : null}</b>
+      <span className="val" style={tone ? { color: `var(${tone})` } : undefined}>{value}{unit ? <small>{unit}</small> : null}</span>
     </div>
   );
 }
@@ -109,7 +109,7 @@ export function MonitorBody({ id, view }: { id: number; view: InstanceView }) {
   return (
         <div id="dt">
           {shown('models') && (
-          <div className="box"><b>{t('d.models')}</b>
+          <div className="box"><span className="ti">{t('d.models')}</span>
             <Collapse id="loaded" title={t('d.loaded')}>
               {view.loaded.length ? view.loaded.map((x) => (
                 <div className="f row" key={x.name}><label>{x.name} · {x.gb.toFixed(1)} GB</label><span className="sub">{expAt(x.exp, view.keep, t)}</span></div>
@@ -132,7 +132,7 @@ export function MonitorBody({ id, view }: { id: number; view: InstanceView }) {
           )}
 
           {shown('state') && (
-          <div className="box"><b>{t('f.state')}</b>
+          <div className="box"><span className="ti">{t('f.state')}</span>
             <Collapse id="now" title={t('im.now')}>
               <div className="sc">
                 <Cell label={t('c.reqs')} value={p ? p.processing : '-'} unit={p ? ` ${t('u.case')}` : undefined} />
@@ -164,7 +164,7 @@ export function MonitorBody({ id, view }: { id: number; view: InstanceView }) {
           )}
 
           {shown('res') && (
-          <div className="box"><b>{t('d.res')}</b>
+          <div className="box"><span className="ti">{t('d.res')}</span>
             <Collapse id="cpu" title="CPU">
               {live ? <LineChart title="CPU" value={last ? `${last.cpu.toFixed(1)} %` : undefined} points={samples.map((x) => x.cpu)} max={Math.max(10, ...samples.map((x) => x.cpu))}
                 left={liveLeft} right={liveRight} format={(v) => `${Math.round(v)} %`} /> : collecting}
@@ -188,7 +188,7 @@ export function MonitorBody({ id, view }: { id: number; view: InstanceView }) {
           )}
 
           {shown('log') && (
-          <div className="box"><b>{t('im.history')}</b>
+          <div className="box"><span className="ti">{t('im.history')}</span>
             <Collapse id="recent" title={t('rq.recent')}>
               {recent.length ? (
                 <div className="rqw"><table className="rq"><tbody>

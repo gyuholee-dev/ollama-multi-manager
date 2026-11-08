@@ -19,7 +19,7 @@ function DownloadCard({ task }: { task: PullTask }) {
   const text = task.status === 'paused' ? `${t('mdl.paused')} · ${pct}${size}` : task.status === 'error' ? `${t('mdl.failed')} · ${pct}${size}` : pct + size;
   return (
     <div className="card mc" id={`dl-${task.id}`} data-s={task.status}>
-      <div className="top" style={{ margin: 0 }}><b className="tag">{task.model}</b><span className="sub">{text}</span></div>
+      <div className="top" style={{ margin: 0 }}><span className="ti tag">{task.model}</span><span className="sub">{text}</span></div>
       <div className="mi"><div className={`dl${off ? ' off' : ''}`}><i style={{ width: `${task.percent ?? 0}%` }} /></div></div>
       <div className="btns" style={{ justifyContent: 'space-between' }}>
         <button className="small" onClick={() => void pullAction(task.id, off ? 'resume' : 'pause')}>{t(off ? 'btn.resume' : 'btn.pause')}</button>
@@ -71,10 +71,10 @@ export function ModelsDialog() {
         {groups.size === 0 && loaded && <div className="sub">{t('mdl.none')}</div>}
         {[...groups].map(([family, rows]) => (
           <div className="cat mg" key={family}>
-            <b>{family}</b>
+            <span className="ti">{family}</span>
             {rows.map((row) => row.task ? <DownloadCard key={row.task.id} task={row.task} /> : (
               <div className="card mc" key={row.model!.name}>
-                <div className="top" style={{ margin: 0 }}><b className="tag">{row.model!.name}</b><span className="sub">{gb(row.model!.size).toFixed(1)} GB</span></div>
+                <div className="top" style={{ margin: 0 }}><span className="ti tag">{row.model!.name}</span><span className="sub">{gb(row.model!.size).toFixed(1)} GB</span></div>
                 <div className="sub mi"><span>{modelInfo(row.tag, t)}</span></div>
                 <div className="btns" style={{ justifyContent: 'space-between' }}>
                   <a className="btn small" href={`https://ollama.com/library/${encodeURI(row.model!.name)}`} target="_blank" rel="noopener noreferrer" aria-label={t('mdl.library')} title={t('mdl.library')}><Icon name="open_in_new" /></a>

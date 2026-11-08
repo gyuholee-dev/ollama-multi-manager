@@ -45,7 +45,7 @@
   align-items: center;
   justify-content: space-between;
 
-  > b {
+  > .ti {
     font-weight: 400;
     font-size: .875rem;
   }
@@ -118,7 +118,7 @@ input[type=number] {
   }
 }
 
-.ch.tl>b {
+.ch.tl>.ti {
   font-size: 1rem;
   font-weight: 500;
 }
@@ -190,7 +190,7 @@ input.rg:focus {
   }
 }
 
-.box>b+.f:not(.row) {
+.box>.ti+.f:not(.row) {
   margin-top: 10px;
 }
 

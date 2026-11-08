@@ -15,7 +15,7 @@ interface FrameProps {
 function Frame({ title, value, left, right, top, children }: FrameProps) {
   return (
     <div className="chart">
-      <div className="chh"><span className="sub">{title}</span>{value != null && <b>{value}</b>}</div>
+      <div className="chh"><span className="sub">{title}</span>{value != null && <span className="val">{value}</span>}</div>
       <svg className="rqc" viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="none" role="img" aria-label={title}>
         {[0.25, 0.5, 0.75].map((f) => <line key={f} x1="0" x2={W} y1={H * f} y2={H * f} className="gl" vectorEffect="non-scaling-stroke" />)}
         {children}

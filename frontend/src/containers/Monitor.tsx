@@ -22,7 +22,7 @@ interface BoxProps {
 function MonitorBox({ title, summary, warn, children }: BoxProps) {
   return (
     <div className="sb">
-      <div className="top" style={{ margin: 0 }}><b>{title}</b><span className="sub" style={warn ? warnStyle : undefined}>{summary}</span></div>
+      <div className="top" style={{ margin: 0 }}><span className="ti">{title}</span><span className="sub" style={warn ? warnStyle : undefined}>{summary}</span></div>
       {children}
     </div>
   );

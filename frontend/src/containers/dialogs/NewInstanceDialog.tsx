@@ -94,7 +94,7 @@ function Form({ port: firstPort }: { port: number }) {
     <Dialog id="dlg" onClose={close}>
       <DialogTitle onClose={close}>{t('new.title')}</DialogTitle>
       <DialogBody><form onSubmit={(e) => void submit(e)}>
-        <div className="box" id="sv"><b>{t('new.server')}</b>
+        <div className="box" id="sv"><span className="ti">{t('new.server')}</span>
           <div className="f"><div className="f row"><label htmlFor="n">{t('f.name')}</label></div><input id="n" required placeholder="worker-4" value={name} onChange={(e) => setName(e.target.value)} /></div>
           <div className="f"><div className="f row"><label htmlFor="p">{t('f.port')}</label></div><input id="p" type="number" required placeholder="11438" value={port} onChange={(e) => setPort(e.target.value)} /></div>
           <Fold title={t('new.general')} hint={t('new.generalT')}>
@@ -121,7 +121,7 @@ function Form({ port: firstPort }: { port: number }) {
                 <button type="button" onClick={() => setKey(randomKey())}>{t('btn.genKey')}</button></span></div>
           </Fold>
         </div>
-        <div className="box"><b>{t('new.models')}</b>
+        <div className="box"><span className="ti">{t('new.models')}</span>
           <div className="sub">{t('new.modelsHint')}</div>
           <ModelPicker value={allowed} onChange={setAllowed} />
         </div>

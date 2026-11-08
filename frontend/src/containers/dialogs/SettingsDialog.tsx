@@ -22,7 +22,7 @@ const Select = ({ id, label, value, options, onChange }: { id: string; label: st
   </div>
 );
 
-const Box = ({ title, children }: { title: string; children: ReactNode }) => <div className="box"><b>{title}</b>{children}</div>;
+const Box = ({ title, children }: { title: string; children: ReactNode }) => <div className="box"><span className="ti">{title}</span>{children}</div>;
 
 /** Every change is stored the moment it is made (switches and lists at once, text and numbers when the field is left). */
 export function SettingsDialog() {

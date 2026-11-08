@@ -6,7 +6,7 @@
   gap: 12px;
 }
 
-.top>b {
+.top>.ti {
   font-size: 1rem;
   font-weight: 500;
 }
@@ -17,7 +17,7 @@
   gap: 8px;
 }
 
-.top>b.tag {
+.top>.ti.tag {
   font-size: .875rem;
   font-weight: 400;
   min-width: 0;
@@ -85,7 +85,7 @@
   }
 }
 
-.mg>b {
+.mg>.ti {
   margin-bottom: 10px;
 }
 

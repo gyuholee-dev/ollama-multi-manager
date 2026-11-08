@@ -9,7 +9,7 @@ export function Collapse({ id, title, children }: { id: string; title: string; c
   const toggle = useUiStore((s) => s.toggleImFold);
   return (
     <div className="cat nc">
-      <label className="ch"><b>{title}</b>
+      <label className="ch"><span className="ti">{title}</span>
         <input type="checkbox" className="cc" aria-label={t('new.toggle', { n: title })} checked={!folded} onChange={() => toggle(id)} />
         <span className="tog"><span className="material-icons">expand_more</span></span>
       </label>

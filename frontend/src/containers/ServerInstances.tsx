@@ -59,7 +59,7 @@ function InstanceCard({ i }: { i: InstanceView }) {
   const t = useT();
   return (
     <div className="card">
-      <div className="top"><b>{i.name}</b><StateBadge state={i.state} /></div>
+      <div className="top"><span className="ti">{i.name}</span><StateBadge state={i.state} /></div>
       <PortLine port={i.port} ctx={i.ctx} loaded={i.loaded} />
       {i.auto && <div className="sub">{t('card.auto')}</div>}
       <LoadedList loaded={i.loaded} keep={i.keep} />
@@ -94,7 +94,7 @@ export function ServerInstances() {
         {sorted.map((i) => <InstanceCard key={i.id} i={i} />)}
         {external && (
           <div className="card ext">
-            <div className="top"><b>{t('ext.name')}</b><span className="badge"><Icon name="lock" />{t('ext.managed')}</span></div>
+            <div className="top"><span className="ti">{t('ext.name')}</span><span className="badge"><Icon name="lock" />{t('ext.managed')}</span></div>
             <PortLine port={external.port} ctx={0} loaded={external.loaded} />
             <LoadedList loaded={external.loaded} keep={external.keep} />
           </div>
