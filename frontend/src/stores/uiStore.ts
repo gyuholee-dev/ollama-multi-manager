@@ -43,7 +43,7 @@ export const useUiStore = create<UiState>()(
 
       sortKey: 'name',
       sortDir: 1,
-      sumOn: ['ins', 'usage', 'perf'],
+      sumOn: ['ins', 'usage'],
       monOn: ['CPU', 'RAM', 'GPU', 'VRAM'],
       collapsed: [],
 
