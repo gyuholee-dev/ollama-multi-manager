@@ -27,6 +27,17 @@ if (!app.requestSingleInstanceLock()) {
 } else {
   let win = null, backend = null, tray = null, settings = {}, quitting = false, mockup = null;
   const monitors = new Map(); // instance id -> its monitor window (one per instance)
+
+  // macOS: no system title bar. With macOS 27.2 a window dragged by the system title bar from one display to another
+  // is repositioned wrongly (the system loses the start of the move, "Window move completed without beginning"),
+  // while a window dragged by a drag region of the page moves correctly. The page draws the header, which is the
+  // drag region, and leaves room for the traffic-light buttons. OMM_NATIVE_TITLEBAR=1 brings the system one back.
+  const CUSTOM_TITLEBAR = process.platform === 'darwin' && !/^(1|true|yes|on)$/i.test(process.env.OMM_NATIVE_TITLEBAR || '');
+  const titleBar = lightsY => (CUSTOM_TITLEBAR ? { titleBarStyle: 'hidden', trafficLightPosition: { x: 18, y: lightsY } } : {});
+  const webPrefs = () => ({
+    preload: path.join(__dirname, 'preload.js'), contextIsolation: true, nodeIntegration: false, sandbox: true, spellcheck: false,
+    additionalArguments: CUSTOM_TITLEBAR ? ['--omm-custom-titlebar'] : [],
+  });
   const stateFile = () => path.join(app.getPath('userData'), 'window-state.json');
 
   // ---- window state
@@ -177,8 +188,8 @@ if (!app.requestSingleInstanceLock()) {
     const saved = monitorBounds(id);
     const w = new BrowserWindow({
       width: saved?.width || 580, height: saved?.height || 820, x: saved?.x, y: saved?.y, minWidth: 420, minHeight: 360, show: false, title: 'Ollama Multi Manager',
-      backgroundColor: nativeTheme.shouldUseDarkColors ? '#1c1c1c' : '#ebebeb',
-      webPreferences: { preload: path.join(__dirname, 'preload.js'), contextIsolation: true, nodeIntegration: false, sandbox: true, spellcheck: false },
+      backgroundColor: nativeTheme.shouldUseDarkColors ? '#1c1c1c' : '#ebebeb', ...titleBar(22),
+      webPreferences: webPrefs(),
     });
     monitors.set(id, w);
     w.once('ready-to-show', () => { w.show(); if (saved?.maximized) w.maximize(); }); // maximized only once it is on screen
@@ -194,8 +205,8 @@ if (!app.requestSingleInstanceLock()) {
     const st = loadState();
     win = new BrowserWindow({
       width: st.width || 1100, height: st.height || 760, x: st.x, y: st.y, minWidth: 480, minHeight: 480,
-      show: false, title: 'Ollama Multi Manager', backgroundColor: nativeTheme.shouldUseDarkColors ? '#1c1c1c' : '#ebebeb',
-      webPreferences: { preload: path.join(__dirname, 'preload.js'), contextIsolation: true, nodeIntegration: false, sandbox: true, spellcheck: false },
+      show: false, title: 'Ollama Multi Manager', backgroundColor: nativeTheme.shouldUseDarkColors ? '#1c1c1c' : '#ebebeb', ...titleBar(24),
+      webPreferences: webPrefs(),
     });
     win.once('ready-to-show', () => { win.show(); if (st.maximized) win.maximize(); }); // maximized only once it is on screen
     win.loadURL(`${backend.url}/#token=${backend.token}`);

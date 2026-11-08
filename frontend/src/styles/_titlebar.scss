@@ -1,0 +1,26 @@
+// titlebar: the desktop shell on macOS has no system title bar; the header of the page takes its place
+// (set by main.tsx as <html data-titlebar="custom">). The header is the drag region of the window, the buttons in it
+// are not, and the left side is left free for the traffic-light buttons.
+
+html[data-titlebar=custom] {
+  header,
+  .mwin > .dh {
+    -webkit-app-region: drag;
+    user-select: none;
+  }
+
+  header {
+    padding-left: 88px;
+  }
+
+  .mwin > .dh > h3 {
+    padding-left: 88px;
+  }
+
+  header button,
+  header #srv,
+  .mwin > .dh .btns,
+  .mwin > .dh .btns button {
+    -webkit-app-region: no-drag;
+  }
+}

@@ -25,8 +25,14 @@ export function MonitorWindow({ id }: { id: number }) {
     return () => clearTimeout(timer);
   }, [gone]);
 
-  if (!ready) return <div id="boot" role="status">{t('boot.loading')}</div>;
-  if (!view) return <div id="boot" role="status">{t('im.removed')}</div>;
+  const note = (text: string) => (
+    <div id="det" className="mwin">
+      <div className="dh"><h3>{t('app.title')}</h3></div>
+      <div id="boot" role="status">{text}</div>
+    </div>
+  );
+  if (!ready) return note(t('boot.loading'));
+  if (!view) return note(t('im.removed'));
   // laid out and styled like the dialogs: a header (title and category buttons) that stays, and a body that scrolls
   return (
     <div id="det" className="mwin">
