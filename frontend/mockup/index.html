@@ -123,6 +123,8 @@ dialog:not(#pop)>.dh{flex:none;background:var(--card)}dialog:not(#pop)>.dh>h3{po
 const VERSION='v0.1.0';let checking=false;
 const detectLang=()=>{for(const l of navigator.languages||[navigator.language]){const b=String(l||'').toLowerCase().split('-')[0];if(window.LOCALES[b])return b}return 'en'};
 const defCfg={lang:detectLang(),theme:'system',login:false,tray:false,interval:3,extMon:true,monPort:9100,exe:'',modelsPath:'~/.ollama/models'},cfg={...defCfg};let saved={...defCfg};
+const shared=()=>{try{return JSON.parse(localStorage.getItem('omm-mock-cfg')||'{}')}catch(e){return {}}},share=()=>{try{localStorage.setItem('omm-mock-cfg',JSON.stringify({lang:cfg.lang,theme:cfg.theme}))}catch(e){}};
+{const sh=shared();if(window.LOCALES[sh.lang])cfg.lang=saved.lang=sh.lang;if(sh.theme)cfg.theme=saved.theme=sh.theme}
 let models=[{n:'llama3.1:8b-instruct-q4_K_M',gb:4.7},{n:'llama3.1:8b-instruct-q8_0',gb:8.5},{n:'mistral:7b-instruct-q4_K_M',gb:4.1},{n:'qwen2.5:3b-instruct-q4_K_M',gb:2.1},{n:'gemma2:9b-instruct-q4_K_M',gb:5.4}];
 const t=(k,p)=>String(LOCALES[cfg.lang]?.[k]??LOCALES.en[k]??k).replace(/\{(\w+)\}/g,(_,x)=>p?.[x]??'');
 const mi=n=>`<span class="material-icons">${n}</span>`;
@@ -256,7 +258,7 @@ function applyStatic(){document.title=t('app.title');document.documentElement.la
  document.querySelectorAll('[data-i-title]').forEach(e=>e.title=t(e.dataset.iTitle));
  document.querySelectorAll('[data-i-aria]').forEach(e=>e.setAttribute('aria-label',t(e.dataset.iAria)));
  document.querySelectorAll('main > section').forEach(secLbl)}
-function apply(){document.documentElement.dataset.theme=cfg.theme;applyStatic();syncSrv();render();renderLogs()}
+function apply(){share();document.documentElement.dataset.theme=cfg.theme;applyStatic();syncSrv();render();renderLogs()}
 function upd(){const lc=$('lang').value!=cfg.lang;Object.assign(cfg,{lang:$('lang').value,theme:$('t').value,login:$('lg').checked,tray:$('tray').checked,interval:+$('iv').value,extMon:$('em').checked,monPort:+$('mport').value||defCfg.monPort,exe:$('ex').value,modelsPath:$('mp').value});apply();saved={...cfg};if(lc)openCfg()}
 async function resetCfg(){if(!await ask(t('rst.title'),t('rst.msg'),t('rst.ok'),true))return;Object.assign(cfg,defCfg);saved={...cfg};log('Settings reset to defaults');apply();openCfg()}
 let monOk=0,monWas=false;
