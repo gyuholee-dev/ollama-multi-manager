@@ -50,6 +50,24 @@ if (!app.requestSingleInstanceLock()) {
     w.on('close', () => clearTimeout(timer));
   }
 
+  // OMM_DEBUG_WINDOW=1: prints what the window reports while it is moved (for finding out why a window lands in the
+  // wrong place after being dragged to another display).
+  const DEBUG_WINDOW = /^(1|true|yes|on)$/i.test(process.env.OMM_DEBUG_WINDOW || '');
+  function debugWindow(w, label) {
+    if (!DEBUG_WINDOW) return;
+    let intended = null, moves = 0;
+    w.on('will-move', (_e, b) => { intended = b; });
+    w.on('move', () => { moves++; });
+    w.on('moved', () => {
+      const b = w.getBounds(), d = screen.getDisplayMatching(b);
+      const jump = intended ? `jump ${b.x - intended.x},${b.y - intended.y} from the last will-move target` : 'no will-move reported';
+      log(`[window ${label}] moved to ${b.x},${b.y} ${b.width}x${b.height} on display ${d.id} (scale ${d.scaleFactor}); ${moves} move events; ${jump}`);
+      intended = null; moves = 0;
+    });
+    w.on('maximize', () => log(`[window ${label}] maximize -> ${JSON.stringify(w.getBounds())}`));
+    w.on('unmaximize', () => log(`[window ${label}] unmaximize -> ${JSON.stringify(w.getBounds())}`));
+  }
+
   // true when the window's title bar area is still on some display (a display may have been unplugged since)
   const onScreen = s => Number.isFinite(s?.x) && Number.isFinite(s?.y) && screen.getAllDisplays().some(d => {
     const b = d.workArea;
@@ -128,7 +146,8 @@ if (!app.requestSingleInstanceLock()) {
 
   // The page may only ever be the backend's own UI; everything else opens in the system browser.
   // In developer mode a right-click menu offers reload, pausing the page's live updates, and inspect.
-  function guard(w) {
+  function guard(w, label = 'main') {
+    debugWindow(w, label);
     const isOwn = u => { try { return new URL(u).origin === backend.url; } catch { return false; } };
     const external = u => { if (/^https?:\/\//i.test(u)) shell.openExternal(u); };
     w.webContents.on('will-navigate', (e, u) => { if (!isOwn(u)) { e.preventDefault(); external(u); } });
@@ -166,7 +185,7 @@ if (!app.requestSingleInstanceLock()) {
     trackBounds(w, () => saveMonitorState(id, w));
     w.on('close', () => saveMonitorState(id, w, true));
     w.loadURL(`${backend.url}/#token=${backend.token}&monitor=${id}`);
-    guard(w);
+    guard(w, `monitor ${id}`);
     w.on('closed', () => { if (monitors.get(id) === w) monitors.delete(id); });
   }
   const closeMonitors = () => { monitors.forEach(w => { if (!w.isDestroyed()) w.close(); }); monitors.clear(); };
