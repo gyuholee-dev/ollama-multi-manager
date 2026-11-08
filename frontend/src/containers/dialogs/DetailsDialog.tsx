@@ -1,11 +1,11 @@
 import { useEffect, useState, type ReactNode } from 'react';
 import { api } from '@/api/client';
-import type { InstalledModel, RequestsResponse } from '@/api/types';
+import type { InstalledModel } from '@/api/types';
 import { useDevices, useViews } from '@/app/hooks';
 import { Dialog, DialogBody, DialogTitle } from '@/components/common/Dialog';
 import { StateBadge } from '@/components/common/StateBadge';
 import type { InstanceView } from '@/lib/derive';
-import { expAt, fmtCtx, fmtKeep, fmtN, fmtUp, gpuLabel, hms, normModel } from '@/lib/format';
+import { expAt, fmtCtx, fmtKeep, fmtN, fmtUp, gpuLabel, normModel } from '@/lib/format';
 import { gb } from '@/lib/units';
 import { useT } from '@/locales/useT';
 import { useDialogStore } from '@/stores/dialogStore';
@@ -19,52 +19,6 @@ const Models = ({ items, empty }: { items: { key: string; text: string }[]; empt
     {items.length ? items.map((m, n) => <div key={m.key}>{n > 0 && <div className="gp" />}{m.text}</div>) : <div className="sub">{empty}</div>}
   </div>
 );
-
-/** Per-model numbers and the latest requests (no prompts or answers are kept). Refreshed with every snapshot. */
-function Requests({ id }: { id: number }) {
-  const t = useT();
-  const snap = useMonitorStore((s) => s.snap);
-  const [data, setData] = useState<RequestsResponse | null>(null);
-  useEffect(() => {
-    let alive = true;
-    api.get<RequestsResponse>(`/instances/${id}/requests?limit=20`)
-      .then((d) => { if (alive) setData(d); }, () => { /* keep what is shown */ });
-    return () => { alive = false; };
-  }, [id, snap]);
-  if (!data) return null;
-  const models = Object.entries(data.models);
-  const { requests } = data;
-  return (
-    <>
-      {models.length > 0 && (
-        <>
-          <div className="sub">{t('rq.byModel')}</div>
-          <div className="rqw"><table className="rq"><tbody>
-            <tr><th>{t('rq.model')}</th><th className="r">{t('rq.count')}</th><th className="r">{t('rq.speed')}</th><th className="r">{t('rq.avg')}</th></tr>
-            {models.map(([m, x]) => (
-              <tr key={m}><td>{m}</td>
-                <td className="r">{x.requests}{x.errors > 0 && <> <span className="bad">({x.errors})</span></>}</td>
-                <td className="r">{x.tok_per_s != null ? `${Math.round(x.tok_per_s)} tok/s` : '-'}</td>
-                <td className="r">{x.latency_avg != null ? `${x.latency_avg.toFixed(1)} s` : '-'}</td></tr>
-            ))}
-          </tbody></table></div>
-        </>
-      )}
-      <div className="sub" style={{ marginTop: models.length ? 10 : 0 }}>{t('rq.recent')}</div>
-      {requests.length ? (
-        <div className="rqw"><table className="rq"><tbody>
-          <tr><th>{t('rq.time')}</th><th>{t('rq.path')}</th><th>{t('rq.model')}</th><th className="r">{t('rq.status')}</th><th className="r">{t('rq.dur')}</th><th className="r">{t('rq.tok')}</th></tr>
-          {requests.map((r, k) => (
-            <tr key={`${r.ts}-${k}`} className={r.outcome === 'error' ? 'bad' : r.outcome === 'cancelled' ? 'cx' : ''}>
-              <td>{hms(r.ts * 1000)}</td><td>{r.path}</td><td>{r.model || '-'}</td>
-              <td className="r">{r.outcome === 'cancelled' ? t('rq.cancelled') : r.status}</td>
-              <td className="r">{r.duration.toFixed(1)} s</td><td className="r">{r.prompt_tokens ?? '-'} / {r.tokens ?? '-'}</td></tr>
-          ))}
-        </tbody></table></div>
-      ) : <div className="sub">{t('rq.none')}</div>}
-    </>
-  );
-}
 
 function Details({ view: i }: { view: InstanceView }) {
   const t = useT();
@@ -113,7 +67,6 @@ function Details({ view: i }: { view: InstanceView }) {
           <div className="f row"><label>{t('d.loaded')}</label><Models empty={t('d.none')} items={i.loaded.map((x) => ({ key: x.name, text: `${x.name} · ${x.gb.toFixed(1)} GB` }))} /></div>
           <div className="f row"><label>{t('d.avail')}</label><Models empty={t('d.none')} items={availableItems} /></div>
         </div>
-        <div className="box"><b>{t('d.req')}</b><div id="rq"><Requests id={i.id} /></div></div>
         <div className="box"><b>{t('d.res')}</b>
           <Row k={t('d.vram')}>{vram}</Row>
           <Row k={t('f.ctx')}>{fmtCtx(i.ctx)}</Row>

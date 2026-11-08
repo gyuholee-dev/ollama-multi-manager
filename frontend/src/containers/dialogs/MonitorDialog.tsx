@@ -1,10 +1,10 @@
 import { useEffect, useState, type ReactNode } from 'react';
 import { api } from '@/api/client';
-import type { Perf, SeriesPoint } from '@/api/types';
+import type { Perf, RequestsResponse, SeriesPoint } from '@/api/types';
 import { useViews } from '@/app/hooks';
 import { BarChart, LineChart } from '@/components/charts/Charts';
 import { Dialog, DialogBody, DialogTitle } from '@/components/common/Dialog';
-import { expAt, fmtUp } from '@/lib/format';
+import { expAt, fmtUp, hms } from '@/lib/format';
 import { useT } from '@/locales/useT';
 import { useDialogStore } from '@/stores/dialogStore';
 import { MAX_SAMPLES, useHistoryStore, type Sample } from '@/stores/historyStore';
@@ -32,11 +32,14 @@ export function MonitorDialog({ id }: { id: number }) {
   const snap = useMonitorStore((s) => s.snap);
   const samples = useHistoryStore((s) => s.series[String(id)] ?? NONE);
   const [hour, setHour] = useState<SeriesPoint[] | null>(null);
+  const [recent, setRecent] = useState<RequestsResponse['requests']>([]);
 
   useEffect(() => {
     let alive = true;
-    api.get<{ series: SeriesPoint[] }>(`/monitor/requests?minutes=60&instance=${id}`)
-      .then((r) => { if (alive) setHour(r.series); }, () => { /* keep what is shown */ });
+    Promise.all([
+      api.get<{ series: SeriesPoint[] }>(`/monitor/requests?minutes=60&instance=${id}`),
+      api.get<RequestsResponse>(`/instances/${id}/requests?limit=20`),
+    ]).then(([r, q]) => { if (alive) { setHour(r.series); setRecent(q.requests); } }, () => { /* keep what is shown */ });
     return () => { alive = false; };
   }, [id, snap]);
 
@@ -113,6 +116,20 @@ export function MonitorDialog({ id }: { id: number }) {
             {view.loaded.length ? view.loaded.map((x) => (
               <div className="f row" key={x.name}><label>{x.name} · {x.gb.toFixed(1)} GB</label><span className="sub">{expAt(x.exp, view.keep, t)}</span></div>
             )) : <div className="sub">{t('d.none')}</div>}
+          </div>
+
+          <div className="box"><b>{t('rq.recent')}</b>
+            {recent.length ? (
+              <div className="rqw"><table className="rq"><tbody>
+                <tr><th>{t('rq.time')}</th><th>{t('rq.path')}</th><th>{t('rq.model')}</th><th className="r">{t('rq.status')}</th><th className="r">{t('rq.dur')}</th><th className="r">{t('rq.tok')}</th></tr>
+                {recent.map((r, k) => (
+                  <tr key={`${r.ts}-${k}`} className={r.outcome === 'error' ? 'bad' : r.outcome === 'cancelled' ? 'cx' : ''}>
+                    <td>{hms(r.ts * 1000)}</td><td>{r.path}</td><td>{r.model || '-'}</td>
+                    <td className="r">{r.outcome === 'cancelled' ? t('rq.cancelled') : r.status}</td>
+                    <td className="r">{r.duration.toFixed(1)} s</td><td className="r">{r.prompt_tokens ?? '-'} / {r.tokens ?? '-'}</td></tr>
+                ))}
+              </tbody></table></div>
+            ) : <div className="sub">{t('rq.none')}</div>}
           </div>
 
           {p && Object.keys(p.models).length > 0 && (

@@ -88,7 +88,7 @@ const ko: Messages = {
   'w.vram.m': '현재 VRAM 사용률이 {pct}%입니다.\n{n}을(를) 시작해 모델을 로드하면 다른 인스턴스의 모델이 내려가거나 로드에 실패할 수 있습니다.',
   'w.stop.t': '인스턴스 종료',
   'w.stop.m': '{n}을(를) 종료합니다.\n로드된 모델 {k}개가 내려가고, 처리 중인 요청은 중단됩니다.',
-  'd.req': '요청', 'c.fail': '실패',
+  'c.fail': '실패',
   'rq.byModel': '모델별 (최근 5분)', 'rq.recent': '최근 요청', 'rq.none': '아직 요청이 없습니다.',
   'rq.model': '모델', 'rq.count': '요청', 'rq.speed': '속도', 'rq.avg': '평균 응답',
   'rq.time': '시각', 'rq.path': '경로', 'rq.status': '상태', 'rq.dur': '소요', 'rq.tok': '토큰 (입력/출력)', 'rq.cancelled': '취소',
