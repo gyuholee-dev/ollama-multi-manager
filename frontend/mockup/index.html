@@ -79,7 +79,7 @@ main #ltabs,main #stabs,main #mtabs{--surf:var(--bg)}main #ltabs button,main #st
 /* dialogs: title stays, only the body scrolls */
 dialog:not(#pop){padding:0;overflow:hidden}dialog:not(#pop)[open]{display:flex;flex-direction:column}dialog:not(#pop)>h3{flex:none;position:static;margin:0;padding:16px 16px 8px}.dbody{flex:1 1 auto;min-height:0;overflow:auto;padding:0 16px 16px}
 /* tables, charts, download cards */
-.cs{margin-top:8px}
+
 .rqc{display:block;width:100%;height:44px;margin-top:4px;background:var(--bg);border-radius:6px}.rqw{max-height:220px;overflow:auto;margin-top:4px}
 .rq{width:100%;border-collapse:collapse;font-size:.75rem}.rq th,.rq td{padding:3px 6px;text-align:left;white-space:nowrap}.rq th{color:var(--sub);font-weight:400}.rq .r{text-align:right}.rq .bad,.rq tr.bad td{color:var(--err)}.rq tr.cx td{color:var(--sub)}
 .chart{margin-top:12px}.chart:first-of-type{margin-top:0}.chart .rqc{height:64px}.chart .chh{display:flex;justify-content:space-between;align-items:baseline;gap:8px}.chart .chh b{font-weight:500;font-size:.875rem}.chart .gl{stroke:var(--line);stroke-width:1}.chart .chf{display:flex;justify-content:space-between;margin-top:2px;font-size:.75rem}
@@ -199,8 +199,8 @@ const seeded=n=>{let x=n*9301+49297;return()=>((x=(x*9301+49297)%233280)/233280)
   return chFrame(title,val,left,right,fmt(top),runs.filter(r=>r.length>1).map(r=>`<polyline fill="none" stroke="var(--accent)" stroke-width="1.5" vector-effect="non-scaling-stroke" points="${r.join(' ')}"/>`).join(''))},
  chBars=(title,bars,left,right)=>{const max=Math.max(1,...bars.map(b=>b[0])),bw=300/bars.length;
   return chFrame(title,null,left,right,max,bars.map((b,k)=>{if(!b[0])return '';const bh=Math.max(2,b[0]/max*60),eh=b[1]/b[0]*bh,x=(k*bw+.5).toFixed(1),w=Math.max(1,bw-1).toFixed(1);return `<rect x="${x}" y="${(64-bh).toFixed(1)}" width="${w}" height="${(bh-eh).toFixed(1)}" fill="var(--accent)"/>${eh?`<rect x="${x}" y="${(64-eh).toFixed(1)}" width="${w}" height="${eh.toFixed(1)}" fill="var(--err)"/>`:''}`}).join(''))};
-const imHide=new Set(),CAT=[['models','d.models'],['state','f.state'],['res','d.res'],['log','sec.logs']],togCat=k=>{imHide.has(k)?imHide.delete(k):imHide.add(k);showMon(curMon)},imFold=new Set(),togIm=k=>{imFold.has(k)?imFold.delete(k):imFold.add(k);showMon(curMon)};let curMon=0;
-const sub=(k,title,body)=>`<div class="cat nc"><label class="ch"><b>${title}</b><input type="checkbox" class="cc" aria-label="${t('new.toggle',{n:title})}" ${imFold.has(k)?'':'checked'} onchange="togIm('${k}')"><span class="tog">${mi('expand_more')}</span></label><div class="cb"><div><div class="cs">${body}</div></div></div></div>`;
+const imHide=new Set(),CAT=[['models','d.models'],['state','f.state'],['res','d.res'],['log','sec.logs']],togCat=k=>{imHide.has(k)?imHide.delete(k):imHide.add(k);showMon(curMon)},imFold=new Set(),togIm=k=>{imFold.has(k)?imFold.delete(k):imFold.add(k)};let curMon=0;
+const sub=(k,title,body)=>`<div class="cat nc"><label class="ch"><b>${title}</b><input type="checkbox" class="cc" aria-label="${t('new.toggle',{n:title})}" ${imFold.has(k)?'':'checked'} onchange="togIm('${k}')"><span class="tog">${mi('expand_more')}</span></label><div class="cb"><div><div class="card" style="margin-top:8px;padding:14px">${body}</div></div></div></div>`;
 function showMon(id){curMon=id;const i=by(id),r=seeded(i.id%97+3),N=60,L=40,hrs=Array.from({length:N},(_,k)=>{const q=Math.max(0,Math.round(4+4*Math.sin(k/6)+r()*3-1));return {q,e:q&&r()<.08?1:0,v:q?Math.round(80+r()*70):null,l:q?+(.8+r()*1.4).toFixed(1):null}}),
   cpu=Array.from({length:L},()=>5+r()*30),mem=Array.from({length:L},()=>5.1+r()*.3),vr=Array.from({length:L},()=>4.8+r()*.2),cc=Array.from({length:L},()=>Math.round(r()*3)),
   tot=hrs.reduce((a,x)=>a+x.q,0),er=hrs.reduce((a,x)=>a+x.e,0),cell=(k,v,u='',c='')=>`<div><div class="sub">${k}</div><b${c?` style="color:var(${c})"`:''}>${v}${u?`<small>${u}</small>`:''}</b></div>`,

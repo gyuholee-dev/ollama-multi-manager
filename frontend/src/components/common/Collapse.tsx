@@ -13,7 +13,7 @@ export function Collapse({ id, title, children }: { id: string; title: string; c
         <input type="checkbox" className="cc" aria-label={t('new.toggle', { n: title })} checked={!folded} onChange={() => toggle(id)} />
         <span className="tog"><span className="material-icons">expand_more</span></span>
       </label>
-      <div className="cb"><div><div className="cs">{children}</div></div></div>
+      <div className="cb"><div><div className="card" style={{ marginTop: 8, padding: 14 }}>{children}</div></div></div>
     </div>
   );
 }
