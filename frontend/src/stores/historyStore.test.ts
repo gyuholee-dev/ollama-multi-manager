@@ -7,7 +7,7 @@ const metrics = (cpu: number, rss: number, vram: number | null): InstanceMetrics
   perf: { inflight: 1, queued: 2, processing: 1, requests: 0, requests_total: 0, errors: 0, errors_total: 0, cancelled: 0, models: {}, latency_avg: null, ttft_avg: null, prompt_tokens: 0, tokens_total: 0, prompt_tokens_total: 0, tokens: 0, eval_seconds: 0, tok_per_s: null, window_seconds: 300 },
 });
 const snap = (ts: number, instances: Record<string, InstanceMetrics>): Snapshot => ({
-  ts, system: { cpu_percent: 0, cpu_count: 4, mem_total: 1, mem_used: 1, disk_total: null, disk_used: null }, gpu: { provider: 'fake', devices: [] }, instances, external: null, store: null,
+  ts, system: { cpu_percent: 0, cpu_count: 4, mem_total: 1, mem_used: 1, disk_total: null, disk_used: null }, gpu: { provider: 'fake', devices: [] }, instances, external: null,
 });
 
 describe('history store', () => {

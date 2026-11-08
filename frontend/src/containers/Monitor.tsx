@@ -58,15 +58,14 @@ export function Monitor() {
   const systemLabel = t('mon.system');
   const otherLabel = t('mon.other');
   const instances = Object.values(snap?.instances ?? {});
-  const store = snap?.store ?? { cpu_percent: 0, rss: 0 }; // the model store server is Ollama too
 
   const cores = sys.cpu_count || 1;
   const cpuTotal = Math.round(sys.cpu_percent);
-  const cpuOllama = Math.min(cpuTotal, Math.round((instances.reduce((a, m) => a + m.cpu_percent, 0) + store.cpu_percent) / cores));
+  const cpuOllama = Math.min(cpuTotal, Math.round(instances.reduce((a, m) => a + m.cpu_percent, 0) / cores));
   const cpuOther = cpuTotal - cpuOllama;
   const cpuSegments: Segment[] = [['Ollama', cpuOllama, 'var(--accent)', `${cpuOllama}%`], [otherLabel, cpuOther, 'var(--sub)', `${cpuOther}%`]];
 
-  const ramOllama = gb(instances.reduce((a, m) => a + m.rss, 0) + store.rss);
+  const ramOllama = gb(instances.reduce((a, m) => a + m.rss, 0));
   const ramUsed = gb(sys.mem_used);
   const ramTotal = gb(sys.mem_total);
   const ramOther = Math.max(0, ramUsed - ramOllama);
