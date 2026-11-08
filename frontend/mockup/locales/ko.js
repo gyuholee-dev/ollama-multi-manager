@@ -6,7 +6,7 @@
   'app.title': 'Ollama Multi Manager (목업)',
 
   'hdr.new': '새 인스턴스', 'hdr.models': '모델 관리', 'hdr.settings': '환경설정',
-  'srv.title': '외부 모니터링 · {a}',
+  'srv.title': '웹 접속 · {a}',
 
   'sec.sum': '요약', 'sec.mon': '시스템 모니터', 'sec.inst': '서버 인스턴스', 'sec.logs': '로그',
   'sec.hide': '숨기기', 'sec.show': '펼치기',
@@ -28,7 +28,7 @@
 
   'new.title': '새 인스턴스', 'new.server': '서버', 'new.general': '일반', 'new.advanced': '고급',
   'new.generalT': '일반 펼치기/숨기기', 'new.advancedT': '고급 펼치기/숨기기',
-  'new.models': '모델', 'new.toggle': '{n} 펼치기/숨기기', 'new.noModels': '다운로드된 모델이 없습니다',
+  'new.models': '허용 모델', 'new.toggle': '{n} 펼치기/숨기기', 'new.noModels': '다운로드된 모델이 없습니다',
 
   'log.all': '전체', 'log.app': '앱',
   'ext.name': '기본 인스턴스', 'ext.managed': '외부 관리',
@@ -39,7 +39,7 @@
   'c.total': '전체', 'c.running': '실행 중', 'c.stopped': '중지', 'c.unreach': '응답 없음',
   'c.mem': '메모리', 'c.models': '로드 모델', 'c.reqs': '처리 중 요청', 'c.latency': '평균 응답',
   'c.speed': '평균 속도', 'c.warn': '경고', 'c.ok': '정상', 'c.errs': '최근 오류',
-  'c.mon': '모니터링', 'c.on': '켬', 'c.off': '끔', 'c.updated': '갱신',
+  'c.mon': '웹 접속', 'c.on': '켬', 'c.off': '끔', 'c.updated': '갱신',
 
   'mon.cpu': '{pct}% · {n} 코어', 'mon.system': '시스템', 'mon.other': '기타', 'mon.gpus': '{n}개',
 
@@ -50,7 +50,7 @@
   'set.title': '환경설정', 'set.general': '일반', 'set.login': '시스템 시작 시 자동 실행',
   'set.tray': '트레이로 최소화', 'set.lang': '언어', 'set.theme': '테마',
   'theme.system': '시스템', 'theme.light': '라이트', 'theme.dark': '다크',
-  'set.monitor': '모니터', 'set.ext': '외부 모니터링', 'set.extPort': '외부 모니터링 포트',
+  'set.monitor': '모니터', 'set.ext': '웹 접속', 'set.extPort': '웹 접속 포트',
   'set.interval': '상태 갱신 주기', 'sec.n': '{n}초',
   'set.exe': '올라마 실행 파일', 'set.exePh': '비워두면 자동 탐색', 'set.browse': '찾아보기',
   'set.models': '모델 경로 (OLLAMA_MODELS 기본값)', 'set.update': '업데이트',
@@ -60,8 +60,8 @@
   'upd.title': '업데이트 확인', 'upd.latest': '최신 버전입니다. ({v})',
   'rst.title': '환경설정 초기화', 'rst.msg': '모든 환경설정을 기본값으로 되돌리고 저장합니다.', 'rst.ok': '초기화',
   'port.conflict': '포트 충돌',
-  'sv.portMsg': '외부 모니터링 포트 {p}은(는) 인스턴스가 사용 중입니다.\n다른 포트를 지정하세요.',
-  'ext.title': '외부 모니터링', 'ext.msg': '외부 모니터링 서버가 포트 {p}으로 다시 시작됩니다.',
+  'sv.portMsg': '웹 접속 포트 {p}은(는) 인스턴스가 사용 중입니다.\n다른 포트를 지정하세요.',
+  'ext.title': '웹 접속', 'ext.msg': '웹 접속 서버가 포트 {p}으로 다시 시작됩니다.',
   'rr.t': '재시작 필요', 'rr.m': '새 실행 파일 또는 모델 경로를 적용하려면 실행 중인 인스턴스를 재시작해야 합니다.',
 
   'mdl.param': '파라미터 {p} · 양자화 {q}', 'mdl.estimate': '현재 환경 기준 추정치',
@@ -86,5 +86,7 @@
   'w.stop.t': '인스턴스 종료',
   'w.stop.m': '{n}을(를) 종료합니다.\n로드된 모델 {k}개가 내려가고, 처리 중인 요청은 중단됩니다.',
   'w.fit.t': 'VRAM 부족 가능',
-  'w.fit.m': '동시에 로드될 모델이 약 {need} GB로, 선택한 장치의 사용 가능 VRAM({cap} GB)을 넘습니다.\n그래도 생성할까요?'
+  'w.fit.m': '동시에 로드될 모델이 약 {need} GB로, 선택한 장치의 사용 가능 VRAM({cap} GB)을 넘습니다.\n그래도 생성할까요?',
+  'btn.monitor': '모니터', 'im.title': '{n} 모니터', 'im.now': '현재 상태', 'im.ttft': '첫 토큰', 'im.window': '최근 {m}분 기준', 'im.hour': '최근 1시간', 'im.total': '요청 합계', 'im.tokens': '토큰 (입력/출력)', 'im.reqs': '분당 요청 수', 'im.speed': '분당 토큰 속도', 'im.latency': '분당 평균 응답', 'im.live': '실시간 리소스', 'im.collecting': '데이터를 모으는 중입니다. 잠시 뒤 그래프가 나타납니다.', 'im.span': '{m}분 전', 'im.nowEdge': '지금', 'im.hourAgo': '60분 전', 'im.conc': '동시 요청(처리 + 대기)', 'im.keepNote': '창을 열기 전의 값은 앱을 켠 뒤부터 모은 것입니다(최근 {n}회 측정).', 'new.modelsHint': '이 인스턴스가 사용할 모델을 하나 이상 선택하세요. 선택하지 않은 모델의 요청은 거절됩니다.', 'rq.byModel': '모델별 (최근 5분)', 'rq.recent': '최근 요청', 'rq.none': '아직 요청이 없습니다.', 'rq.model': '모델', 'rq.count': '요청', 'rq.speed': '속도', 'rq.avg': '평균 응답', 'rq.time': '시각', 'rq.path': '경로', 'rq.status': '상태', 'rq.dur': '소요', 'rq.tok': '토큰 (입력/출력)', 'rq.cancelled': '취소', 'mdl.paused': '중지됨', 'mdl.failed': '오류', 'btn.pause': '중지', 'btn.resume': '재개', 'c.queued': '대기', 'c.fail': '실패',
+  'mdl.dl.del.title': '다운로드 삭제', 'mdl.dl.del.msg': '{n} 다운로드를 중단하고 받은 파일을 지웁니다.'
 };

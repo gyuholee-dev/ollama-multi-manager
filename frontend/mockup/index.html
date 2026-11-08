@@ -75,13 +75,22 @@ main #ltabs,main #stabs,main #mtabs{--surf:var(--bg)}main #ltabs button,main #st
 #pop[data-k=info] .pi{color:var(--accent)}#pop[data-k=warn] .pi{color:var(--warn)}#pop[data-k=error] .pi,#pop[data-k=danger] .pi{color:var(--err)}
 #pop .pt{min-width:0;flex:1}#pop h3{position:static;margin:0 0 6px;padding:0;line-height:24px;background:none;font-size:1rem}#pop p{margin:0;color:var(--sub);line-height:20px;white-space:pre-line;overflow-wrap:anywhere}
 #pop .btns{justify-content:flex-end;margin-top:20px}#pop .primary.danger{background:var(--err);border-color:var(--err);color:#fff}
+
+/* dialogs: title stays, only the body scrolls */
+dialog:not(#pop){padding:0;overflow:hidden}dialog:not(#pop)[open]{display:flex;flex-direction:column}dialog:not(#pop)>h3{flex:none;position:static;margin:0;padding:16px 16px 8px}.dbody{flex:1 1 auto;min-height:0;overflow:auto;padding:0 16px 16px}
+/* tables, charts, download cards */
+.rqc{display:block;width:100%;height:44px;margin-top:4px;background:var(--bg);border-radius:6px}.rqw{max-height:220px;overflow:auto;margin-top:4px}
+.rq{width:100%;border-collapse:collapse;font-size:.75rem}.rq th,.rq td{padding:3px 6px;text-align:left;white-space:nowrap}.rq th{color:var(--sub);font-weight:400}.rq .r{text-align:right}.rq .bad,.rq tr.bad td{color:var(--err)}.rq tr.cx td{color:var(--sub)}
+.chart{margin-top:12px}.chart:first-of-type{margin-top:0}.chart .rqc{height:64px}.chart .chh{display:flex;justify-content:space-between;align-items:baseline;gap:8px}.chart .chh b{font-weight:500;font-size:.875rem}.chart .gl{stroke:var(--line);stroke-width:1}.chart .chf{display:flex;justify-content:space-between;margin-top:2px;font-size:.75rem}
+.mc{display:flex;flex-direction:column;box-sizing:border-box;height:102px;margin:0 0 10px;padding:14px}.mc:last-child{margin-bottom:0}.mg>b{margin-bottom:10px}.mc .mi{flex:1;margin-top:6px;display:flex;align-items:center;min-height:0}.mc .btns{margin-top:6px}
+.dl{width:100%;height:5px;border-radius:5px;background:var(--bg);overflow:hidden;margin:0 2px}.dl i{display:block;height:100%;border-radius:2px;background:var(--accent);transition:width .2s}.dl.off i{background:light-dark(#9a9a9a,#6a6a6a)}
 </style>
 <header><h1 id="app-title">Ollama Multi Manager</h1><div id="srv" role="button" tabindex="0" title=""><code class="d">http://192.168.0.24:9100</code><span class="cp">Copy</span></div><div class="btns"><button class="primary" onclick="openNew()" data-i-aria="hdr.new" data-i-title="hdr.new"><i class="material-icons">add</i><span data-i="hdr.new"></span></button><button onclick="openModels()" data-i-aria="hdr.models" data-i-title="hdr.models"><i class="material-icons">storage</i><span data-i="hdr.models"></span></button><button onclick="openCfg()" data-i-aria="hdr.settings" data-i-title="hdr.settings"><i class="material-icons">settings</i><span data-i="hdr.settings"></span></button></div></header>
 <main><section data-t="sum"><div id="utabs"></div><div id="sum"></div></section><section data-t="mon"><div id="mtabs"></div><div id="mon"></div></section><section data-t="inst"><div id="stabs"></div><div id="grid"></div></section><section data-t="logs"><div id="ltabs"></div><div id="lbox"><div id="logs"></div></div></section></main><footer><div><span class="l"><span class="material-icons">bug_report</span><span id="status"></span></span><a id="ver" href="https://github.com/gyuholee-dev/ollama-multi-manager" target="_blank" rel="noopener noreferrer">ollama-multi-manager v0.1.0</a></div></footer>
 <dialog id="det"></dialog>
 <dialog id="pop" aria-live="assertive"></dialog>
-<dialog id="dlg"><form method="dialog" onsubmit="return create(event)">
-<h3><span data-i="new.title"></span> <button type="button" style="float:right" onclick="dlg.close()"><span class="material-icons">close</span></button></h3>
+<dialog id="dlg"><h3><span data-i="new.title"></span> <button type="button" style="float:right" onclick="dlg.close()"><span class="material-icons">close</span></button></h3>
+<div class="dbody"><form method="dialog" onsubmit="return create(event)">
 <div class="box" id="sv"><b data-i="new.server"></b>
 <div class="f"><div class="f row"><label data-i="f.name"></label></div><input id="n" required placeholder="worker-4"></div>
 <div class="f"><div class="f row"><label data-i="f.port"></label></div><input id="p" type="number" required placeholder="11438"></div>
@@ -97,10 +106,11 @@ main #ltabs,main #stabs,main #mtabs{--surf:var(--bg)}main #ltabs button,main #st
 <div class="f row"><label data-i="f.flash"></label><input id="fa" class="sw" type="checkbox" role="switch" checked></div>
 </div></div></div></div>
 </div><div class="box"><b data-i="new.models"></b>
+<div class="sub" data-i="new.modelsHint"></div>
 <div id="nm" onchange="chkNew()"></div>
 </div>
 <div class="btns" style="justify-content:flex-end;margin-top:4px"><button type="button" onclick="dlg.close()" data-i="btn.cancel"></button><button class="primary" id="mk" data-i="btn.create" disabled></button></div>
-</form></dialog>
+</form></div></dialog>
 <script src="locales/en.js"></script>
 <script src="locales/ko.js"></script>
 <script>
@@ -129,6 +139,7 @@ const set=async(id,state,ms=900)=>{const n=by(id).name,run=state=='running';
  by(id).state='starting';log(`${run?'Starting':'Stopping'} ${n}…`,n);render();setTimeout(()=>{by(id).state=state;if(!run)by(id).loaded=[];log(`${n} ${run?'is running':'stopped'}`,n);render()},ms)};
 function btns(i){const st=i.state,busy=st=='running'||st=='starting';
  return (st=='stopped'?`<button class="small" onclick="set(${i.id},'running')">${t('btn.start')}</button>`:`<button class="small" onclick="set(${i.id},'stopped')" ${st=='starting'?'disabled':''}>${t('btn.stop')}</button>`)
+  +`<button class="small" onclick="showMon(${i.id})" ${st=='running'?'':'disabled'}>${t('btn.monitor')}</button>`
   +`<button class="small" onclick="show(${i.id})" ${st=='starting'?'disabled':''}>${t('btn.details')}</button>`
   +`<button class="small del" onclick="del(${i.id})" ${busy?`disabled title="${t('del.disabled')}"`:''}>${t('btn.delete')}</button>`}
 const HOST='192.168.0.24',
@@ -150,21 +161,21 @@ function renderSum(){
  const c=s=>list.filter(i=>i.state==s).length,all=[ext,...list],pct=Math.max(...vramByGpu().map(g=>g.pct)),
   models=all.reduce((t,i)=>t+i.loaded.length,0),warn=c('unreachable')+(pct>85?1:0),errs=logs.filter(e=>/timed out|unreachable|error|failed/i.test(e.m)).length;
  $('sum').innerHTML=[
-  sbox('ins',[cell(t('c.total'),list.length+1),cell(t('c.running'),c('running')+1),cell(t('c.stopped'),c('stopped')),cell(t('c.unreach'),c('unreachable'))]),
+  sbox('ins',[cell(t('c.total'),list.length),cell(t('c.running'),c('running')),cell(t('c.stopped'),c('stopped')),cell(t('c.unreach'),c('unreachable'))]),
   sbox('usage',[cell('VRAM',pct,'%',pct>85?'--warn':''),cell(t('c.mem'),34,'%'),cell(t('c.models'),models,t('u.cnt'))]),
   sbox('perf',[cell(t('c.reqs'),2,t('u.case')),cell(t('c.latency'),1.4,' s'),cell(t('c.speed'),87,' tok/s')]),
   sbox('status',[cell(t('c.warn'),warn?warn:t('c.ok'),warn?t('u.case'):'',warn?'--warn':'--ok'),cell(t('c.errs'),errs,t('u.case')),cell(t('c.mon'),cfg.extMon?t('c.on'):t('c.off'),cfg.extMon?` :${cfg.monPort}`:''),cell(t('c.updated'),hms(Date.now()).slice(0,5)) ])].join('')||`<div class="sub" style="grid-column:1/-1">${t('sum.empty')}</div>`}
 function render(){
  $('mtabs').innerHTML=MONS.map(t=>`<button class="small${monOn.has(t)?' on':''}" onclick="togMon('${t}')">${t}</button>`).join('');
  $('stabs').innerHTML=SO.map(([k,x])=>`<button class="small${so.k==k?' on':''}" onclick="setSort('${k}')">${t(x)}${so.k==k?mi(so.d>0?'arrow_upward':'arrow_downward'):''}</button>`).join('');
- const S=t('mon.system'),O=t('mon.other'),V=vramByGpu(),used=V.reduce((t,g)=>t+g.used,0),total=V.reduce((t,g)=>t+g.total,0),pct=Math.round(used/total*100),pmax=Math.max(...V.map(g=>g.pct));
+ const anyRun=list.some(i=>i.state=='running'),S=t('mon.system'),O=t('mon.other'),V=vramByGpu(),used=V.reduce((t,g)=>t+g.used,0),total=V.reduce((t,g)=>t+g.total,0),pct=Math.round(used/total*100),pmax=Math.max(...V.map(g=>g.pct));
  const mb=(t,v,body,w='')=>monOn.has(t)?`<div class="sb"><div class="top" style="margin:0"><b>${t}</b><span class="sub"${w}>${v}</span></div>${body}</div>`:'',
   bar=(ps)=>`<div class="bar">${ps.map(p=>`<i title="${p[0]}" style="width:${p[1]}%;background:${p[2]}"></i>`).join('')}</div>`,
   leg=(ps)=>`<div class="leg">${ps.map(p=>`<span><s style="background:${p[2]}"></s>${p[0]} ${p[3]}</span>`).join('')}</div>`,
   gpuRows=[[62,58,214,5],[4,41,28,2]].map(([u,tc,w,sy],n)=>{const ps=V[n].parts,tp=ps.reduce((x,p)=>x+p.v,0),sysU=ps.length?Math.min(sy,u):u,segs=[[S,sysU,'var(--sub)',sysU+'%'],...ps.map(p=>[p.name,(u-sysU)*p.v/tp,p.col,Math.round((u-sysU)*p.v/tp)+'%'])];return `<div class="top" style="margin:${n?14:8}px 0 0"><span>${gpuName(n)}</span><span class="sub">${u}% · ${tc}°C · ${w} W</span></div>${bar(segs)}${leg(segs)}`}).join('');
  $('mon').innerHTML=[
-  mb('CPU',t('mon.cpu',{pct:23,n:12}),bar([['Ollama',9,'var(--accent)'],[O,14,'var(--sub)']])+leg([['Ollama',9,'var(--accent)','9%'],[O,14,'var(--sub)','14%']])),
-  mb('RAM','21.8 / 64 GB (34%)',bar([[S,15/64*100,'var(--sub)'],['Ollama',6.8/64*100,'var(--accent)']])+leg([[S,15,'var(--sub)','15.0 GB'],['Ollama',6.8,'var(--accent)','6.8 GB']])),
+  mb('CPU',t('mon.cpu',{pct:23,n:12}),bar([...(anyRun?[['Ollama',9,'var(--accent)']]:[]),[O,14,'var(--sub)']])+leg([...(anyRun?[['Ollama',9,'var(--accent)','9%']]:[]),[O,14,'var(--sub)','14%']])),
+  mb('RAM','21.8 / 64 GB (34%)',bar([[S,15/64*100,'var(--sub)'],...(anyRun?[['Ollama',6.8/64*100,'var(--accent)']]:[])])+leg([[S,15,'var(--sub)','15.0 GB'],...(anyRun?[['Ollama',6.8,'var(--accent)','6.8 GB']]:[])])),
   mb('GPU',t('mon.gpus',{n:GPUS.length}),gpuRows),
   mb('VRAM',`${used.toFixed(1)} / ${total} GB (${pct}%)`,V.map((g,n)=>{const ps=[[S,GSYS/g.total*100,'var(--sub)',GSYS.toFixed(1)+' GB'],...g.parts.map(p=>[p.name,p.v/g.total*100,p.col,p.v.toFixed(1)+' GB'])];return `<div class="top" style="margin:${n?14:8}px 0 0"><span>${gpuName(n)}</span><span class="sub"${g.pct>85?' style="color:var(--warn)"':''}>${g.used.toFixed(1)} / ${g.total} GB (${g.pct}%)</span></div>`+bar(ps)+leg(ps.map(p=>[p[0],p[1],p[2],p[3]]))}).join(''),pmax>85?' style="color:var(--warn)"':'')].join('')||`<div class="sub" style="grid-column:1/-1">${t('sum.empty')}</div>`;
  renderSum();
@@ -175,11 +186,38 @@ function render(){
 function show(id){const i=by(id),run=i.state=='running',kv=(k,v)=>`<div class="f row"><label>${k}</label><span>${v}</span></div>`,
  ld=i.loaded.map(x=>`<div>${x}</div>`).join('<div class="gp"></div>');
  $('det').innerHTML=`<h3>${i.name} <button style="float:right" onclick="det.close()">${mi('close')}</button></h3>
- <div id="dt"><div class="box"><b>${t('new.server')}</b>${kv(t('f.state'),`<span class="badge ${i.state}">${stL(i.state)}</span>`)}${kv(t('f.port'),i.port)}${kv(t('d.pid'),run?4200+i.id*37:'-')}${kv(t('d.uptime'),run?t('d.up'):'-')}${kv(t('f.maxLoaded'),fmtN(i.maxLoaded||2))}${kv(t('f.parallel'),fmtN(i.parallel||2))}</div>
+ <div class="dbody"><div id="dt"><div class="box"><b>${t('new.server')}</b>${kv(t('f.state'),`<span class="badge ${i.state}">${stL(i.state)}</span>`)}${kv(t('f.port'),i.port)}${kv(t('d.pid'),run?4200+i.id*37:'-')}${kv(t('d.uptime'),run?t('d.up'):'-')}${kv(t('f.maxLoaded'),fmtN(i.maxLoaded||2))}${kv(t('f.parallel'),fmtN(i.parallel||2))}</div>
  <div class="box"><b>${t('d.models')}</b><div class="f row"><label>${t('d.loaded')}</label><div class="ml">${ld||`<div class="sub">${t('d.none')}</div>`}</div></div><div class="f row"><label>${t('d.avail')}</label><div class="ml">${i.models.map(m=>`<div>${m} · ${models.find(x=>x.n==m)?.gb??'?'} GB</div>`).join('<div class="gp"></div>')||`<div class="sub">${t('d.none')}</div>`}</div></div></div>
- <div class="box"><b>${t('d.res')}</b>${kv(t('d.vram'),i.loaded.length?i.loaded.map(x=>x.split(' · ')[1]).join(' + '):'0 GB')}${kv(t('f.ctx'),fmtCtx(i.ctx))}${kv(t('f.keep'),fmtKeep(i.keep)+(i.keep>=0&&i.loaded.length?' · '+expAt((i.exp||[])[0]||Date.now(),i.keep):''))}${kv(t('f.device'),gpuName(i.gpu||'auto'))}${kv(t('f.kvq'),i.kvq||'f16')}${kv(t('f.flash'),i.flash===false?t('c.off'):t('c.on'))}${kv(t('d.reqs'),run?t('d.reqsV',{n:0}):'-')}</div></div>`;det.showModal()}
+ <div class="box"><b>${t('d.res')}</b>${kv(t('d.vram'),i.loaded.length?i.loaded.map(x=>x.split(' · ')[1]).join(' + '):'0 GB')}${kv(t('f.ctx'),fmtCtx(i.ctx))}${kv(t('f.keep'),fmtKeep(i.keep)+(i.keep>=0&&i.loaded.length?' · '+expAt((i.exp||[])[0]||Date.now(),i.keep):''))}${kv(t('f.device'),gpuName(i.gpu||'auto'))}${kv(t('f.kvq'),i.kvq||'f16')}${kv(t('f.flash'),i.flash===false?t('c.off'):t('c.on'))}</div></div></div>`;det.showModal()}
+/* ---- instance monitor (sample numbers) */
+const seeded=n=>{let x=n*9301+49297;return()=>((x=(x*9301+49297)%233280)/233280)},
+ chFrame=(title,val,left,right,top,inner)=>`<div class="chart"><div class="chh"><span class="sub">${title}</span>${val!=null?`<b>${val}</b>`:''}</div><svg class="rqc" viewBox="0 0 300 64" preserveAspectRatio="none" role="img" aria-label="${title}">${[.25,.5,.75].map(f=>`<line x1="0" x2="300" y1="${64*f}" y2="${64*f}" class="gl" vector-effect="non-scaling-stroke"/>`).join('')}${inner}</svg><div class="chf sub"><span>${left}</span><span>${top}</span><span>${right}</span></div></div>`,
+ chLine=(title,val,pts,left,right,fmt,max)=>{const top=max??Math.max(1,...pts.filter(p=>p!=null)),st=300/(pts.length-1),pl=pts.map((p,k)=>p==null?null:`${(k*st).toFixed(1)},${(61-Math.min(p,top)/top*58).toFixed(1)}`);
+  const runs=[[]];pl.forEach(p=>{if(p==null){if(runs.at(-1).length)runs.push([])}else runs.at(-1).push(p)});
+  return chFrame(title,val,left,right,fmt(top),runs.filter(r=>r.length>1).map(r=>`<polyline fill="none" stroke="var(--accent)" stroke-width="1.5" vector-effect="non-scaling-stroke" points="${r.join(' ')}"/>`).join(''))},
+ chBars=(title,bars,left,right)=>{const max=Math.max(1,...bars.map(b=>b[0])),bw=300/bars.length;
+  return chFrame(title,null,left,right,max,bars.map((b,k)=>{if(!b[0])return '';const bh=Math.max(2,b[0]/max*60),eh=b[1]/b[0]*bh,x=(k*bw+.5).toFixed(1),w=Math.max(1,bw-1).toFixed(1);return `<rect x="${x}" y="${(64-bh).toFixed(1)}" width="${w}" height="${(bh-eh).toFixed(1)}" fill="var(--accent)"/>${eh?`<rect x="${x}" y="${(64-eh).toFixed(1)}" width="${w}" height="${eh.toFixed(1)}" fill="var(--err)"/>`:''}`}).join(''))};
+function showMon(id){const i=by(id),r=seeded(i.id%97+3),N=60,L=40,hrs=Array.from({length:N},(_,k)=>{const q=Math.max(0,Math.round(4+4*Math.sin(k/6)+r()*3-1));return {q,e:q&&r()<.08?1:0,v:q?Math.round(80+r()*70):null,l:q?+(.8+r()*1.4).toFixed(1):null}}),
+  cpu=Array.from({length:L},()=>5+r()*30),mem=Array.from({length:L},()=>5.1+r()*.3),vr=Array.from({length:L},()=>4.8+r()*.2),cc=Array.from({length:L},()=>Math.round(r()*3)),
+  tot=hrs.reduce((a,x)=>a+x.q,0),er=hrs.reduce((a,x)=>a+x.e,0),cell=(k,v,u='',c='')=>`<div><div class="sub">${k}</div><b${c?` style="color:var(${c})"`:''}>${v}${u?`<small>${u}</small>`:''}</b></div>`,
+  hl=t('im.hourAgo'),hr=t('im.nowEdge'),ll=t('im.span',{m:2}),lr=t('im.nowEdge'),last=a=>a.at(-1),
+  ld=i.loaded.map(x=>{const [n,g]=x.split(' · ');return `<div class="f row"><label>${n} · ${g}</label><span class="sub">${expAt((i.exp||[])[0]||Date.now(),i.keep)}</span></div>`}).join('')||`<div class="sub">${t('d.none')}</div>`,
+  row=(ts,path,m,st,du,tk,cls='')=>`<tr class="${cls}"><td>${ts}</td><td>${path}</td><td>${m}</td><td class="r">${st}</td><td class="r">${du}</td><td class="r">${tk}</td></tr>`,
+  mdl=(i.loaded[0]||'llama3.1:8b-instruct-q4_K_M').split(' · ')[0];
+ $('det').innerHTML=`<h3>${t('im.title',{n:i.name})} <button style="float:right" onclick="det.close()">${mi('close')}</button></h3><div class="dbody"><div id="dt">
+ <div class="box"><b>${t('im.now')}</b><div class="sc">${cell(t('c.reqs'),1,' '+t('u.case'))}${cell(t('c.queued'),0,' '+t('u.case'))}${cell(t('c.fail'),0,' '+t('u.case'))}</div>
+ <div class="sc" style="margin-top:8px">${cell(t('c.latency'),'1.4',' s')}${cell(t('im.ttft'),'0.6',' s')}${cell(t('c.speed'),112,' tok/s')}</div>
+ <div class="sub" style="margin-top:8px">${t('im.window',{m:5})} · ${t('d.uptime')} ${t('d.up')}</div></div>
+ <div class="box"><b>${t('im.hour')}</b><div class="sc" style="margin-bottom:12px">${cell(t('im.total'),tot,' '+t('u.case'))}${cell(t('c.fail'),er,' '+t('u.case'),er?'--err':'')}${cell(t('im.tokens'),`${tot*34} / ${tot*210}`)}</div>
+ ${chBars(t('im.reqs'),hrs.map(x=>[x.q,x.e]),hl,hr)}${chLine(t('im.speed'),null,hrs.map(x=>x.v),hl,hr,v=>Math.round(v)+' tok/s')}${chLine(t('im.latency'),null,hrs.map(x=>x.l),hl,hr,v=>v.toFixed(1)+' s')}</div>
+ <div class="box"><b>${t('im.live')}</b>${chLine('CPU',last(cpu).toFixed(1)+' %',cpu,ll,lr,v=>Math.round(v)+' %',Math.max(10,...cpu))}${chLine(t('c.mem'),last(mem).toFixed(1)+' GB',mem,ll,lr,v=>v.toFixed(1)+' GB',Math.max(...mem))}${chLine('VRAM',last(vr).toFixed(1)+' GB',vr,ll,lr,v=>v.toFixed(1)+' GB')}${chLine(t('im.conc'),`${last(cc)} + 0`,cc,ll,lr,v=>String(Math.round(v)),Math.max(2,...cc))}<div class="sub" style="margin-top:6px">${t('im.keepNote',{n:240})}</div></div>
+ <div class="box"><b>${t('d.loaded')}</b>${ld}</div>
+ <div class="box"><b>${t('rq.recent')}</b><div class="rqw"><table class="rq"><tbody><tr><th>${t('rq.time')}</th><th>${t('rq.path')}</th><th>${t('rq.model')}</th><th class="r">${t('rq.status')}</th><th class="r">${t('rq.dur')}</th><th class="r">${t('rq.tok')}</th></tr>
+ ${row('14:02:11','/api/chat',mdl,200,'1.8 s','32 / 241')}${row('14:01:47','/api/generate',mdl,200,'0.9 s','18 / 96')}${row('14:01:20','/v1/chat/completions',mdl,500,'0.2 s','- / -','bad')}${row('14:00:58','/api/chat',mdl,t('rq.cancelled'),'3.1 s','40 / 87','cx')}</tbody></table></div></div>
+ <div class="box"><b>${t('rq.byModel')}</b><div class="rqw"><table class="rq"><tbody><tr><th>${t('rq.model')}</th><th class="r">${t('rq.count')}</th><th class="r">${t('rq.speed')}</th><th class="r">${t('rq.avg')}</th></tr><tr><td>${mdl}</td><td class="r">12 <span class="bad">(1)</span></td><td class="r">112 tok/s</td><td class="r">1.4 s</td></tr></tbody></table></div></div>
+ </div></div>`;det.showModal()}
 function openCfg(){monOk=cfg.monPort;monWas=cfg.extMon;const v=cfg;$('det').innerHTML=`<h3>${t('set.title')} <button style="float:right" onclick="det.close()">${mi('close')}</button></h3>
- <div oninput="upd()" onchange="chg(event)"><div class="box"><b>${t('set.general')}</b>
+<div class="dbody"> <div oninput="upd()" onchange="chg(event)"><div class="box"><b>${t('set.general')}</b>
  ${chk('lg',t('set.login'),v.login)}
  ${chk('tray',t('set.tray'),v.tray)}
  <div class="f"><div class="f row"><label>${t('set.lang')}</label></div><span class="sel"><select id="lang">${opt(Object.keys(LOCALES).map(k=>[k,LOCALES[k]._name]),v.lang)}</select>${caret}</span></div>
@@ -193,7 +231,7 @@ function openCfg(){monOk=cfg.monPort;monWas=cfg.extMon;const v=cfg;$('det').inne
  <div class="f"><div class="f row"><label>${t('set.models')}</label></div><span class="pr"><input id="mp" value="${v.modelsPath}"><button type="button" onclick="browse('mp')">${t('set.browse')}</button></span></div>
  </div><div class="box"><b>${t('set.update')}</b>
  <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-top:8px"><span class="sub" id="upd">${t('set.ver',{v:VERSION})}</span><button onclick="checkUpdate()">${t('set.check')}</button></div>
- </div></div> <div class="btns" style="justify-content:flex-end;margin-top:12px"><button onclick="resetCfg()">${t('set.reset')}</button><button class="primary" onclick="save()">${t('set.save')}</button></div>`;if(!det.open)det.showModal()}
+ </div></div> <div class="btns" style="justify-content:flex-end;margin-top:12px"><button onclick="resetCfg()">${t('set.reset')}</button><button class="primary" onclick="save()">${t('set.save')}</button></div></div>`;if(!det.open)det.showModal()}
 const caret=mi('expand_more'),
  chk=(id,t,v)=>`<div class="f row"><label>${t}</label><input id="${id}" class="sw" type="checkbox" role="switch" ${v?'checked':''}></div>`,
  opt=(a,v)=>a.map(([k,t])=>`<option value="${k}" ${k==v?'selected':''}>${t}`).join('');
@@ -225,22 +263,28 @@ function save(){saved={...cfg};log('Settings saved');det.close()}
 const usedBy=n=>list.filter(i=>i.models.includes(n)).map(i=>i.name);
 const estTps=gb=>Math.round(1008*.6/gb),
  modelInfo=tag=>{const p=tag.match(/(?:^|[-:])(\d+(?:\.\d+)?)b(?=-|$)/i),q=tag.match(/(q\d+(?:_[a-z0-9]+)*|nvfp\d+|fp\d+|bf\d+)/i);return t('mdl.param',{p:p?p[1]+'B':'-',q:q?q[1].toUpperCase():'-'})};
-function modelGroups(){const g={};models.forEach(m=>(g[m.n.split(':')[0]]??=[]).push(m));
- const c=Object.entries(g).map(([f,a])=>`<div class="cat"><b>${f}</b>${a.map(m=>{const tg=m.n.slice(f.length+1);return `<div class="card" style="margin-top:8px;padding:14px"><div class="top" style="margin:0 0 4px"><b class="tag">${tg}</b><span class="sub">${m.gb} GB</span></div>
-  <div class="sub spread"><span>${modelInfo(tg)}</span><span title="${t('mdl.estimate')}">≈ ${estTps(m.gb)} tok/s</span></div><div class="btns" style="margin-top:6px;justify-content:space-between"><a class="btn small" href="https://ollama.com/library/${m.n}" target="_blank" rel="noopener noreferrer" aria-label="${t('mdl.library')}" title="${t('mdl.library')}">${mi('open_in_new')}</a><button class="small" onclick="delModel('${m.n}')">${t('btn.delete')}</button></div></div>`}).join('')}</div>`).join('');
+let dls=[{n:'qwen3:8b-q4_K_M',done:2.1,total:5.2,st:'paused'},{n:'gemma3:12b-it-q4_K_M',done:5.5,total:8.1,st:'pulling'}];
+const dlText=d=>{const pct=Math.floor(d.done/d.total*100),size=` · ${d.done.toFixed(1)} / ${d.total.toFixed(1)} GB`;return d.st=='paused'?`${t('mdl.paused')} · ${pct}%${size}`:`${pct}%${size}`},
+ dlCard=d=>{const off=d.st!='pulling';return `<div class="card mc"><div class="top" style="margin:0"><b class="tag">${d.n}</b><span class="sub">${dlText(d)}</span></div><div class="mi"><div class="dl${off?' off':''}"><i style="width:${d.done/d.total*100}%"></i></div></div><div class="btns" style="justify-content:space-between"><button class="small" onclick="dlToggle('${d.n}')">${t(off?'btn.resume':'btn.pause')}</button><button class="small" onclick="dlDel('${d.n}')">${t('btn.delete')}</button></div></div>`};
+function modelGroups(){const g={};dls.forEach(d=>(g[d.n.split(':')[0]]??=[]).push({d}));models.forEach(m=>(g[m.n.split(':')[0]]??=[]).push({m}));
+ const c=Object.entries(g).map(([f,a])=>`<div class="cat mg"><b>${f}</b>${a.map(({m,d})=>{if(d)return dlCard(d);const tg=m.n.slice(f.length+1);return `<div class="card mc"><div class="top" style="margin:0"><b class="tag">${m.n}</b><span class="sub">${m.gb} GB</span></div><div class="sub mi"><span>${modelInfo(tg)}</span></div><div class="btns" style="justify-content:space-between"><a class="btn small" href="https://ollama.com/library/${m.n}" target="_blank" rel="noopener noreferrer" aria-label="${t('mdl.library')}" title="${t('mdl.library')}">${mi('open_in_new')}</a><button class="small" onclick="delModel('${m.n}')">${t('btn.delete')}</button></div></div>`}).join('')}</div>`).join('');
  return `<div class="box" style="margin-top:12px">${c||`<div class="sub">${t('mdl.none')}</div>`}</div>`}
 const modelStats=()=>t('mdl.stats',{path:cfg.modelsPath,n:models.length,gb:models.reduce((a,m)=>a+m.gb,0).toFixed(1)});
-function openModels(){$('det').innerHTML=`<h3>${t('hdr.models')} <button style="float:right" onclick="det.close()">${mi('close')}</button></h3>
- <div class="f"><div class="f row"><label>${t('mdl.download')}</label></div><div class="pr"><input id="pn" placeholder="${t('mdl.dlPh')}"><button onclick="pull()">${t('mdl.download')}</button></div></div>
+function openModels(){const keep=$('pn')?.value??'',top=$('det').querySelector('.dbody')?.scrollTop||0;$('det').innerHTML=`<h3 id="mdl">${t('hdr.models')} <button style="float:right" onclick="det.close()">${mi('close')}</button></h3>
+ <div class="dbody"><div class="f"><div class="f row"><label>${t('mdl.download')}</label></div><div class="pr"><input id="pn" placeholder="${t('mdl.dlPh')}"><button onclick="pull()">${t('mdl.download')}</button></div></div>
  <div class="sub" id="pg" style="min-height:16px">${modelStats()}</div>
- ${modelGroups()}`;if(!det.open)det.showModal()}
-function pull(){let n=$('pn').value.trim();if(n&&!n.includes(':'))n+=':latest';if(!n||models.some(m=>m.n==n)){notify('warn',t(n?'mdl.dup.title':'mdl.empty.title'),t(n?'mdl.dup.msg':'mdl.empty.msg',{n}));return}
- let p=0;const iv=setInterval(()=>{p+=20;$('pg').textContent=t('mdl.progress',{n,p});if(p>=100){clearInterval(iv);models.push({n,gb:3.8});log(`Pulled model ${n}`);openModels();notify('info',t('mdl.done.title'),t('mdl.done.msg',{n}))}},150)}
+ ${modelGroups()}</div>`;$('pn').value=keep;if(!det.open)det.showModal();$('det').querySelector('.dbody').scrollTop=top}
+const modelsOpen=()=>det.open&&!!$('mdl');
+function pull(){let n=$('pn').value.trim();if(n&&!n.includes(':'))n+=':latest';if(!n||models.some(m=>m.n==n)||dls.some(d=>d.n==n)){notify('warn',t(n?'mdl.dup.title':'mdl.empty.title'),t(n?'mdl.dup.msg':'mdl.empty.msg',{n}));return}
+ dls.push({n,done:0,total:3.8,st:'pulling'});$('pn').value='';openModels()}
+setInterval(()=>{let changed=false;dls.filter(d=>d.st=='pulling').forEach(d=>{d.done=Math.min(d.total,d.done+d.total*.04);changed=true;if(d.done>=d.total){dls=dls.filter(x=>x!=d);models.push({n:d.n,gb:+d.total.toFixed(1)});log(`Pulled model ${d.n}`)}});if(changed&&modelsOpen())openModels()},500);
+function dlToggle(n){const d=dls.find(x=>x.n==n);d.st=d.st=='pulling'?'paused':'pulling';openModels()}
+async function dlDel(n){if(await ask(t('mdl.dl.del.title'),t('mdl.dl.del.msg',{n}),t('btn.delete'),true)){dls=dls.filter(d=>d.n!=n);log(`Deleted download ${n}`);openModels()}}
 async function delModel(n){const u=usedBy(n);
  if(await ask(t('mdl.del.title'),t('mdl.del.msg',{n})+(u.length?'\n'+t('mdl.del.used',{u:u.join(', ')}):''),t('btn.delete'),true)){models=models.filter(m=>m.n!=n);log(`Deleted model ${n}`);list.forEach(i=>{i.models=i.models.filter(x=>x!=n)});render();openModels()}}
 async function del(id){if(await ask(t('inst.del.title'),t('inst.del.msg',{n:by(id).name}),t('btn.delete'),true)){log(`Deleted ${by(id).name}`,by(id).name);list=list.filter(i=>i.id!=id);render()}}
 function newModels(){const g={};models.forEach(m=>(g[m.n.split(':')[0]]??=[]).push(m));let first=true;
- return Object.entries(g).map(([f,a])=>`<div class="cat nc"><label class="ch"><b>${f}</b><input type="checkbox" class="cc" aria-label="${t('new.toggle',{n:f})}"><span class="tog">${mi('expand_more')}</span></label><div class="cb"><div><div class="card" style="margin-top:8px;padding:14px;display:grid;gap:10px">${a.map(m=>{const c=first;first=false;return `<div class="f row" style="margin:0"><label>${m.n.slice(f.length+1)}</label><input class="sw" type="checkbox" role="switch" value="${m.n}" ></div>`}).join('')}</div></div></div></div></div>`).join('')||`<div class="sub">${t('new.noModels')}</div>`}
+ return Object.entries(g).map(([f,a])=>`<div class="cat nc"><label class="ch"><b>${f}</b><input type="checkbox" class="cc" aria-label="${t('new.toggle',{n:f})}"><span class="tog">${mi('expand_more')}</span></label><div class="cb"><div><div class="card" style="margin-top:8px;padding:14px;display:grid;gap:10px">${a.map(m=>{const c=first;first=false;return `<div class="f row" style="margin:0"><label>${m.n} · ${m.gb} GB</label><input class="sw" type="checkbox" role="switch" value="${m.n}" ></div>`}).join('')}</div></div></div></div></div>`).join('')||`<div class="sub">${t('new.noModels')}</div>`}
 const chkNew=()=>{$('mk').disabled=!document.querySelector('#nm input.sw:checked')};
 const rgFill=e=>e.style.setProperty('--p',(e.value-e.min)/(e.max-e.min)*100+'%');
 document.addEventListener('input',e=>{if(e.target.matches?.('.rg'))rgFill(e.target)});

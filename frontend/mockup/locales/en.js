@@ -6,7 +6,7 @@
   'app.title': 'Ollama Multi Manager (mockup)',
 
   'hdr.new': 'New instance', 'hdr.models': 'Models', 'hdr.settings': 'Settings',
-  'srv.title': 'External monitoring · {a}',
+  'srv.title': 'Web access · {a}',
 
   'sec.sum': 'Summary', 'sec.mon': 'System monitor', 'sec.inst': 'Server instances', 'sec.logs': 'Logs',
   'sec.hide': 'Hide', 'sec.show': 'Show',
@@ -28,7 +28,7 @@
 
   'new.title': 'New instance', 'new.server': 'Server', 'new.general': 'General', 'new.advanced': 'Advanced',
   'new.generalT': 'Expand/collapse General', 'new.advancedT': 'Expand/collapse Advanced',
-  'new.models': 'Models', 'new.toggle': 'Expand/collapse {n}', 'new.noModels': 'No models downloaded',
+  'new.models': 'Served models', 'new.toggle': 'Expand/collapse {n}', 'new.noModels': 'No models downloaded',
 
   'log.all': 'All', 'log.app': 'App',
   'ext.name': 'Default instance', 'ext.managed': 'Externally managed',
@@ -39,7 +39,7 @@
   'c.total': 'Total', 'c.running': 'Running', 'c.stopped': 'Stopped', 'c.unreach': 'Unresponsive',
   'c.mem': 'Memory', 'c.models': 'Loaded models', 'c.reqs': 'Active requests', 'c.latency': 'Avg. response',
   'c.speed': 'Avg. speed', 'c.warn': 'Warnings', 'c.ok': 'Normal', 'c.errs': 'Recent errors',
-  'c.mon': 'Monitoring', 'c.on': 'On', 'c.off': 'Off', 'c.updated': 'Updated',
+  'c.mon': 'Web access', 'c.on': 'On', 'c.off': 'Off', 'c.updated': 'Updated',
 
   'mon.cpu': '{pct}% · {n} cores', 'mon.system': 'System', 'mon.other': 'Other', 'mon.gpus': '{n} GPUs',
 
@@ -50,7 +50,7 @@
   'set.title': 'Settings', 'set.general': 'General', 'set.login': 'Launch at system startup',
   'set.tray': 'Minimize to tray', 'set.lang': 'Language', 'set.theme': 'Theme',
   'theme.system': 'System', 'theme.light': 'Light', 'theme.dark': 'Dark',
-  'set.monitor': 'Monitor', 'set.ext': 'External monitoring', 'set.extPort': 'External monitoring port',
+  'set.monitor': 'Monitor', 'set.ext': 'Web access', 'set.extPort': 'Web access port',
   'set.interval': 'Refresh interval', 'sec.n': '{n} s',
   'set.exe': 'Ollama executable', 'set.exePh': 'Auto-detect if empty', 'set.browse': 'Browse',
   'set.models': 'Model path (OLLAMA_MODELS default)', 'set.update': 'Update',
@@ -60,8 +60,8 @@
   'upd.title': 'Update check', 'upd.latest': 'You are up to date. ({v})',
   'rst.title': 'Reset settings', 'rst.msg': 'All settings will be reset to their defaults and saved.', 'rst.ok': 'Reset',
   'port.conflict': 'Port conflict',
-  'sv.portMsg': 'External monitoring port {p} is used by an instance.\nChoose a different port.',
-  'ext.title': 'External monitoring', 'ext.msg': 'The external monitoring server will restart on port {p}.',
+  'sv.portMsg': 'Web access port {p} is used by an instance.\nChoose a different port.',
+  'ext.title': 'Web access', 'ext.msg': 'The web access server will restart on port {p}.',
   'rr.t': 'Restart required', 'rr.m': 'Restart the running instances to apply the new executable or model path.',
 
   'mdl.param': 'Parameters {p} · Quantization {q}', 'mdl.estimate': 'Estimate for the current environment',
@@ -86,5 +86,7 @@
   'w.stop.t': 'Stop instance',
   'w.stop.m': '{n} will be stopped.\n{k} loaded model(s) will be unloaded and requests in progress will be interrupted.',
   'w.fit.t': 'VRAM may be insufficient',
-  'w.fit.m': 'The models loaded at the same time need about {need} GB, which exceeds the available VRAM of the selected device ({cap} GB).\nCreate it anyway?'
+  'w.fit.m': 'The models loaded at the same time need about {need} GB, which exceeds the available VRAM of the selected device ({cap} GB).\nCreate it anyway?',
+  'btn.monitor': 'Monitor', 'im.title': '{n} monitor', 'im.now': 'Now', 'im.ttft': 'First token', 'im.window': 'Last {m} min', 'im.hour': 'Last hour', 'im.total': 'Requests', 'im.tokens': 'Tokens (in/out)', 'im.reqs': 'Requests per minute', 'im.speed': 'Token speed per minute', 'im.latency': 'Average response per minute', 'im.live': 'Live resources', 'im.collecting': 'Collecting data. The graphs appear in a moment.', 'im.span': '{m} min ago', 'im.nowEdge': 'now', 'im.hourAgo': '60 min ago', 'im.conc': 'Concurrent requests (running + queued)', 'im.keepNote': 'Values from before the window was opened are collected since the app started (the last {n} readings).', 'new.modelsHint': 'Select at least one model for this instance to use. Requests for models you did not select are rejected.', 'rq.byModel': 'By model (last 5 min)', 'rq.recent': 'Recent requests', 'rq.none': 'No requests yet.', 'rq.model': 'Model', 'rq.count': 'Requests', 'rq.speed': 'Speed', 'rq.avg': 'Avg. response', 'rq.time': 'Time', 'rq.path': 'Path', 'rq.status': 'Status', 'rq.dur': 'Took', 'rq.tok': 'Tokens (in/out)', 'rq.cancelled': 'Cancelled', 'mdl.paused': 'Paused', 'mdl.failed': 'Failed', 'btn.pause': 'Pause', 'btn.resume': 'Resume', 'c.queued': 'waiting', 'c.fail': 'Failed',
+  'mdl.dl.del.title': 'Delete download', 'mdl.dl.del.msg': 'The download of {n} will be stopped and the files received so far deleted.'
 };
