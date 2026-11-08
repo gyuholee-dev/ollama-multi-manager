@@ -1,0 +1,109 @@
+// header
+header,
+main {
+  max-width: 960px;
+  margin: auto;
+  padding: 16px;
+}
+
+main {
+  max-width: none;
+  margin: 0;
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding-inline: max(16px,calc((100% - 928px)/2));
+}
+
+header {
+  max-width: none;
+  margin: 0;
+}
+
+header {
+  flex: none;
+  height: 62px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+header i.material-icons {
+  display: none;
+}
+
+header button {
+  height: 30px;
+}
+
+header .btns {
+  margin-left: auto;
+  flex: none;
+}
+
+header button {
+  white-space: nowrap;
+}
+
+#srv {
+  cursor: pointer;
+  position: relative;
+  top: 2px;
+  flex: 0 100 auto;
+  padding: 2px 6px;
+  margin: 0 15px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  color: var(--sub);
+  font-size: .75rem;
+}
+
+#srv:hover {
+  background: var(--ghost-hover);
+}
+
+#srv {
+  border-radius: 8px;
+  transition: background-color .1s;
+}
+
+#srv:active,
+#srv.pressed {
+  background: var(--ghost-active);
+}
+
+#srv::before {
+  content: "";
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--ok);
+  flex: none;
+}
+
+#srv .d {
+  min-width: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+@media (max-width:639px) {
+  header i.material-icons {
+    display: inline-block;
+    font-size: 1.25rem;
+  }
+  header button {
+    width: 30px;
+    height: 30px;
+    padding: 0;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+  }
+  header span {
+    display: none;
+  }
+}

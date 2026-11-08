@@ -1,0 +1,30 @@
+// tokens
+:root {
+  color-scheme: light dark;
+  --bg: light-dark(#ebebeb,#1c1c1c);
+  --card: light-dark(#fff,#262626);
+  --line: light-dark(#c8c8c8,#393939);
+  --text: light-dark(#222,#eee);
+  --sub: light-dark(#5a5a5a,#a1a1a1);
+  --ok: light-dark(#2e7d32,#7fd085);
+  --okbg: light-dark(#e6f3e7,#1f3a22);
+  --warn: light-dark(#9a6700,#f0c14b);
+  --warnbg: light-dark(#fbefd0,#3d3213);
+  --err: light-dark(#c62828,#ff8a80);
+  --errbg: light-dark(#fbe3e3,#401a1a);
+  --off: light-dark(#e0e0e0,#333);
+  --accent: light-dark(#2563eb,#6b9bff);
+  --btn: light-dark(#d9d9d9,#363636);
+  --field: light-dark(#d0d0d0,#101010);
+  --surf: var(--bg);
+  --ghost-hover: light-dark(#dcdcdc,#151515);
+  --ghost-active: light-dark(#cdcdcd,#0d0d0d);
+}
+
+:root[data-theme=light] {
+  color-scheme: light;
+}
+
+:root[data-theme=dark] {
+  color-scheme: dark;
+}

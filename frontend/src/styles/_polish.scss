@@ -1,0 +1,35 @@
+// polish
+* {
+  scrollbar-width: thin;
+  scrollbar-color: light-dark(#b0b0b0,#4a4a4a) transparent;
+}
+
+button,
+a.btn {
+  transition: background-color .25s;
+}
+
+/* button tone: base/hover/active derived from the surface the button sits on (header buttons excluded) */
+
+:where(main,dialog) button:not(.primary):not(.tog),
+:where(main,dialog) a.btn {
+  --b: light-dark(color-mix(in srgb,var(--surf) 94%,#000),color-mix(in srgb,var(--surf) 90%,#fff));
+  --bh: light-dark(color-mix(in srgb,var(--surf) 86%,#000),color-mix(in srgb,var(--surf) 78%,#000));
+  --ba: light-dark(color-mix(in srgb,var(--surf) 78%,#000),color-mix(in srgb,var(--surf) 62%,#000));
+  background: var(--b);
+}
+
+:where(main,dialog) button:not(.primary):not(.tog):hover,
+:where(main,dialog) a.btn:hover {
+  background: var(--bh);
+}
+
+:where(main,dialog) button:not(.primary):not(.tog):active,
+:where(main,dialog) a.btn:active {
+  background: var(--ba);
+}
+
+:where(main,dialog) button:not(.primary):not(.tog):disabled:hover,
+:where(main,dialog) button:not(.primary):not(.tog):disabled:active {
+  background: var(--b);
+}

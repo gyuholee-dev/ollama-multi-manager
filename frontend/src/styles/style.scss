@@ -1,2 +1,19 @@
-// Entry stylesheet: one partial per area, pulled in here (the screens and dialogs add theirs in the next steps).
+// Entry stylesheet. One partial per area, in the order the rules must apply (later rules win ties).
 @use 'icons';
+@use 'tokens';
+@use 'base';
+@use 'header';
+@use 'footer';
+@use 'controls';
+@use 'sections';
+@use 'summary';
+@use 'monitor';
+@use 'cards';
+@use 'details';
+@use 'parts';
+@use 'dialog';
+@use 'polish';
+@use 'dialog-forms';
+@use 'logs';
+@use 'tabs';
+@use 'popup';

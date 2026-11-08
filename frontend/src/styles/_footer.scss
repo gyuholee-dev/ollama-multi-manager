@@ -1,0 +1,46 @@
+// footer
+footer {
+  flex: none;
+  height: 30px;
+  background: var(--bg);
+  border-top: 1px solid var(--line);
+}
+
+footer div {
+  height: 100%;
+  padding: 0 16px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  font-size: .75rem;
+  color: var(--sub);
+}
+
+footer .l {
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+footer .l .material-icons {
+  flex: none;
+}
+
+#status {
+  min-width: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+#ver {
+  flex: none;
+  color: inherit;
+  text-decoration: none;
+}
+
+#ver:hover {
+  text-decoration: underline;
+}

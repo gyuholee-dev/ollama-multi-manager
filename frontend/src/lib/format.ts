@@ -40,3 +40,7 @@ export const splitModel = (name: string): { family: string; tag: string } => {
   const family = name.split(':')[0] ?? name;
   return { family, tag: name.slice(family.length + 1) };
 };
+
+/** "Automatic", "CPU" or "GPU 1 · NVIDIA ...": how an instance's device setting is shown. */
+export const gpuLabel = (gpu: 'auto' | 'cpu' | number, devices: { name: string }[], t: Translate): string =>
+  gpu === 'auto' ? t('gpu.auto') : gpu === 'cpu' ? 'CPU' : t('gpu.n', { g: gpu, name: devices[gpu]?.name ?? '?' });

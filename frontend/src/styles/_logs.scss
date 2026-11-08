@@ -1,0 +1,17 @@
+// logs
+#lbox {
+  --surf: var(--card);
+  background: var(--card);
+  border-radius: 8px;
+  padding: 14px;
+}
+
+#logs {
+  height: 180px;
+  overflow-x: hidden;
+  overflow-y: auto;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  font: .75rem/20px ui-monospace,SFMono-Regular,Menlo,monospace;
+  color: var(--sub);
+}

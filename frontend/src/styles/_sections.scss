@@ -1,0 +1,64 @@
+// sections
+section {
+  margin-bottom: 16px;
+}
+
+.sh {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  height: 28px;
+  margin-bottom: 8px;
+  font-size: 1rem;
+}
+
+.tog {
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  border: 0;
+  background: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--sub);
+}
+
+.tog:hover {
+  background: var(--ghost-hover);
+}
+
+.tog:active {
+  background: var(--ghost-active);
+}
+
+.tog .material-icons {
+  transform: rotate(180deg);
+  transition: transform .25s ease;
+}
+
+section.off .tog .material-icons {
+  transform: none;
+}
+
+.body {
+  display: grid;
+  grid-template-rows: 1fr;
+  transition: grid-template-rows .25s ease;
+}
+
+.body>div {
+  min-height: 0;
+  overflow: hidden;
+  transition: opacity .25s ease,visibility 0s;
+}
+
+section.off .body {
+  grid-template-rows: 0fr;
+}
+
+section.off .body>div {
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity .25s ease,visibility 0s .25s;
+}
