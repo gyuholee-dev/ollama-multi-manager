@@ -207,7 +207,7 @@ const seeded=n=>{let x=n*9301+49297;return()=>((x=(x*9301+49297)%233280)/233280)
   return chFrame(title,null,left,right,max,bars.map((b,k)=>{if(!b[0])return '';const bh=Math.max(2,b[0]/max*60),eh=b[1]/b[0]*bh,x=(k*bw+.5).toFixed(1),w=Math.max(1,bw-1).toFixed(1);return `<rect x="${x}" y="${(64-bh).toFixed(1)}" width="${w}" height="${(bh-eh).toFixed(1)}" fill="var(--accent)"/>${eh?`<rect x="${x}" y="${(64-eh).toFixed(1)}" width="${w}" height="${eh.toFixed(1)}" fill="var(--err)"/>`:''}`}).join(''))};
 const imHide=new Set(),CAT=[['models','d.models'],['state','f.state'],['res','d.res'],['log','im.history']],togCat=k=>{imHide.has(k)?imHide.delete(k):imHide.add(k);showMon(curMon)},imFold=new Set(),togIm=k=>{imFold.has(k)?imFold.delete(k):imFold.add(k)};let curMon=0;
 const sub=(k,title,body)=>`<div class="cat nc"><label class="ch"><span class="ti">${title}</span><input type="checkbox" class="cc" aria-label="${t('new.toggle',{n:title})}" ${imFold.has(k)?'':'checked'} onchange="togIm('${k}')"><span class="tog">${mi('expand_more')}</span></label><div class="cb"><div><div class="card" style="margin-top:8px;padding:14px">${body}</div></div></div></div>`;
-const openMon=id=>{const w=window.open(location.pathname+'#monitor='+id,'omm-monitor-'+id,'popup,width=960,height=820');try{w?.resizeTo(960,820)}catch(e){}};
+const openMon=id=>{const w=window.open(location.pathname+'#monitor='+id,'omm-monitor-'+id,'popup,width=480,height=820');try{w?.resizeTo(480,820)}catch(e){}};
 let monPage=false;
 const monHost=()=>{let h=$('monpage');if(!h){document.querySelectorAll('header,main,footer').forEach(e=>e.style.display='none');h=document.createElement('div');h.id='monpage';h.className='mwin';document.body.append(h)}return h};
 function showMon(id,page=monPage){curMon=id;monPage=page;const i=by(id),r=seeded(i.id%97+3),N=60,L=40,hrs=Array.from({length:N},(_,k)=>{const q=Math.max(0,Math.round(4+4*Math.sin(k/6)+r()*3-1));return {q,e:q&&r()<.08?1:0,v:q?Math.round(80+r()*70):null,l:q?+(.8+r()*1.4).toFixed(1):null}}),
@@ -319,5 +319,5 @@ sd(880,'worker-1','Process started (pid 4237) on port 11435');sd(878,'worker-1',
 sd(860,'worker-2','Process started (pid 4311) on port 11436');sd(852,'worker-2','Model loaded: mistral:7b-instruct-q4_K_M (4.1 GB) in 4.9s');sd(600,'worker-1','POST /api/chat 200 1.84s');sd(420,'worker-1','POST /api/generate 200 0.92s');
 sd(300,'worker-3','Health check timed out (3 consecutive failures)');sd(298,'worker-3','State changed to unreachable');
 log('App started');apply();
-if(/monitor=(\d+)/.test(location.hash)){showMon(+RegExp.$1,true);if(window.opener){const fit=()=>{if(outerWidth!==960||outerHeight!==820)try{resizeTo(960,820)}catch(e){}};fit();addEventListener('load',fit);setTimeout(fit,300)}}
+if(/monitor=(\d+)/.test(location.hash)){showMon(+RegExp.$1,true);if(window.opener){const fit=()=>{if(outerWidth!==480||outerHeight!==820)try{resizeTo(480,820)}catch(e){}};fit();addEventListener('load',fit);setTimeout(fit,300)}}
 </script>
