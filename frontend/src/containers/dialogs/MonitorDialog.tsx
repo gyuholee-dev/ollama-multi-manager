@@ -14,6 +14,9 @@ import { useUiStore } from '@/stores/uiStore';
 
 const NONE: Sample[] = [];
 
+/** The four kinds of information of the window; the buttons under its title switch each one on or off. */
+const CATEGORIES: [string, string][] = [['models', 'd.models'], ['state', 'f.state'], ['res', 'd.res'], ['log', 'sec.logs']];
+
 function Cell({ label, value, unit, tone }: { label: string; value: ReactNode; unit?: string; tone?: '--err' | '--warn' }) {
   return (
     <div>
@@ -34,6 +37,9 @@ export function MonitorDialog({ id }: { id: number }) {
   const snap = useMonitorStore((s) => s.snap);
   const samples = useHistoryStore((s) => s.series[String(id)] ?? NONE);
   const imFold = useUiStore((s) => s.imFold);
+  const imHide = useUiStore((s) => s.imHide);
+  const toggleCat = useUiStore((s) => s.toggleImCat);
+  const shown = (cat: string) => !imHide.includes(cat);
   const open = (key: string) => !imFold.includes(key);
   const [hour, setHour] = useState<SeriesPoint[] | null>(null);
   const [recent, setRecent] = useState<RequestsResponse['requests']>([]);
@@ -42,11 +48,11 @@ export function MonitorDialog({ id }: { id: number }) {
     let alive = true;
     // only what is shown is asked for
     Promise.all([
-      open('hour') ? api.get<{ series: SeriesPoint[] }>(`/monitor/requests?minutes=60&instance=${id}`).then((r) => r.series) : Promise.resolve(null),
-      open('recent') ? api.get<RequestsResponse>(`/instances/${id}/requests?limit=20`).then((q) => q.requests) : Promise.resolve(null),
+      shown('state') && open('hour') ? api.get<{ series: SeriesPoint[] }>(`/monitor/requests?minutes=60&instance=${id}`).then((r) => r.series) : Promise.resolve(null),
+      shown('log') && open('recent') ? api.get<RequestsResponse>(`/instances/${id}/requests?limit=20`).then((q) => q.requests) : Promise.resolve(null),
     ]).then(([series, requests]) => { if (alive) { if (series) setHour(series); if (requests) setRecent(requests); } }, () => { /* keep what is shown */ });
     return () => { alive = false; };
-  }, [id, snap, imFold]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [id, snap, imFold, imHide]); // eslint-disable-line react-hooks/exhaustive-deps
 
   if (!view) return null;
   const p: Perf | null = view.metrics?.perf ?? null;
@@ -70,9 +76,12 @@ export function MonitorDialog({ id }: { id: number }) {
 
   return (
     <Dialog id="det" onClose={close}>
-      <DialogTitle onClose={close}>{t('im.title', { n: view.name })}</DialogTitle>
+      <DialogTitle onClose={close} actions={CATEGORIES.map(([key, label]) => (
+        <button key={key} className={`small${shown(key) ? ' on' : ''}`} onClick={() => toggleCat(key)}>{t(label)}</button>
+      ))}>{t('im.title', { n: view.name })}</DialogTitle>
       <DialogBody>
         <div id="dt">
+          {shown('models') && (
           <div className="box"><b>{t('d.models')}</b>
             <Collapse id="loaded" title={t('d.loaded')}>
               {view.loaded.length ? view.loaded.map((x) => (
@@ -93,7 +102,9 @@ export function MonitorDialog({ id }: { id: number }) {
               ) : <div className="sub">{t('rq.none')}</div>}
             </Collapse>
           </div>
+          )}
 
+          {shown('state') && (
           <div className="box"><b>{t('f.state')}</b>
             <Collapse id="now" title={t('im.now')}>
               <div className="sc">
@@ -123,7 +134,9 @@ export function MonitorDialog({ id }: { id: number }) {
                 format={(v) => `${v.toFixed(1)} s`} />
             </Collapse>
           </div>
+          )}
 
+          {shown('res') && (
           <div className="box"><b>{t('d.res')}</b>
             <Collapse id="cpu" title="CPU">
               {live ? <LineChart title="CPU" value={last ? `${last.cpu.toFixed(1)} %` : undefined} points={samples.map((x) => x.cpu)} max={Math.max(10, ...samples.map((x) => x.cpu))}
@@ -145,7 +158,9 @@ export function MonitorDialog({ id }: { id: number }) {
             </Collapse>
             <div className="sub" style={{ marginTop: 6 }}>{t('im.keepNote', { n: MAX_SAMPLES })}</div>
           </div>
+          )}
 
+          {shown('log') && (
           <div className="box"><b>{t('sec.logs')}</b>
             <Collapse id="recent" title={t('rq.recent')}>
               {recent.length ? (
@@ -161,6 +176,7 @@ export function MonitorDialog({ id }: { id: number }) {
               ) : <div className="sub">{t('rq.none')}</div>}
             </Collapse>
           </div>
+          )}
         </div>
       </DialogBody>
     </Dialog>

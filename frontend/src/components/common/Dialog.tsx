@@ -35,11 +35,15 @@ export function Dialog({ id, onClose, children, ...rest }: Props) {
   );
 }
 
-/** The title bar of a big dialog: heading and the close button. */
-export function DialogTitle({ children, id, onClose }: { children: ReactNode; id?: string; onClose: () => void }) {
-  return (
+/**
+ * The header of a big dialog: heading and the close button. `actions` adds a row of buttons (right aligned) to the
+ * header itself, so it stays in place while the body below scrolls.
+ */
+export function DialogTitle({ children, id, onClose, actions }: { children: ReactNode; id?: string; onClose: () => void; actions?: ReactNode }) {
+  const title = (
     <h3 id={id}>{children} <button type="button" style={{ float: 'right' }} onClick={onClose}><span className="material-icons">close</span></button></h3>
   );
+  return actions ? <div className="dh">{title}<div className="btns">{actions}</div></div> : title;
 }
 
 /** What sits below the title of a big dialog: the part that scrolls. */

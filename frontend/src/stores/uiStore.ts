@@ -17,6 +17,7 @@ interface UiState {
   sortDir: 1 | -1;
   sumOn: string[];
   monOn: string[];
+  imHide: string[]; // the categories of the instance monitor window that are switched off
   imFold: string[]; // the sub-sections of the instance monitor window that are closed
   collapsed: SectionId[];
 
@@ -28,6 +29,7 @@ interface UiState {
   sortBy: (key: SortKey) => void;
   toggleSum: (id: string) => void;
   toggleMon: (id: string) => void;
+  toggleImCat: (id: string) => void;
   toggleImFold: (id: string) => void;
   toggleSection: (id: SectionId) => void;
 }
@@ -47,6 +49,7 @@ export const useUiStore = create<UiState>()(
       sortDir: 1,
       sumOn: ['ins', 'usage'],
       monOn: ['CPU', 'RAM', 'GPU', 'VRAM'],
+      imHide: [],
       imFold: [],
       collapsed: [],
 
@@ -61,12 +64,13 @@ export const useUiStore = create<UiState>()(
       },
       toggleSum: (id) => set({ sumOn: toggle(get().sumOn, id) }),
       toggleMon: (id) => set({ monOn: toggle(get().monOn, id) }),
+      toggleImCat: (id) => set({ imHide: toggle(get().imHide, id) }),
       toggleImFold: (id) => set({ imFold: toggle(get().imFold, id) }),
       toggleSection: (id) => set({ collapsed: toggle(get().collapsed, id) }),
     }),
     {
       name: 'omm-ui',
-      partialize: (s) => ({ sortKey: s.sortKey, sortDir: s.sortDir, sumOn: s.sumOn, monOn: s.monOn, imFold: s.imFold, collapsed: s.collapsed }),
+      partialize: (s) => ({ sortKey: s.sortKey, sortDir: s.sortDir, sumOn: s.sumOn, monOn: s.monOn, imHide: s.imHide, imFold: s.imFold, collapsed: s.collapsed }),
     },
   ),
 );

@@ -35,3 +35,21 @@
 .cs {
   margin-top: 8px;
 }
+
+// header of a big dialog with a row of buttons under the title (it does not scroll with the body)
+dialog:not(#pop) > .dh {
+  flex: none;
+  background: var(--card);
+
+  > h3 {
+    position: static;
+    margin: 0;
+    padding: 16px 16px 8px;
+  }
+
+  > .btns {
+    justify-content: flex-end;
+    flex-wrap: wrap;
+    padding: 0 16px 10px;
+  }
+}
