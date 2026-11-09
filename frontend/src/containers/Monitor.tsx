@@ -98,19 +98,25 @@ export function Monitor() {
     if (!d.supports.mem) {
       memory = <><DeviceHead n={1} name={memLabel} figures="-" /><Bar segments={[]} off /><div className="sub off-note">{t('mon.unsupported')}</div></>;
     } else if (d.unified) {
-      // one pool shared with the CPU: the bar covers all of it; the row says how much the GPU uses of its limit and how full the whole pool is
+      // One pool shared with the CPU. The GPU's use grows from the left and the system's from the right, so the empty space
+      // between them is what is left, and a line at the GPU's maximum shows how far the GPU could reach from the left.
       const other = Math.max(0, g.used - g.parts.reduce((a, p) => a + p.v, 0));
       const system = Math.max(0, ramUsed - g.used);
+      const free = Math.max(0, ramTotal - ramUsed);
+      const pct = (v: number) => (v / ramTotal) * 100;
+      // the legend lists them in this order: the GPU's own use, the instances', the GPU's maximum, then the system's
       const segments: Segment[] = [
-        [systemLabel, (system / ramTotal) * 100, 'var(--sub)', `${system.toFixed(1)} GB`],
-        ...g.parts.map((p): Segment => [p.name, (p.v / ramTotal) * 100, p.col, `${p.v.toFixed(1)} GB`]),
-        ...(other > 0.05 ? [[t('mon.gpuOther'), (other / ramTotal) * 100, 'var(--line)', `${other.toFixed(1)} GB`] as Segment] : []),
+        ...(other > 0.05 ? [[t('mon.gpuOther'), pct(other), 'var(--sub)', `${other.toFixed(1)} GB`] as Segment] : []),
+        ...g.parts.map((p): Segment => [p.name, pct(p.v), p.col, `${p.v.toFixed(1)} GB`]),
+        [t('mon.gpuMax', { limit: g.total.toFixed(1) }), 0, 'var(--text)', '', 'mark'],
+        ['', pct(free), 'transparent', '', 'gap'],
+        [systemLabel, pct(system), 'var(--line)', `${system.toFixed(1)} GB`],
       ];
       memory = (
         <>
           <DeviceHead n={1} name={memLabel} warn={g.pct > VRAM_WARN_PERCENT}
-            figures={t('mon.umaFigures', { gpu: g.used.toFixed(1), limit: g.total.toFixed(1), used: ramUsed.toFixed(1), total: ramTotal.toFixed(0), pct: Math.round((ramUsed / ramTotal) * 100) })} />
-          <Bar segments={segments} /><Legend segments={segments} />
+            figures={`${Math.round((ramUsed / ramTotal) * 100)}% · ${ramUsed.toFixed(1)} / ${ramTotal.toFixed(0)} GB`} />
+          <Bar segments={segments} marker={pct(g.total)} /><Legend segments={segments} />
         </>
       );
     } else {
@@ -121,7 +127,7 @@ export function Monitor() {
       ];
       memory = (
         <>
-          <DeviceHead n={1} name={memLabel} figures={`${g.used.toFixed(1)} / ${g.total.toFixed(1)} GB (${g.pct}%)`} warn={g.pct > VRAM_WARN_PERCENT} />
+          <DeviceHead n={1} name={memLabel} figures={`${g.pct}% · ${g.used.toFixed(1)} / ${g.total.toFixed(1)} GB`} warn={g.pct > VRAM_WARN_PERCENT} />
           <Bar segments={segments} /><Legend segments={segments} />
         </>
       );
@@ -152,7 +158,7 @@ export function Monitor() {
       </MonitorBox>
     ),
     show('RAM') && (
-      <MonitorBox key="RAM" title="RAM" summary={`${ramUsed.toFixed(1)} / ${ramTotal.toFixed(0)} GB (${Math.round((ramUsed / ramTotal) * 100)}%)`}>
+      <MonitorBox key="RAM" title="RAM" summary={`${Math.round((ramUsed / ramTotal) * 100)}% · ${ramUsed.toFixed(1)} / ${ramTotal.toFixed(0)} GB`}>
         <Bar segments={ramSegments} /><Legend segments={ramSegments} />
       </MonitorBox>
     ),
