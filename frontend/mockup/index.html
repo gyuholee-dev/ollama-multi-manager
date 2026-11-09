@@ -25,8 +25,8 @@ section{margin-bottom:16px}.sh{display:flex;justify-content:space-between;align-
 .tog{width:24px;height:24px;padding:0;border:0;background:none;display:inline-flex;align-items:center;justify-content:center;color:var(--sub)}.tog:hover{background:var(--ghost-hover)}.tog:active{background:var(--ghost-active)}.tog .material-icons{transform:rotate(180deg);transition:transform .25s ease}section.off .tog .material-icons{transform:none}.body{display:grid;grid-template-rows:1fr;transition:grid-template-rows .25s ease}.body>div{min-height:0;overflow:hidden;transition:opacity .25s ease,visibility 0s}section.off .body{grid-template-rows:0fr}section.off .body>div{opacity:0;visibility:hidden;transition:opacity .25s ease,visibility 0s .25s}
 #sum{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}@media(max-width:639px){#sum{grid-template-columns:minmax(0,1fr)}}.sb{background:var(--card);border-radius:8px;padding:14px}.sb>.ti{display:block;margin-bottom:10px;font-weight:500;font-size:1rem}.sc{display:flex;gap:8px}.sc>div{flex:1;min-width:0;background:var(--bg);border-radius:8px;padding:14px}.sc .sub{white-space:nowrap}.sc .val{display:block;font-size:1.125rem;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.sc small{font-size:.75rem;font-weight:400;color:var(--sub)}
 #mon{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}@media(max-width:639px){#mon{grid-template-columns:minmax(0,1fr)}}#mon .sb:only-child{grid-column:1/-1}
-.bar.off{opacity:.35}.off-note{margin-top:4px}.chart.off{opacity:.6}.chart.off .plot{background-image:repeating-linear-gradient(135deg,transparent 0 6px,color-mix(in srgb,var(--sub) 12%,transparent) 6px 7px)}.bar{display:flex;gap:1px;height:8px;background:var(--bg);border-radius:4px;overflow:hidden;margin:10px 0}.bar i{height:100%}
-.leg{display:flex;flex-wrap:wrap;gap:4px 14px;font-size:.75rem;color:var(--sub)}.leg s{display:inline-block;width:8px;height:8px;border-radius:2px;margin-right:5px}
+.bar.off{opacity:.35}.off-note{margin-top:4px}.chart.off{opacity:.6}.chart.off .plot{background-image:repeating-linear-gradient(135deg,transparent 0 6px,color-mix(in srgb,var(--sub) 12%,transparent) 6px 7px)}.bar{display:flex;gap:1px;height:6px;background:var(--bg);border-radius:6px;overflow:hidden;margin:10px 2px;position:relative}.bar .mk{position:absolute;top:0;bottom:0;width:2px;margin-left:-1px;background:var(--text)}.bar i{height:100%}
+.leg{display:flex;flex-wrap:wrap;gap:4px 14px;font-size:.75rem;color:var(--sub)}.leg s{display:inline-block;width:8px;height:8px;border-radius:2px;margin-right:5px}.leg s.mk{width:2px;height:10px;border-radius:0;margin:0 6px 0 3px;vertical-align:-1px}
 #grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:12px}
 .top>.ti{font-size:1rem;font-weight:500}.spread{display:flex;justify-content:space-between;gap:8px}.top>.ti.tag{font-size:.875rem;font-weight:400}.cp{flex:none;color:var(--accent);font-size:.75rem}.addr{display:flex;gap:6px;width:fit-content;cursor:pointer;margin:-2px -6px;padding:2px 6px;border-radius:8px;transition:background-color .1s}.addr:hover{background:var(--ghost-hover)}.addr:active,.addr.pressed{background:var(--ghost-active)}.card>.sel{margin:10px 0}.card .sel select{width:100%;background:var(--bg)}
 .card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:14px}.card.ext{border-style:dashed}
@@ -124,14 +124,15 @@ dialog:not(#pop)>.dh{flex:none;background:var(--card)}dialog:not(#pop)>.dh>h3{po
 <script>
 const VERSION='v0.1.0';let checking=false;
 const detectLang=()=>{for(const l of navigator.languages||[navigator.language]){const b=String(l||'').toLowerCase().split('-')[0];if(window.LOCALES[b])return b}return 'en'};
+const FULL={mem:true,util:true,temp:true,process:true,process_util:true},NOPROC={mem:true,util:true,temp:true,process:false,process_util:false},PMETRICS={mem:true,util:true,temp:true,process:false,process_util:true},NONE={mem:false,util:false,temp:false,process:false,process_util:false};
 const GMODES={
-  nv:{names:['NVIDIA GeForce RTX 4090','NVIDIA GeForce RTX 3090'],vram:[24,24],unified:false,sup:{mem:true,util:true,temp:true,process:true,process_util:true}},
-  mac:{names:['Apple M4 Pro'],vram:[17.8],unified:true,sup:{mem:true,util:true,temp:true,process:false,process_util:false}},
-  part:{names:['AMD Radeon Graphics'],vram:[16],unified:true,sup:{mem:true,util:false,temp:false,process:false,process_util:false}},
-  none:{names:[],vram:[],unified:false,sup:{mem:false,util:false,temp:false,process:false,process_util:false}}};
-let GPUS=[],GVRAM=[],GUNI=false,GSUP={};
-const setGpuMode=()=>{const m=GMODES[cfg.gpu]||GMODES.nv;GPUS=m.names;GVRAM=m.vram;GUNI=m.unified;GSUP=m.sup},
- uni=()=>GUNI&&GPUS.length>0,memN=()=>uni()?t('mon.unified'):'VRAM',memOk=()=>GPUS.length>0&&GSUP.mem;
+  nv:[{name:'Apple M4 Pro',vram:48,unified:true,sup:PMETRICS},{name:'NVIDIA GeForce RTX 5090',vram:32,unified:false,sup:FULL}],
+  mac:[{name:'Apple M4 Pro',vram:48,unified:true,sup:NOPROC}],
+  part:[{name:'AMD Radeon Graphics',vram:32,unified:true,sup:{mem:true,util:false,temp:false,process:false,process_util:false}}],
+  none:[]};
+let GPUS=[],GVRAM=[],GDEV=[],GUNI=false,GSUP={};
+const setGpuMode=()=>{GDEV=GMODES[cfg.gpu]||GMODES.nv;GPUS=GDEV.map(d=>d.name);GVRAM=GDEV.map(d=>d.vram);GUNI=GDEV.length>0&&GDEV.every(d=>d.unified);GSUP={mem:GDEV.some(d=>d.sup.mem)}},
+ uni=()=>GUNI,memN=()=>uni()?t('mon.unified'):'VRAM',memOk=()=>GPUS.length>0&&GSUP.mem;
 const defCfg={gpu:'nv',lang:detectLang(),theme:'system',login:false,tray:false,interval:3,extMon:true,monPort:9100,exe:'',modelsPath:'~/.ollama/models'},cfg={...defCfg};let saved={...defCfg};
 const shared=()=>{try{return JSON.parse(localStorage.getItem('omm-mock-cfg')||'{}')}catch(e){return {}}},share=()=>{try{localStorage.setItem('omm-mock-cfg',JSON.stringify({lang:cfg.lang,theme:cfg.theme,gpu:cfg.gpu}))}catch(e){}};
 {const sh=shared();if(window.LOCALES[sh.lang])cfg.lang=saved.lang=sh.lang;if(sh.theme)cfg.theme=saved.theme=sh.theme;if(GMODES[sh.gpu])cfg.gpu=saved.gpu=sh.gpu}
@@ -141,8 +142,12 @@ const mi=n=>`<span class="material-icons">${n}</span>`;
 const SI={running:'circle',stopped:'radio_button_unchecked',starting:'more_horiz',unreachable:'warning'},stL=s=>mi(SI[s])+t('state.'+s);
 let list=[
  {id:1,name:'worker-1',port:11435,exp:[Date.now()+3*60000],models:['llama3.1:8b-instruct-q4_K_M','mistral:7b-instruct-q4_K_M'],ctx:8192,keep:5,loaded:['llama3.1:8b-instruct-q4_K_M · 4.7 GB'],state:'running'},
- {id:2,name:'worker-2',port:11436,exp:[Date.now()+9*60000],models:['mistral:7b-instruct-q4_K_M'],ctx:4096,keep:15,loaded:['mistral:7b-instruct-q4_K_M · 4.1 GB'],state:'running'},
- {id:3,name:'worker-3',port:11437,models:['llama3.1:8b-instruct-q8_0'],ctx:8192,keep:5,loaded:[],state:'unreachable'}];
+ {id:2,name:'worker-2',port:11436,gpu:1,exp:[Date.now()+9*60000],models:['mistral:7b-instruct-q4_K_M'],ctx:4096,keep:15,loaded:['mistral:7b-instruct-q4_K_M · 4.1 GB'],state:'running'},
+ {id:3,name:'worker-3',port:11437,models:['llama3.1:8b-instruct-q8_0'],ctx:8192,keep:5,loaded:[],state:'unreachable'},
+ {id:4,name:'worker-4',port:11438,gpu:1,exp:[Date.now()+12*60000],models:['gemma2:9b-instruct-q4_K_M'],ctx:8192,keep:15,loaded:['gemma2:9b-instruct-q4_K_M · 5.4 GB'],state:'running'},
+ {id:5,name:'worker-5',port:11439,gpu:1,exp:[Date.now()+7*60000],models:['llama3.1:8b-instruct-q8_0','qwen2.5:3b-instruct-q4_K_M'],ctx:16384,keep:5,loaded:['llama3.1:8b-instruct-q8_0 · 8.5 GB'],state:'running'},
+ {id:6,name:'worker-6',port:11440,gpu:0,exp:[Date.now()+5*60000],models:['qwen2.5:3b-instruct-q4_K_M'],ctx:4096,keep:5,loaded:['qwen2.5:3b-instruct-q4_K_M · 2.1 GB'],state:'running'},
+ {id:7,name:'worker-7',port:11441,gpu:1,models:['mistral:7b-instruct-q4_K_M'],ctx:4096,keep:5,loaded:[],state:'stopped'}];
 const ext={get name(){return t('ext.name')},port:11434,exp:[Date.now()+4*60000],ctx:4096,keep:15,loaded:['qwen2.5:3b-instruct-q4_K_M · 2.1 GB']};
 const $=id=>document.getElementById(id),by=id=>list.find(i=>i.id==id);
 const logs=[],lf={v:'all'},hms=t=>new Date(t).toLocaleTimeString('en-GB'),
@@ -188,23 +193,23 @@ function render(){
  $('stabs').innerHTML=SO.map(([k,x])=>`<button class="small${so.k==k?' on':''}" onclick="setSort('${k}')">${t(x)}${so.k==k?mi(so.d>0?'arrow_upward':'arrow_downward'):''}</button>`).join('');
  const runL=list.filter(i=>i.state=='running'),wt=i=>GB(i.loaded)||1,wsum=runL.reduce((a,i)=>a+wt(i),0),share=(i,total)=>total*wt(i)/wsum,anyRun=runL.length>0,S=t('mon.system'),O=t('mon.other'),V=vramByGpu(),used=V.reduce((t,g)=>t+g.used,0),total=V.reduce((t,g)=>t+g.total,0),pct=total?Math.round(used/total*100):0,pmax=V.length?Math.max(...V.map(g=>g.pct)):0;
  const mb=(t,v,body,w='',lbl=t)=>!monOff.has(t)?`<div class="sb"><div class="top" style="margin:0"><span class="ti">${lbl}</span><span class="sub"${w}>${v}</span></div>${body}</div>`:'',
-  bar=(ps,off)=>`<div class="bar${off?' off':''}">${ps.map(p=>`<i title="${p[0]}" style="width:${p[1]}%;background:${p[2]}"></i>`).join('')}</div>`,
+  bar=(ps,off,mk)=>`<div class="bar${off?' off':''}">${ps.filter(p=>p[1]>0&&p[4]!='mark').map(p=>`<i title="${p[0]}" style="width:${p[1]}%;background:${p[2]}"></i>`).join('')}${mk>0&&mk<100?`<u class="mk" style="left:${mk}%"></u>`:''}</div>`,
   unsup=()=>`<div class="top" style="margin:8px 0 0"><span>-</span><span class="sub">-</span></div>${bar([],true)}<div class="sub off-note">${t('mon.unsupported')}</div>`,
-  leg=(ps)=>`<div class="leg">${ps.map(p=>`<span><s style="background:${p[2]}"></s>${p[0]} ${p[3]}</span>`).join('')}</div>`,
+  leg=(ps)=>`<div class="leg">${ps.filter(p=>p[4]!='gap').map(p=>`<span><s${p[4]=='mark'?' class="mk"':''} style="background:${p[2]}"></s>${p[0]} ${p[3]}</span>`).join('')}</div>`,
   headRow=(label,fig,n,warn)=>`<div class="top" style="margin:${n?14:8}px 0 0"><span>${label}</span><span class="sub"${warn?' style="color:var(--warn)"':''}>${fig}</span></div>`,
   gpuBoxes=()=>!GPUS.length?[mb('GPU','-',headRow('GPU','-',0)+bar([],true)+headRow(memN(),'-',1)+bar([],true)+`<div class="sub off-note">${t('mon.unsupported')}</div>`,'','GPU')]:GPUS.map((_,n)=>{
-    const g=V[n],[u,tc,w,sy]=[[62,58,214,5],[4,41,28,2]][n]||[30,50,100,3],ps=g.parts,tp=ps.reduce((x,p)=>x+p.v,0),sysU=ps.length?Math.min(sy,u):u,
-     segs=GSUP.process_util?[[S,sysU,'var(--sub)',sysU+'%'],...ps.map(p=>[p.name,(u-sysU)*p.v/Math.max(tp,1),p.col,Math.round((u-sysU)*p.v/Math.max(tp,1))+'%'])]:[[t('mon.util'),u,'var(--accent)',u+'%']],
-     util=headRow('GPU',`${GSUP.util?u+'%':'-'} · ${GSUP.temp?tc+'°C':'-'}${cfg.gpu=='nv'?` · ${w} W`:''}`,0)+(GSUP.util?bar(segs)+leg(segs):bar([],true)+`<div class="sub off-note">${t('mon.unsupported')}</div>`);
+    const g=V[n],D=GDEV[n],[u,tc,w,sy]=[[62,58,18,5],[71,63,342,3]][n]||[30,50,100,3],ps=g.parts,tp=ps.reduce((x,p)=>x+p.v,0),sysU=ps.length?Math.min(sy,u):u,
+     segs=D.sup.process_util?[[S,sysU,'var(--sub)',sysU+'%'],...ps.map(p=>[p.name,(u-sysU)*p.v/Math.max(tp,1),p.col,Math.round((u-sysU)*p.v/Math.max(tp,1))+'%'])]:[[t('mon.util'),u,'var(--accent)',u+'%']],
+     util=headRow('GPU',`${D.sup.util?u+'%':'-'} · ${D.sup.temp?tc+'°C':'-'}${D.sup.process_util?` · ${w} W`:''}`,0)+(D.sup.util?bar(segs)+leg(segs):bar([],true)+`<div class="sub off-note">${t('mon.unsupported')}</div>`);
     let mem;
-    if(!GSUP.mem)mem=headRow(memN(),'-',1)+bar([],true)+`<div class="sub off-note">${t('mon.unsupported')}</div>`;
-    else if(GUNI){const other=Math.max(0,g.used-ps.reduce((a,p)=>a+p.v,0)),sys=Math.max(0,21.8-g.used),pp=[[S,sys/64*100,'var(--sub)',sys.toFixed(1)+' GB'],...ps.map(p=>[p.name,p.v/64*100,p.col,p.v.toFixed(1)+' GB']),...(other>0.05?[[t('mon.gpuOther'),other/64*100,'var(--line)',other.toFixed(1)+' GB']]:[])];
-      mem=headRow(memN(),t('mon.umaFigures',{gpu:g.used.toFixed(1),limit:g.total,used:'21.8',total:64,pct:34}),1,g.pct>85)+bar(pp)+leg(pp)}
-    else{const pp=[[S,GSYS/g.total*100,'var(--sub)',GSYS.toFixed(1)+' GB'],...ps.map(p=>[p.name,p.v/g.total*100,p.col,p.v.toFixed(1)+' GB'])];mem=headRow(memN(),`${g.used.toFixed(1)} / ${g.total} GB (${g.pct}%)`,1,g.pct>85)+bar(pp)+leg(pp)}
+    if(!D.sup.mem)mem=headRow(D.unified?t('mon.unified'):'VRAM','-',1)+bar([],true)+`<div class="sub off-note">${t('mon.unsupported')}</div>`;
+    else if(D.unified){const other=Math.max(0,g.used-ps.reduce((a,p)=>a+p.v,0)),sys=Math.max(0,21.8-g.used),free=Math.max(0,64-21.8),pp=[...(other>0.05?[[t('mon.gpuOther'),other/64*100,'var(--sub)',other.toFixed(1)+' GB']]:[]),...ps.map(p=>[p.name,p.v/64*100,p.col,p.v.toFixed(1)+' GB']),[t('mon.gpuMax',{limit:g.total}),0,'var(--text)','','mark'],['',free/64*100,'transparent','','gap'],[S,sys/64*100,'var(--line)',sys.toFixed(1)+' GB']];
+      mem=headRow(D.unified?t('mon.unified'):'VRAM','34% · 21.8 / 64 GB',1,g.pct>85)+bar(pp,false,g.total/64*100)+leg(pp)}
+    else{const pp=[[S,GSYS/g.total*100,'var(--sub)',GSYS.toFixed(1)+' GB'],...ps.map(p=>[p.name,p.v/g.total*100,p.col,p.v.toFixed(1)+' GB'])];mem=headRow(D.unified?t('mon.unified'):'VRAM',`${g.pct}% · ${g.used.toFixed(1)} / ${g.total} GB`,1,g.pct>85)+bar(pp)+leg(pp)}
     return mb(`GPU-${n}`,GPUS[n],util+mem)});
  $('mon').innerHTML=[
   mb('CPU',t('mon.cpu',{pct:23,n:12}),bar([...runL.map(i=>[i.name,share(i,9),`hsl(${list.indexOf(i)*70+210} 60% 55%)`]),[O,14,'var(--sub)']])+leg([...runL.map(i=>[i.name,share(i,9),`hsl(${list.indexOf(i)*70+210} 60% 55%)`,Math.round(share(i,9))+'%']),[O,14,'var(--sub)','14%']])),
-  mb('RAM','21.8 / 64 GB (34%)',bar([[S,15/64*100,'var(--sub)'],...runL.map(i=>[i.name,share(i,6.8)/64*100,`hsl(${list.indexOf(i)*70+210} 60% 55%)`])])+leg([[S,15,'var(--sub)','15.0 GB'],...runL.map(i=>[i.name,share(i,6.8),`hsl(${list.indexOf(i)*70+210} 60% 55%)`,share(i,6.8).toFixed(1)+' GB'])])),
+  mb('RAM','34% · 21.8 / 64 GB',bar([[S,15/64*100,'var(--sub)'],...runL.map(i=>[i.name,share(i,6.8)/64*100,`hsl(${list.indexOf(i)*70+210} 60% 55%)`])])+leg([[S,15,'var(--sub)','15.0 GB'],...runL.map(i=>[i.name,share(i,6.8),`hsl(${list.indexOf(i)*70+210} 60% 55%)`,share(i,6.8).toFixed(1)+' GB'])])),
   ...gpuBoxes()
  ].join('')||`<div class="sub" style="grid-column:1/-1">${t('sum.empty')}</div>`;
  renderSum();
@@ -345,7 +350,7 @@ $('vert').textContent='ollama-multi-manager '+VERSION;const sd=(ago,src,m)=>logs
 sd(900,'app','Loaded settings from database');sd(895,'app','Restoring instances from last session');
 sd(890,'default','Listening on 127.0.0.1:11434 (externally managed)');sd(884,'default','Model loaded: qwen2.5:3b-instruct-q4_K_M (2.1 GB)');
 sd(880,'worker-1','Process started (pid 4237) on port 11435');sd(878,'worker-1','Listening on 127.0.0.1:11435');sd(872,'worker-1','Model loaded: llama3.1:8b-instruct-q4_K_M (4.7 GB) in 5.8s');
-sd(860,'worker-2','Process started (pid 4311) on port 11436');sd(852,'worker-2','Model loaded: mistral:7b-instruct-q4_K_M (4.1 GB) in 4.9s');sd(600,'worker-1','POST /api/chat 200 1.84s');sd(420,'worker-1','POST /api/generate 200 0.92s');
+sd(860,'worker-2','Process started (pid 4311) on port 11436');sd(850,'worker-4','Process started (pid 4402) on port 11438');sd(846,'worker-4','Model loaded: gemma2:9b-instruct-q4_K_M (5.4 GB) in 6.1s');sd(840,'worker-5','Process started (pid 4419) on port 11439');sd(834,'worker-5','Model loaded: llama3.1:8b-instruct-q8_0 (8.5 GB) in 9.3s');sd(828,'worker-6','Process started (pid 4430) on port 11440');sd(826,'worker-6','Model loaded: qwen2.5:3b-instruct-q4_K_M (2.1 GB) in 3.2s');sd(852,'worker-2','Model loaded: mistral:7b-instruct-q4_K_M (4.1 GB) in 4.9s');sd(600,'worker-1','POST /api/chat 200 1.84s');sd(420,'worker-1','POST /api/generate 200 0.92s');
 sd(300,'worker-3','Health check timed out (3 consecutive failures)');sd(298,'worker-3','State changed to unreachable');
 log('App started');apply();
 if(/monitor=(\d+)/.test(location.hash)){showMon(+RegExp.$1,true);if(window.opener){const fit=()=>{if(outerWidth!==480||outerHeight!==820)try{resizeTo(480,820)}catch(e){}};fit();addEventListener('load',fit);setTimeout(fit,300)}}

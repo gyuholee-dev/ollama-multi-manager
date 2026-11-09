@@ -22,7 +22,7 @@
   'u.cnt': '', 'u.case': '',
   'keep.unlimited': 'Unlimited', 'keep.min': '{n} min', 'keep.hour': '{n} h', 'keep.day': '{n} d',
   'exp.none': 'No expiry', 'exp.at': 'Expires {t}',
-  'mon.util': 'Usage', 'mon.unified': 'UMA', 'mon.umaFigures': 'GPU {gpu} / {limit} GB · ALL {used} / {total} GB ({pct}%)', 'mon.gpuOther': 'Other GPU', 'mon.unsupported': 'Not supported', 'mock.gpu': 'Mockup: GPU state', 'mock.gpu.nv': 'NVIDIA x2 (VRAM)', 'mock.gpu.mac': 'Apple silicon (unified memory)', 'mock.gpu.part': 'Partial (no use or temperature)', 'mock.gpu.none': 'Not supported (no GPU)', 'gpu.auto': 'Auto', 'gpu.n': 'GPU-{g} · {name}',
+  'mon.util': 'Usage', 'mon.unified': 'UMA', 'mon.gpuMax': 'GPU max {limit} GB', 'mon.gpuOther': 'Other GPU', 'mon.unsupported': 'Not supported', 'mock.gpu': 'Mockup: GPU state', 'mock.gpu.nv': 'Apple M4 Pro (powermetrics) + RTX 5090 (mixed)', 'mock.gpu.mac': 'Apple silicon (no powermetrics)', 'mock.gpu.part': 'Partial (no use or temperature)', 'mock.gpu.none': 'Not supported (no GPU)', 'gpu.auto': 'Auto', 'gpu.n': 'GPU-{g} · {name}',
 
   'state.running': 'Running', 'state.stopped': 'Stopped', 'state.starting': 'Starting', 'state.unreachable': 'Unresponsive',
 
