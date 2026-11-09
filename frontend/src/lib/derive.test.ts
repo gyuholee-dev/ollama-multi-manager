@@ -21,7 +21,8 @@ const snapshot = (instances: Record<string, InstanceMetrics>, devices: GpuDevice
   gpu: { provider: 'fake', devices }, instances, external: null,
 });
 
-const gpu = (index: number, used: number, total: number): GpuDevice => ({ index, uuid: `u${index}`, name: `GPU ${index}`, mem_total: total * GiB, mem_used: used * GiB, util_percent: null, temperature_c: null });
+const gpu = (index: number, used: number, total: number): GpuDevice => ({ index, uuid: `u${index}`, name: `GPU ${index}`, mem_total: total * GiB, mem_used: used * GiB, util_percent: null, temperature_c: null,
+  vendor: 'nvidia', kind: 'gpu', unified: false, env_index: index, supports: { mem: true, util: true, temp: true, process: true } });
 
 describe('buildViews', () => {
   it('marks a running instance that does not answer as unreachable', () => {

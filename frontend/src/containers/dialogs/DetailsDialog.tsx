@@ -5,7 +5,7 @@ import { useDevices, useViews } from '@/app/hooks';
 import { Dialog, DialogBody, DialogTitle } from '@/components/common/Dialog';
 import { StateBadge } from '@/components/common/StateBadge';
 import type { InstanceView } from '@/lib/derive';
-import { expAt, fmtCtx, fmtKeep, fmtN, fmtUp, gpuLabel, normModel } from '@/lib/format';
+import { expAt, fmtCtx, fmtKeep, fmtN, fmtUp, gpuLabel, memoryLabel, normModel } from '@/lib/format';
 import { gb } from '@/lib/units';
 import { useT } from '@/locales/useT';
 import { useDialogStore } from '@/stores/dialogStore';
@@ -45,7 +45,7 @@ function Details({ view: i }: { view: InstanceView }) {
     : avail.map((x) => ({ key: x.name, text: `${x.name} · ${gb(x.size).toFixed(1)} GB` }));
 
   const m = i.metrics;
-  const vram = m?.vram_bytes != null ? `${gb(m.vram_bytes).toFixed(1)} GB${m.vram_source === 'estimated' ? ' ~' : ''}` : '-';
+  const vram = devices.some((d) => d.supports.mem) && m?.vram_bytes != null ? `${gb(m.vram_bytes).toFixed(1)} GB${m.vram_source === 'estimated' ? ' ~' : ''}` : '-';
   const on = (v: boolean) => t(v ? 'c.on' : 'c.off');
   return (
     <Dialog id="det" onClose={close}>
@@ -68,7 +68,7 @@ function Details({ view: i }: { view: InstanceView }) {
           <div className="f row"><label>{t('d.avail')}</label><Models empty={t('d.none')} items={availableItems} /></div>
         </div>
         <div className="box"><span className="ti">{t('d.res')}</span>
-          <Row k={t('d.vram')}>{vram}</Row>
+          <Row k={t('d.vram', { mem: memoryLabel(devices, t) })}>{vram}</Row>
           <Row k={t('f.ctx')}>{fmtCtx(i.ctx)}</Row>
           <Row k={t('f.keep')}>{fmtKeep(i.keep, t) + (i.keep >= 0 && i.loaded.length ? ` · ${expAt(i.loaded[0]?.exp ?? null, i.keep, t)}` : '')}</Row>
           <Row k={t('f.device')}>{gpuLabel(i.gpu, devices, t)}</Row>

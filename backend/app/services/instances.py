@@ -20,11 +20,12 @@ import signal
 import socket
 import sqlite3
 import subprocess
+import sys
 import time
 from collections import deque
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any
+from typing import Any, Callable
 
 import httpx
 import psutil
@@ -72,7 +73,11 @@ def find_ollama(configured: str | None) -> str | None:
     return None
 
 
-def build_env(port: int, o: InstanceOptions, base: dict[str, str], default_models: str | None = None) -> dict[str, str]:
+GPU_ENV = {"nvidia": ("CUDA_VISIBLE_DEVICES",), "amd": ("HIP_VISIBLE_DEVICES", "ROCR_VISIBLE_DEVICES")}
+
+
+def build_env(port: int, o: InstanceOptions, base: dict[str, str], default_models: str | None = None,
+              devices: list[Any] | None = None) -> dict[str, str]:
     env = dict(base)
     env["OLLAMA_HOST"] = f"127.0.0.1:{port}"
     env["OLLAMA_CONTEXT_LENGTH"] = str(o.context_length)
@@ -81,13 +86,20 @@ def build_env(port: int, o: InstanceOptions, base: dict[str, str], default_model
     env["OLLAMA_NUM_PARALLEL"] = str(o.num_parallel)
     env["OLLAMA_FLASH_ATTENTION"] = "1" if o.flash_attention else "0"
     env["OLLAMA_KV_CACHE_TYPE"] = o.kv_cache_type
-    for k in ("CUDA_VISIBLE_DEVICES", "HIP_VISIBLE_DEVICES"):
+    every = {k for names in GPU_ENV.values() for k in names}
+    for k in every:
         env.pop(k, None)
     if o.gpu == "cpu":
-        env["CUDA_VISIBLE_DEVICES"] = "-1"
-        env["HIP_VISIBLE_DEVICES"] = "-1"
+        for k in every:
+            env[k] = "-1"  # Apple silicon has no such switch: the proxy asks for zero GPU layers instead (see InstanceProxy.cpu_only)
     elif isinstance(o.gpu, int):
-        env["CUDA_VISIBLE_DEVICES"] = str(o.gpu)
+        # the number is the app's own (GPU 0, 1, ... across vendors); the driver wants its own per-vendor number
+        dev = next((d for d in devices or [] if d.index == o.gpu), None)
+        if dev is None:
+            env["CUDA_VISIBLE_DEVICES"] = str(o.gpu)  # devices unknown: assume NVIDIA numbering, as before
+        else:
+            for k in GPU_ENV.get(dev.vendor, ()):
+                env[k] = str(dev.env_index if dev.env_index is not None else dev.index)
     models = o.models_path or default_models
     if models:
         env["OLLAMA_MODELS"] = os.path.expanduser(models)
@@ -164,6 +176,7 @@ class InstanceManager:
         self.log_dir = data_dir / "logs"
         self.log_dir.mkdir(parents=True, exist_ok=True)
         self.request_log = RequestLog(self.log_dir)
+        self.gpu_devices: Callable[[], list[Any]] = lambda: []  # set by the app: the GPUs the monitor knows, for building an instance's environment
         self.handles: dict[int, Handle] = {}
         self.last_exit: dict[int, dict[str, Any]] = {}
         self.logs: dict[int, deque] = {}
@@ -297,13 +310,14 @@ class InstanceManager:
         port = row["port"]
         opts = InstanceOptions(**json.loads(row["options"]))
         inner = free_loopback_port()
-        env = build_env(inner, opts, dict(os.environ), self.settings.get("default_models_path"))
+        env = build_env(inner, opts, dict(os.environ), self.settings.get("default_models_path"), self.gpu_devices())
         proxy = self.proxies.get(iid)  # an on-demand instance's proxy already holds the port
         if proxy is None:
             proxy = await self._open_proxy(iid, row, opts)
         proxy.attach(inner, opts.num_parallel)
         proxy.set_allowed(opts.allowed_models)
         proxy.save_content = opts.save_requests
+        proxy.cpu_only = opts.gpu == "cpu" and sys.platform == "darwin"
 
         log_path = self.log_dir / f"instance-{iid}.log"
         if log_path.exists() and log_path.stat().st_size > LOG_FILE_MAX_BYTES:
@@ -518,6 +532,7 @@ class InstanceManager:
         proxy = InstanceProxy(row["name"], port, None, opts.num_parallel, recorder=lambda rec: self.request_stats.record(iid, rec),
                               host=host, api_key=opts.api_key, journal=lambda rec, req, resp: self._journal(iid, rec, req, resp))
         proxy.save_content = opts.save_requests
+        proxy.cpu_only = opts.gpu == "cpu" and sys.platform == "darwin"
         proxy.ensure = lambda: self.ensure_running(iid)
         proxy.set_allowed(opts.allowed_models)
         if opts.listen == "lan" and not opts.api_key:

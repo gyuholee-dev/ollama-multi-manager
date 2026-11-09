@@ -128,6 +128,24 @@ def reached_end(tail: bytes, sent: int, headers: httpx.Headers) -> bool:
     return isinstance(obj, dict) and obj.get("done") is True
 
 
+NATIVE_PATHS = frozenset({"/api/chat", "/api/generate", "/api/embed", "/api/embeddings"})
+
+
+def force_cpu(body: bytes) -> bytes:
+    """The request with options.num_gpu = 0 (no layers on the GPU). A body that is not a JSON object passes unchanged.
+
+    The OpenAI-compatible /v1 endpoints have no field for it, so a CPU-only instance on a Mac cannot hold them to the CPU."""
+    try:
+        obj = json.loads(body)
+    except ValueError:
+        return body
+    if not isinstance(obj, dict):
+        return body
+    opts = obj.get("options")
+    obj["options"] = {**opts, "num_gpu": 0} if isinstance(opts, dict) else {"num_gpu": 0}
+    return json.dumps(obj, ensure_ascii=False).encode()
+
+
 def model_of(body: bytes) -> str:
     try:
         m = json.loads(body).get("model")
@@ -229,6 +247,7 @@ class InstanceProxy:
         self.host, self.api_key = host, api_key  # host 0.0.0.0 = reachable from the network
         self.recorder = recorder  # called with every finished request (the manager stores per-minute sums)
         self.journal = journal  # called with every finished request, plus its body and answer when save_content is on
+        self.cpu_only = False  # Apple silicon: no environment variable turns the GPU off, so every request asks for zero GPU layers
         self.save_content = False  # keep what was asked and answered (the instance's "save request content" option)
         self.stats = PerfStats(parallel)
         self.ready = False  # True once the upstream answers; requests arriving earlier wait (see ensure)
@@ -313,6 +332,9 @@ class InstanceProxy:
             return JSONResponse({"error": "The instance is stopping"}, status_code=503, headers={"Retry-After": "5"})
         if measured:
             body = await request.body()  # small JSON; read whole to learn the model name
+            if self.cpu_only and path in NATIVE_PATHS:
+                body = force_cpu(body)
+                headers.pop("content-length", None)
             req_body = body
             model = model_of(body)
             content: Any = body

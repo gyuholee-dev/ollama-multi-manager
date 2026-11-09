@@ -5,7 +5,7 @@ import { openMonitorWindow } from '@/desktop';
 import { Section } from '@/components/common/Section';
 import { StateBadge } from '@/components/common/StateBadge';
 import { sortViews, type InstanceView, type LoadedView, type SortKey } from '@/lib/derive';
-import { expAt, fmtCtx } from '@/lib/format';
+import { expAt, fmtCtx, memoryLabel } from '@/lib/format';
 import { useT } from '@/locales/useT';
 import { useDialogStore } from '@/stores/dialogStore';
 import { useIsGuest } from '@/stores/monitorStore';
@@ -29,8 +29,11 @@ function LoadedList({ loaded, keep }: { loaded: LoadedView[]; keep: number }) {
 
 function PortLine({ port, ctx, loaded }: { port: number; ctx: number; loaded: LoadedView[] }) {
   const t = useT();
+  const devices = useDevices();
   const used = +loaded.reduce((a, x) => a + x.gb, 0).toFixed(1);
-  return <div className="sub">{t('card.line', { port, ctx: ctx ? fmtCtx(ctx) : '-', gb: used })}</div>;
+  // a machine whose GPU memory cannot be read has no figure to give
+  const mem = devices.some((d) => d.supports.mem) ? `${used} GB` : '-';
+  return <div className="sub">{t('card.line', { port, ctx: ctx ? fmtCtx(ctx) : '-', mem: memoryLabel(devices, t), gb: mem })}</div>;
 }
 
 function Buttons({ i }: { i: InstanceView }) {
@@ -72,7 +75,6 @@ export function ServerInstances() {
   const t = useT();
   const views = useViews();
   const external = useExternal();
-  useDevices(); // the cards do not show devices, but a change of snapshot must refresh them: useViews already covers it
   const sortKey = useUiStore((s) => s.sortKey);
   const sortDir = useUiStore((s) => s.sortDir);
   const sortBy = useUiStore((s) => s.sortBy);

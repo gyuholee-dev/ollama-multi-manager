@@ -45,3 +45,20 @@
     margin-right: 5px;
   }
 }
+
+// a reading the machine cannot give: the bar is drawn disabled and a short note says why
+.bar.off {
+  opacity: .35;
+}
+
+.off-note {
+  margin-top: 4px;
+}
+
+.chart.off {
+  opacity: .6;
+
+  .plot {
+    background-image: repeating-linear-gradient(135deg, transparent 0 6px, color-mix(in srgb, var(--sub) 12%, transparent) 6px 7px);
+  }
+}

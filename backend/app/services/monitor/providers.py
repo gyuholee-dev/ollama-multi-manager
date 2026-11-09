@@ -2,7 +2,8 @@
 from __future__ import annotations
 
 import logging
-from dataclasses import asdict, dataclass
+import sys
+from dataclasses import asdict, dataclass, field, replace
 from typing import Protocol
 
 log = logging.getLogger("omm.monitor")
@@ -11,8 +12,20 @@ log = logging.getLogger("omm.monitor")
 ProcessVram = dict[int, dict[int, int | None]]
 
 
+def full_support() -> dict[str, bool]:
+    return {"mem": True, "util": True, "temp": True, "process": True}
+
+
 @dataclass
 class GpuInfo:
+    """One compute device as a provider reports it.
+
+    `index` is the number the app shows (GPU 0, GPU 1, ...) and is assigned by the CompositeProvider across all
+    vendors; `env_index` is the device's own number for its vendor's driver (CUDA_VISIBLE_DEVICES and the like).
+    `supports` says which readings this device can give at all, so the UI can tell "not supported" from "no value yet".
+    `unified` marks memory shared with the CPU (Apple silicon, integrated graphics): there is no separate VRAM then.
+    """
+
     index: int
     uuid: str
     name: str
@@ -20,6 +33,11 @@ class GpuInfo:
     mem_used: int
     util_percent: int | None = None
     temperature_c: int | None = None
+    vendor: str = ""
+    kind: str = "gpu"  # gpu | npu
+    unified: bool = False
+    env_index: int | None = None
+    supports: dict[str, bool] = field(default_factory=full_support)
 
     def to_dict(self) -> dict:
         return asdict(self)
@@ -67,6 +85,7 @@ class NvmlProvider:
             h = n.nvmlDeviceGetHandleByIndex(i)
             mem = n.nvmlDeviceGetMemoryInfo(h)
             out.append(GpuInfo(
+                vendor="nvidia", env_index=i,
                 index=i,
                 uuid=_s(n.nvmlDeviceGetUUID(h)),
                 name=_s(n.nvmlDeviceGetName(h)),
@@ -107,11 +126,75 @@ def _s(v) -> str:
     return v.decode() if isinstance(v, bytes) else str(v)
 
 
+class CompositeProvider:
+    """Every provider that works on this machine, seen as one: devices are numbered across vendors, one after another."""
+
+    def __init__(self, providers: list[GpuProvider]):
+        self.providers = providers
+        self.name = "+".join(p.name for p in providers) or "none"
+        self._offsets: list[int] = []
+
+    def devices(self) -> list[GpuInfo]:
+        out: list[GpuInfo] = []
+        self._offsets = []
+        for p in self.providers:
+            self._offsets.append(len(out))
+            try:
+                found = p.devices()
+            except Exception:  # one vendor failing must not hide the others
+                log.exception("GPU query failed (%s)", p.name)
+                found = []
+            for g in found:
+                out.append(replace(g, index=len(out), env_index=g.index if g.env_index is None else g.env_index))
+        return out
+
+    def process_vram(self) -> ProcessVram | None:
+        """Per-process VRAM merged over the providers that can tell; None when none can."""
+        if not self._offsets:
+            self.devices()
+        merged: ProcessVram | None = None
+        for p, off in zip(self.providers, self._offsets):
+            try:
+                table = p.process_vram()
+            except Exception:
+                log.exception("GPU per-process query failed (%s)", p.name)
+                table = None
+            if table is None:
+                continue
+            merged = merged if merged is not None else {}
+            for pid, per_gpu in table.items():
+                cur = merged.setdefault(pid, {})
+                for gpu, used in per_gpu.items():
+                    cur[gpu + off] = used
+        return merged
+
+    def close(self) -> None:
+        for p in self.providers:
+            try:
+                p.close()
+            except Exception:
+                log.exception("Closing a GPU provider failed (%s)", p.name)
+
+
 def detect_provider() -> GpuProvider:
-    try:
-        p = NvmlProvider()
-        log.info("GPU provider: NVML (%d device(s))", p._count)
-        return p
-    except Exception as e:
-        log.info("GPU provider: none (%s)", e)
-        return NullProvider()
+    """Tries every vendor this machine could have; a vendor that is absent or fails is simply left out."""
+    found: list[GpuProvider] = []
+    for make in _candidates():
+        try:
+            p = make()
+        except Exception as e:
+            log.info("GPU provider unavailable: %s", e)
+            continue
+        log.info("GPU provider: %s", p.name)
+        found.append(p)
+    return CompositeProvider(found) if found else NullProvider()
+
+
+def _candidates():
+    yield NvmlProvider
+    if sys.platform == "darwin":
+        from .apple import AppleProvider
+        yield AppleProvider
+    if sys.platform.startswith("linux"):
+        from .amd import AmdProvider
+        yield AmdProvider

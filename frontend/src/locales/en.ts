@@ -23,7 +23,7 @@ const en: Messages = {
   'u.cnt': '', 'u.case': '',
   'keep.unlimited': 'Unlimited', 'keep.min': '{n} min', 'keep.hour': '{n} h', 'keep.day': '{n} d',
   'exp.none': 'No expiry', 'exp.at': 'Expires {t}',
-  'gpu.auto': 'Auto', 'gpu.n': 'GPU {g} · {name}',
+  'mon.unified': 'UMA', 'mon.gpuShare': 'GPU in use {used} GB · limit {limit} GB', 'mon.gpuOther': 'Other GPU', 'mon.unsupported': 'Not supported', 'gpu.auto': 'Auto', 'gpu.n': 'GPU {g} · {name}',
 
   'state.running': 'Running', 'state.stopped': 'Stopped', 'state.starting': 'Starting', 'state.unreachable': 'Unresponsive',
 
@@ -37,7 +37,7 @@ const en: Messages = {
 
   'log.all': 'All', 'log.app': 'App',
   'ext.name': 'Default instance', 'ext.managed': 'Externally managed',
-  'card.none': 'No model loaded', 'card.line': 'Port {port} · Context {ctx} · VRAM {gb} GB',
+  'card.none': 'No model loaded', 'card.line': 'Port {port} · Context {ctx} · {mem} {gb}',
 
   'sum.ins': 'Instances', 'sum.usage': 'Usage', 'sum.perf': 'Performance', 'sum.status': 'Status',
   'sum.empty': 'Nothing to show.',
@@ -49,7 +49,7 @@ const en: Messages = {
   'mon.cpu': '{pct}% · {n} cores', 'mon.system': 'System', 'mon.other': 'Other', 'mon.gpus': '{n} GPUs',
 
   'd.pid': 'PID', 'd.uptime': 'Uptime', 'd.up': '2 h 14 min', 'd.none': 'None', 'd.models': 'Models',
-  'd.loaded': 'Loaded models', 'd.avail': 'Available models', 'd.res': 'Resources', 'd.vram': 'VRAM usage',
+  'd.loaded': 'Loaded models', 'd.avail': 'Available models', 'd.res': 'Resources', 'd.vram': '{mem} usage',
   'd.reqs': 'Request handling', 'd.reqsV': '{n} in progress',
 
   'set.title': 'Settings', 'set.general': 'General', 'set.login': 'Launch at system startup',

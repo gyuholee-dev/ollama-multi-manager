@@ -22,7 +22,7 @@
   'u.cnt': '개', 'u.case': '건',
   'keep.unlimited': '무제한', 'keep.min': '{n}분', 'keep.hour': '{n}시간', 'keep.day': '{n}일',
   'exp.none': '만료 없음', 'exp.at': '{t} 만료',
-  'gpu.auto': '자동', 'gpu.n': 'GPU {g} · {name}',
+  'mon.unified': 'UMA', 'mon.gpuShare': 'GPU 사용 {used} GB · 상한 {limit} GB', 'mon.gpuOther': 'GPU 기타', 'mon.unsupported': '지원되지 않습니다', 'mock.gpu': '목업: GPU 상태', 'mock.gpu.nv': 'NVIDIA 2장 (VRAM)', 'mock.gpu.mac': 'Apple 실리콘 (통합 메모리)', 'mock.gpu.part': '부분 지원 (사용률·온도 없음)', 'mock.gpu.none': '미지원 (GPU 없음)', 'gpu.auto': '자동', 'gpu.n': 'GPU {g} · {name}',
 
   'state.running': '실행 중', 'state.stopped': '중지됨', 'state.starting': '시작 중', 'state.unreachable': '응답 없음',
 
@@ -32,7 +32,7 @@
 
   'log.all': '전체', 'log.app': '앱',
   'ext.name': '기본 인스턴스', 'ext.managed': '외부 관리',
-  'card.none': '로드된 모델 없음', 'card.line': '포트 {port} · 컨텍스트 {ctx} · VRAM {gb} GB',
+  'card.none': '로드된 모델 없음', 'card.line': '포트 {port} · 컨텍스트 {ctx} · {mem} {gb}',
 
   'sum.ins': '인스턴스', 'sum.usage': '사용량', 'sum.perf': '성능', 'sum.status': '상태',
   'sum.empty': '표시할 항목이 없습니다.',
@@ -44,7 +44,7 @@
   'mon.cpu': '{pct}% · {n} 코어', 'mon.system': '시스템', 'mon.other': '기타', 'mon.gpus': '{n}개',
 
   'd.pid': 'PID', 'd.uptime': '가동 시간', 'd.up': '2시간 14분', 'd.none': '없음', 'd.models': '모델',
-  'd.loaded': '로드된 모델', 'd.avail': '사용 가능 모델', 'd.res': '리소스', 'd.vram': 'VRAM 사용량',
+  'd.loaded': '로드된 모델', 'd.avail': '사용 가능 모델', 'd.res': '리소스', 'd.vram': '{mem} 사용량',
   'd.reqs': '요청 처리', 'd.reqsV': '{n}건 처리 중',
 
   'set.title': '환경설정', 'set.general': '일반', 'set.login': '시스템 시작 시 자동 실행',

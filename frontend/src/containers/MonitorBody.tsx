@@ -4,7 +4,7 @@ import type { InstanceSample, Perf, RequestDetail, RequestEntry, RequestsRespons
 import { BarChart, LineChart, niceMax } from '@/components/charts/Charts';
 import { Collapse } from '@/components/common/Collapse';
 import type { InstanceView } from '@/lib/derive';
-import { expAt, fmtUp, hms } from '@/lib/format';
+import { expAt, fmtUp, hms, memoryLabel } from '@/lib/format';
 import { gb } from '@/lib/units';
 import { useT } from '@/locales/useT';
 import { useLogStore } from '@/stores/logStore';
@@ -167,6 +167,8 @@ export function MonitorBody({ id, view }: { id: number; view: InstanceView }) {
   const speedMax = niceMax(Math.max(0, ...series.map((x) => x.tok_per_s ?? 0)), 20);
   const latencyMax = niceMax(Math.max(0, ...series.map((x) => x.latency_avg ?? 0)), 1);
   const hasVram = samples.some((x) => x.vram != null);
+  const memName = memoryLabel(devices, t);
+  const memReadable = devices.some((d) => d.supports.mem); // a machine whose GPU memory cannot be read gets a disabled graph
 
   const live = samples.length >= 2;
   const collecting = <div className="sub">{t('im.collecting')}</div>;
@@ -238,9 +240,14 @@ export function MonitorBody({ id, view }: { id: number; view: InstanceView }) {
               {live ? <LineChart title={t('c.mem')} value={last ? `${last.rss.toFixed(1)} GB` : undefined} points={slots.map((x) => x?.rss ?? null)} max={memTotal}
                 left={liveLeft} right={liveRight} format={(v) => `${v.toFixed(1)} GB`} /> : collecting}
             </Collapse>
-            {hasVram && (
-              <Collapse id="vram" title="VRAM">
-                <LineChart title="VRAM" value={last?.vram != null ? `${last.vram.toFixed(1)} GB${m?.vram_source === 'estimated' ? ' ~' : ''}` : undefined}
+            {!memReadable && (
+              <Collapse id="vram" title={memName}>
+                <div className="chart off"><div className="chh"><span className="sub">{memName}</span><span className="val">-</span></div><div className="plot" /><div className="sub off-note">{t('mon.unsupported')}</div></div>
+              </Collapse>
+            )}
+            {memReadable && hasVram && (
+              <Collapse id="vram" title={memName}>
+                <LineChart title={memName} value={last?.vram != null ? `${last.vram.toFixed(1)} GB${m?.vram_source === 'estimated' ? ' ~' : ''}` : undefined}
                   points={slots.map((x) => x?.vram ?? null)} max={vramTotal || undefined} left={liveLeft} right={liveRight} floor={1} format={(v) => `${v.toFixed(1)} GB`} />
               </Collapse>
             )}

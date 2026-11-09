@@ -79,6 +79,11 @@ export interface GpuDevice {
   mem_used: number;
   util_percent: number | null;
   temperature_c: number | null;
+  vendor: string; // nvidia | apple | amd | ...
+  kind: 'gpu' | 'npu';
+  unified: boolean; // memory shared with the CPU: there is no separate VRAM
+  env_index: number | null;
+  supports: { mem: boolean; util: boolean; temp: boolean; process: boolean }; // what this device can report at all
 }
 
 export interface SystemStats {

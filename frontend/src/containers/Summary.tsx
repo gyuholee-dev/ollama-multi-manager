@@ -2,7 +2,7 @@ import type { ReactNode } from 'react';
 import { useDevices, useExternal, useViews } from '@/app/hooks';
 import { Section } from '@/components/common/Section';
 import { perfAll, vramByGpu } from '@/lib/derive';
-import { hms } from '@/lib/format';
+import { hms, memoryLabel } from '@/lib/format';
 import { useT } from '@/locales/useT';
 import { useLogStore } from '@/stores/logStore';
 import { useMonitorStore } from '@/stores/monitorStore';
@@ -48,7 +48,8 @@ export function Summary() {
   const count = (state: string) => views.filter((i) => i.state === state).length;
   const bad = count('crashed') + count('unreachable');
   const usage = vramByGpu(views, devices);
-  const vramPct = usage.length ? Math.max(...usage.map((g) => g.pct)) : null;
+  const readable = usage.filter((g) => g.device.supports.mem);
+  const vramPct = readable.length ? Math.max(...readable.map((g) => g.pct)) : null;
   const sys = snap?.system;
   const memPct = sys ? Math.round((sys.mem_used / sys.mem_total) * 100) : null;
   const models = views.reduce((n, i) => n + i.loaded.length, 0) + (external ? external.loaded.length : 0);
@@ -72,7 +73,7 @@ export function Summary() {
           <Cell label={t('c.unreach')} value={bad} />
         </Box>
         <Box id="usage">
-          {vramPct !== null && <Cell label="VRAM" value={vramPct} unit="%" tone={vramPct > VRAM_WARN_PERCENT ? '--warn' : undefined} />}
+          <Cell label={memoryLabel(devices, t)} value={vramPct ?? '-'} unit={vramPct === null ? undefined : '%'} tone={vramPct !== null && vramPct > VRAM_WARN_PERCENT ? '--warn' : undefined} />
           <Cell label={t('c.mem')} value={memPct ?? '-'} unit={memPct === null ? undefined : '%'} />
           <Cell label={t('c.models')} value={models} unit={t('u.cnt')} />
         </Box>
