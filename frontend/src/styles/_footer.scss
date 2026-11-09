@@ -25,6 +25,7 @@ footer {
 
     .material-icons {
       flex: none;
+      font-size: .875rem;
     }
   }
 }
@@ -38,10 +39,12 @@ footer {
 
 #ver {
   flex: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
   color: inherit;
-  text-decoration: none;
 
-  &:hover {
-    text-decoration: underline;
+  svg {
+    flex: none;
   }
 }
