@@ -115,7 +115,7 @@ export function Monitor() {
       memory = (
         <>
           <DeviceHead n={1} name={memLabel} warn={g.pct > VRAM_WARN_PERCENT}
-            figures={`${Math.round((ramUsed / ramTotal) * 100)}% · ${ramUsed.toFixed(1)} / ${ramTotal.toFixed(0)} GB`} />
+            figures={`${g.used > 0 && g.pct < 1 ? '<1' : g.pct}% · ${g.used.toFixed(1)} / ${g.total.toFixed(1)} GB${Math.abs(g.total - ramTotal) < 0.5 ? '' : ` · ALL ${ramTotal.toFixed(0)} GB`}`} />
           <Bar segments={segments} marker={pct(g.total)} /><Legend segments={segments} />
         </>
       );

@@ -207,7 +207,7 @@ function render(){
     let mem;
     if(!D.sup.mem)mem=headRow(D.unified?t('mon.unified'):'VRAM','-',1)+bar([],true)+`<div class="sub off-note">${t('mon.unsupported')}</div>`;
     else if(D.unified){const other=Math.max(0,g.used-ps.reduce((a,p)=>a+p.v,0)),sys=Math.max(0,21.8-g.used),free=Math.max(0,64-21.8),pp=[...(other>0.05?[[t('mon.gpuOther'),other/64*100,'var(--sub)',other.toFixed(1)+' GB']]:[]),...ps.map(p=>[p.name,p.v/64*100,p.col,p.v.toFixed(1)+' GB']),[t('mon.gpuMax',{limit:g.total}),0,'var(--text)','','mark'],['',free/64*100,'transparent','','gap'],[S,sys/64*100,'var(--line)',sys.toFixed(1)+' GB']];
-      mem=headRow(D.unified?t('mon.unified'):'VRAM','34% · 21.8 / 64 GB',1,g.pct>85)+bar(pp,false,g.total/64*100)+leg(pp)}
+      mem=headRow(D.unified?t('mon.unified'):'VRAM',`${g.used>0&&g.pct<1?'<1':g.pct}% · ${g.used.toFixed(1)} / ${g.total.toFixed(1)} GB`+(Math.abs(g.total-64)<0.5?'':' · ALL 64 GB'),1,g.pct>85)+bar(pp,false,g.total/64*100)+leg(pp)}
     else{const pp=[[S,GSYS/g.total*100,'var(--sub)',GSYS.toFixed(1)+' GB'],...ps.map(p=>[p.name,p.v/g.total*100,p.col,p.v.toFixed(1)+' GB'])];mem=headRow(D.unified?t('mon.unified'):'VRAM',`${g.pct}% · ${g.used.toFixed(1)} / ${g.total} GB`,1,g.pct>85)+bar(pp)+leg(pp)}
     return mb(`GPU-${n}`,GPUS[n],util+mem)});
  $('mon').innerHTML=[
