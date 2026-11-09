@@ -22,6 +22,45 @@
   .gl {
     stroke: var(--line);
     stroke-width: 1;
+    stroke-opacity: .25; // faint: the grid only helps the eye, the data and the average stand out
+  }
+
+  // the average of what the graph shows
+  .av {
+    stroke: var(--sub);
+    stroke-width: 1;
+    stroke-opacity: .5;
+    stroke-dasharray: 3 3;
+  }
+
+  // the graph's panel
+  .plot {
+    position: relative;
+    margin-top: 4px;
+    padding: 5px;
+    border-radius: 6px;
+    background: var(--bg);
+
+    .rqc {
+      margin-top: 0;
+      border-radius: 0;
+      background: none;
+    }
+  }
+
+  // the average of what the graph shows, written on its dashed line (a bare number, so it is not read as a time)
+  .ymax {
+    position: absolute;
+    left: 5px;
+    z-index: 1;
+    font-size: .6875rem;
+    line-height: 1;
+    padding: 3px 6px;
+    border-radius: 6px;
+    background: color-mix(in srgb, var(--bg) 80%, var(--sub)); // a shade apart from the graph, so the number stands out and stays readable over the line
+    color: var(--sub);
+    pointer-events: none;
+    transform: translateY(-50%); // centred on the average line, so the line runs through the box
   }
 
   .chf {

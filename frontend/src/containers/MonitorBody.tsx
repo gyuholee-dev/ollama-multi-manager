@@ -1,10 +1,11 @@
 import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react';
 import { api } from '@/api/client';
 import type { InstanceSample, Perf, RequestsResponse, SeriesPoint } from '@/api/types';
-import { BarChart, LineChart } from '@/components/charts/Charts';
+import { BarChart, LineChart, niceMax } from '@/components/charts/Charts';
 import { Collapse } from '@/components/common/Collapse';
 import type { InstanceView } from '@/lib/derive';
 import { expAt, fmtUp, hms } from '@/lib/format';
+import { gb } from '@/lib/units';
 import { useT } from '@/locales/useT';
 import { useLogStore } from '@/stores/logStore';
 import { MAX_SAMPLES, useHistoryStore, type Sample } from '@/stores/historyStore';
@@ -12,6 +13,21 @@ import { useMonitorStore } from '@/stores/monitorStore';
 import { useUiStore } from '@/stores/uiStore';
 
 const NONE: Sample[] = [];
+/** The live graphs always show this much time, so their left edge reads the same on every graph. */
+const LIVE_MINUTES = 3;
+
+/** The readings of the last LIVE_MINUTES, with empty slots in front when the page has not collected that long yet. */
+function liveWindow(all: Sample[]): { recent: Sample[]; slots: (Sample | null)[] } {
+  const last = all.at(-1);
+  if (!last) return { recent: [], slots: [] };
+  const recent = all.filter((x) => x.ts >= last.ts - LIVE_MINUTES * 60000);
+  const gaps = recent.slice(1).map((x, k) => x.ts - recent[k]!.ts).sort((a, b) => a - b);
+  const step = gaps.length ? Math.max(200, gaps[Math.floor(gaps.length / 2)]!) : 3000;
+  const n = Math.round((LIVE_MINUTES * 60000) / step) + 1;
+  const slots: (Sample | null)[] = recent.slice(-n);
+  while (slots.length < n) slots.unshift(null);
+  return { recent, slots };
+}
 
 /** The four kinds of information of the window; the buttons under its title switch each one on or off. */
 const CATEGORIES: [string, string][] = [['models', 'd.models'], ['state', 'f.state'], ['res', 'd.res'], ['log', 'im.history']];
@@ -91,16 +107,28 @@ export function MonitorBody({ id, view }: { id: number; view: InstanceView }) {
   const m = view.metrics;
   const running = view.state === 'running';
   const last = samples.at(-1);
-  const minutes = samples.length > 1 ? Math.max(1, Math.round(((last?.ts ?? 0) - (samples[0]?.ts ?? 0)) / 60000)) : 0;
-  const liveLeft = minutes ? t('im.span', { m: minutes }) : '';
+  const { slots } = liveWindow(samples);
+  const liveLeft = samples.length > 1 ? t('im.span', { m: LIVE_MINUTES }) : '';
   const liveRight = t('im.nowEdge');
   const series = hour ?? [];
+  // the newest minute of the last-hour graphs, shown beside their titles
+  const newest = series.at(-1);
+  const nowReq = newest ? `${newest.requests} ${t('u.case')}` : undefined;
+  const nowSpeed = newest ? (newest.tok_per_s != null ? `${Math.round(newest.tok_per_s)} tok/s` : '-') : undefined;
+  const nowLatency = newest ? (newest.latency_avg != null ? `${newest.latency_avg.toFixed(1)} s` : '-') : undefined;
   const total = sum(series.map((x) => x.requests));
   const errors = sum(series.map((x) => x.errors));
   const tokIn = sum(series.map((x) => x.prompt_tokens));
   const tokOut = sum(series.map((x) => x.tokens));
   const hourLeft = t('im.hourAgo'), hourRight = t('im.nowEdge');
-  const maxMem = Math.max(1, ...samples.map((x) => x.rss));
+  // The top of each live graph is the most the hardware (or the instance's setting) can give, not the largest reading.
+  const memTotal = snap?.system.mem_total ? gb(snap.system.mem_total) : undefined;
+  const devices = snap?.gpu.devices ?? [];
+  const vramTotal = view.gpu === 'cpu' ? 0 : gb(devices.filter((d) => view.gpu === 'auto' || d.index === view.gpu).reduce((a, d) => a + d.mem_total, 0));
+  // The graphs of the last hour have no hardware limit: a round number above the largest reading.
+  const reqMax = niceMax(Math.max(0, ...series.map((x) => x.requests)), 4);
+  const speedMax = niceMax(Math.max(0, ...series.map((x) => x.tok_per_s ?? 0)), 20);
+  const latencyMax = niceMax(Math.max(0, ...series.map((x) => x.latency_avg ?? 0)), 1);
   const hasVram = samples.some((x) => x.vram != null);
 
   const live = samples.length >= 2;
@@ -154,10 +182,10 @@ export function MonitorBody({ id, view }: { id: number; view: InstanceView }) {
                 <Cell label={t('c.fail')} value={errors} unit={` ${t('u.case')}`} tone={errors ? '--err' : undefined} />
                 <Cell label={t('im.tokens')} value={`${tokIn} / ${tokOut}`} />
               </div>
-              <BarChart title={t('im.reqs')} bars={series.map((x) => ({ total: x.requests, errors: x.errors }))} left={hourLeft} right={hourRight} />
-              <LineChart title={t('im.speed')} points={series.map((x) => x.tok_per_s)} left={hourLeft} right={hourRight} floor={1}
+              <BarChart title={t('im.reqs')} value={nowReq} max={reqMax} bars={series.map((x) => ({ total: x.requests, errors: x.errors }))} left={hourLeft} right={hourRight} />
+              <LineChart title={t('im.speed')} value={nowSpeed} points={series.map((x) => x.tok_per_s)} max={speedMax} left={hourLeft} right={hourRight} floor={1}
                 format={(v) => `${Math.round(v)} tok/s`} />
-              <LineChart title={t('im.latency')} points={series.map((x) => x.latency_avg)} left={hourLeft} right={hourRight} floor={1}
+              <LineChart title={t('im.latency')} value={nowLatency} points={series.map((x) => x.latency_avg)} max={latencyMax} left={hourLeft} right={hourRight} floor={1}
                 format={(v) => `${v.toFixed(1)} s`} />
             </Collapse>
           </div>
@@ -166,22 +194,22 @@ export function MonitorBody({ id, view }: { id: number; view: InstanceView }) {
           {shown('res') && (
           <div className="box"><span className="ti">{t('d.res')}</span>
             <Collapse id="cpu" title="CPU">
-              {live ? <LineChart title="CPU" value={last ? `${last.cpu.toFixed(1)} %` : undefined} points={samples.map((x) => x.cpu)} max={Math.max(10, ...samples.map((x) => x.cpu))}
+              {live ? <LineChart title="CPU" value={last ? `${last.cpu.toFixed(1)} %` : undefined} points={slots.map((x) => x?.cpu ?? null)} max={100}
                 left={liveLeft} right={liveRight} format={(v) => `${Math.round(v)} %`} /> : collecting}
             </Collapse>
             <Collapse id="mem" title={t('c.mem')}>
-              {live ? <LineChart title={t('c.mem')} value={last ? `${last.rss.toFixed(1)} GB` : undefined} points={samples.map((x) => x.rss)} max={maxMem}
+              {live ? <LineChart title={t('c.mem')} value={last ? `${last.rss.toFixed(1)} GB` : undefined} points={slots.map((x) => x?.rss ?? null)} max={memTotal}
                 left={liveLeft} right={liveRight} format={(v) => `${v.toFixed(1)} GB`} /> : collecting}
             </Collapse>
             {hasVram && (
               <Collapse id="vram" title="VRAM">
                 <LineChart title="VRAM" value={last?.vram != null ? `${last.vram.toFixed(1)} GB${m?.vram_source === 'estimated' ? ' ~' : ''}` : undefined}
-                  points={samples.map((x) => x.vram)} left={liveLeft} right={liveRight} floor={1} format={(v) => `${v.toFixed(1)} GB`} />
+                  points={slots.map((x) => x?.vram ?? null)} max={vramTotal || undefined} left={liveLeft} right={liveRight} floor={1} format={(v) => `${v.toFixed(1)} GB`} />
               </Collapse>
             )}
             <Collapse id="conc" title={t('im.conc')}>
               {live ? <LineChart title={t('im.conc')} value={last ? `${last.processing} + ${last.queued}` : undefined}
-                points={samples.map((x) => x.processing + x.queued)} left={liveLeft} right={liveRight} floor={2} format={(v) => String(Math.round(v))} /> : collecting}
+                points={slots.map((x) => (x ? x.processing + x.queued : null))} max={view.parallel} left={liveLeft} right={liveRight} floor={1} format={(v) => v.toFixed(1)} /> : collecting}
             </Collapse>
             <div className="sub" style={{ marginTop: 6 }}>{t('im.keepNote', { n: MAX_SAMPLES })}</div>
           </div>
