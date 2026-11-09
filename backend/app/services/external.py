@@ -21,6 +21,7 @@ from starlette.responses import JSONResponse, PlainTextResponse
 from starlette.routing import Mount
 from starlette.staticfiles import StaticFiles
 
+from app.config import CSP
 from app.services.instances import InstanceManager, port_free
 from app.services.monitor.collector import Collector
 from app.services.settings import SettingsService
@@ -72,7 +73,13 @@ class GuestGate:
             return await self.main_app({**scope, "omm_guest": True}, receive, send)
         if self.static_app is None:
             return await PlainTextResponse("Not found", status_code=404)(scope, receive, send)
-        await self.static_app(scope, receive, send)  # the UI's own files
+
+        async def with_policy(message: dict) -> None:
+            if message["type"] == "http.response.start":
+                message.setdefault("headers", []).append((b"content-security-policy", CSP.encode()))
+            await send(message)
+
+        await self.static_app(scope, receive, with_policy)  # the UI's own files, with the same content policy as the main server
 
 
 class ExternalMonitor:

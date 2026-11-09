@@ -138,3 +138,10 @@ async def test_the_number_of_guest_sockets_is_limited(env, monkeypatch):
     finally:
         for s in socks:
             await s.close()
+
+
+async def test_the_guest_ui_files_carry_the_content_security_policy(env):
+    port = await open_port(env)
+    async with httpx.AsyncClient() as c:
+        page = await c.get(f"http://127.0.0.1:{port}/")
+        assert "script-src 'self'" in page.headers["content-security-policy"]

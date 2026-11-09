@@ -41,3 +41,8 @@ def test_an_old_database_gets_web_access_switched_off_once(tmp_path):
     db.execute("UPDATE settings SET value='true' WHERE key='external_monitoring_enabled'")                   # the user's later choice
     db.migrate()
     assert db.one("SELECT value FROM settings WHERE key='external_monitoring_enabled'")["value"] == "true"
+
+
+async def test_responses_carry_a_content_security_policy(env):
+    csp = (await env.client.get("/settings")).headers["content-security-policy"]
+    assert "script-src 'self'" in csp and "unsafe-eval" not in csp and "object-src 'none'" in csp

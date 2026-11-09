@@ -8,7 +8,7 @@
 
 const fs = require('node:fs');
 const path = require('node:path');
-const { app, BrowserWindow, Menu, dialog, ipcMain, nativeTheme, screen, shell } = require('electron');
+const { app, BrowserWindow, Menu, dialog, ipcMain, nativeTheme, screen, session, shell } = require('electron');
 const { Backend } = require('./backend-launcher');
 const { AppTray } = require('./tray');
 const { startMockupServer } = require('./dev-mockup');
@@ -161,7 +161,9 @@ if (!app.requestSingleInstanceLock()) {
     debugWindow(w, label);
     const isOwn = u => { try { return new URL(u).origin === backend.url; } catch { return false; } };
     const external = u => { if (/^https?:\/\//i.test(u)) shell.openExternal(u); };
-    w.webContents.on('will-navigate', (e, u) => { if (!isOwn(u)) { e.preventDefault(); external(u); } });
+    const keepOwn = (e, u) => { if (!isOwn(u)) { e.preventDefault(); external(u); } };
+    w.webContents.on('will-navigate', keepOwn);
+    w.webContents.on('will-redirect', keepOwn); // a redirect must not take the window away either
     w.webContents.setWindowOpenHandler(({ url }) => { external(url); return { action: 'deny' }; });
     if (DEV) {
       w.webContents.on('context-menu', async (_e, p) => {
@@ -222,12 +224,15 @@ if (!app.requestSingleInstanceLock()) {
   }
 
   // ---- IPC
-  ipcMain.handle('pick-path', async (_e, kind) => {
+  // Only the backend's own UI may talk to the shell: a frame that came from anywhere else is ignored.
+  const fromUi = e => { try { return new URL(e.senderFrame.url).origin === backend.url; } catch { return false; } };
+  ipcMain.handle('pick-path', async (e, kind) => {
+    if (!fromUi(e)) return null;
     const r = await dialog.showOpenDialog(win, { properties: kind === 'dir' ? ['openDirectory', 'createDirectory'] : ['openFile'] });
     return r.canceled ? null : r.filePaths[0];
   });
-  ipcMain.on('settings-changed', () => refreshSettings());
-  ipcMain.on('open-monitor', (_e, id) => openMonitor(Number(id)));
+  ipcMain.on('settings-changed', e => { if (fromUi(e)) refreshSettings(); });
+  ipcMain.on('open-monitor', (e, id) => { if (fromUi(e)) openMonitor(Number(id)); });
 
   // ---- lifecycle
   app.on('second-instance', showWindow);
@@ -242,6 +247,10 @@ if (!app.requestSingleInstanceLock()) {
     mockup?.close();
     log('Quitting: stopping the backend (this stops the instances)');
     backend.stop().catch(err => log('Backend stop failed:', err.message)).finally(() => app.quit());
+  });
+
+  app.on('web-contents-created', (_e, contents) => {
+    contents.on('will-attach-webview', e => e.preventDefault()); // no <webview>: it would be a second page with its own rights
   });
 
   app.whenReady().then(async () => {
@@ -262,6 +271,11 @@ if (!app.requestSingleInstanceLock()) {
       return;
     }
     log(`Backend ready on ${backend.url}`);
+    // The app uses no camera, microphone, location, notifications or the like: every permission request is refused,
+    // except copying text to the clipboard (the address and key buttons).
+    const allowed = permission => permission === 'clipboard-sanitized-write';
+    session.defaultSession.setPermissionRequestHandler((_wc, permission, callback) => callback(allowed(permission)));
+    session.defaultSession.setPermissionCheckHandler((_wc, permission) => allowed(permission));
     if (DEV) {
       log('Developer mode is on (OMM_DEV)');
       mockup = await startMockupServer({ dir: path.join(__dirname, '..', 'frontend', 'mockup'), log });

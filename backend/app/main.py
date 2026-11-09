@@ -13,7 +13,7 @@ from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
 
 from app.api import routes
-from app.config import cors_origins, default_data_dir
+from app.config import CSP, cors_origins, default_data_dir
 from app.db import Database
 from app.services.external import ExternalMonitor
 from app.services.hub import Hub
@@ -79,6 +79,12 @@ def create_app(data_dir: Path | None = None, provider: GpuProvider | None = None
     app.add_middleware(
         CORSMiddleware, allow_origins=cors_origins(), allow_methods=["*"], allow_headers=["*"],
     )
+
+    @app.middleware("http")
+    async def _security_headers(request: Request, call_next):
+        response = await call_next(request)
+        response.headers.setdefault("Content-Security-Policy", CSP)
+        return response
 
     @app.exception_handler(InstanceError)
     async def _instance_error(_: Request, e: InstanceError) -> JSONResponse:
