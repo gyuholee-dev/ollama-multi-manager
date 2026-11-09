@@ -1,7 +1,9 @@
 import { api } from '@/api/client';
 import { buildViews, vramByGpu } from '@/lib/derive';
+import { modelNeed, unifiedRoom } from '@/lib/memory';
 import { t } from '@/locales/useT';
 import { useInstancesStore } from '@/stores/instancesStore';
+import { useModelStore } from '@/stores/modelStore';
 import { isGuest, useMonitorStore } from '@/stores/monitorStore';
 import { ask, fail, popup } from './dialogs';
 
@@ -23,9 +25,22 @@ export async function changeState(id: number, state: 'running' | 'stopped'): Pro
   if (!instance || isGuest()) return;
 
   if (state === 'running') {
-    const usage = vramByGpu(views, useMonitorStore.getState().snap?.gpu?.devices ?? []);
-    const pct = usage.length ? Math.max(...usage.map((g) => g.pct)) : 0;
-    if (pct > VRAM_WARN_PERCENT && !(await popup({ kind: 'warn', title: t('w.vram.t'), msg: t('w.vram.m', { pct, n: instance.name }), ok: t('btn.start'), cancel: t('btn.cancel') }))) return;
+    const snap = useMonitorStore.getState().snap;
+    const devices = snap?.gpu?.devices ?? [];
+    const room = unifiedRoom(devices, instance.gpu, snap?.system);
+    const need = modelNeed(useModelStore.getState().list, instance.allowed, instance.maxLoaded);
+    if (room && need > 0) {
+      // memory shared with the CPU: the models this instance may load at once against what can really be used now
+      if (need > room.cap && !(await popup({
+        kind: 'warn', title: t('w.fitUma.t'), ok: t('btn.start'), cancel: t('btn.cancel'),
+        msg: room.room == null ? t('w.fitUma.cpu', { need: need.toFixed(1), cap: room.cap.toFixed(1) })
+          : t('w.fitUma.m', { need: need.toFixed(1), cap: room.cap.toFixed(1), avail: room.avail.toFixed(1), room: room.room.toFixed(1) }),
+      }))) return;
+    } else {
+      const usage = vramByGpu(views, devices);
+      const pct = usage.length ? Math.max(...usage.map((g) => g.pct)) : 0;
+      if (pct > VRAM_WARN_PERCENT && !(await popup({ kind: 'warn', title: t('w.vram.t'), msg: t('w.vram.m', { pct, n: instance.name }), ok: t('btn.start'), cancel: t('btn.cancel') }))) return;
+    }
   }
 
   let drain = 0; // seconds to wait for running requests before stopping

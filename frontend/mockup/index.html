@@ -157,7 +157,9 @@ const logs=[],lf={v:'all'},hms=t=>new Date(t).toLocaleTimeString('en-GB'),
   const end=l.scrollTop+l.clientHeight>=l.scrollHeight-4;l.textContent=logs.filter(e=>lf.v=='all'||e.src==lf.v).map(e=>`[${hms(e.ts)}] ${lf.v=='all'?`[${e.src}] `:''}${e.m}`).join('\n');if(end)l.scrollTop=l.scrollHeight},
  setLf=v=>{lf.v=v;renderLogs();$('logs').scrollTop=$('logs').scrollHeight};
 const set=async(id,state,ms=900)=>{const n=by(id).name,run=state=='running';
- if(run){const pct=Math.max(...vramByGpu().map(g=>g.pct));if(pct>85&&!await popup({kind:'warn',title:t('w.vram.t'),msg:t('w.vram.m',{pct,n}),ok:t('btn.start'),cancel:t('btn.cancel')}))return}
+ if(run){const r=roomOf(by(id).gpu||'auto'),need=(by(id).models||[]).map(m=>models.find(x=>x.n==m)?.gb||0).sort((a,b)=>b-a).slice(0,2).reduce((a,x)=>a+x,0);
+  if(r&&need>0){if(need>r.cap&&!await umaWarn(need,r))return}
+  else{const pct=Math.max(...vramByGpu().map(g=>g.pct));if(pct>85&&!await popup({kind:'warn',title:t('w.vram.t'),msg:t('w.vram.m',{pct,n}),ok:t('btn.start'),cancel:t('btn.cancel')}))return}}
  else{const k=by(id).loaded.length;if(k&&!await ask(t('w.stop.t'),t('w.stop.m',{n,k}),t('btn.stop'),true))return}
  by(id).state='starting';log(`${run?'Starting':'Stopping'} ${n}…`,n);render();setTimeout(()=>{by(id).state=state;if(!run)by(id).loaded=[];log(`${n} ${run?'is running':'stopped'}`,n);render()},ms)};
 function btns(i){const st=i.state,busy=st=='running'||st=='starting';
@@ -177,7 +179,8 @@ const GB=a=>a.reduce((t,x)=>t+parseFloat(x.split('·')[1]),0),
  monOff=new Set(),togMon=t=>{monOff.has(t)?monOff.delete(t):monOff.add(t);render()},monTabs=()=>['CPU','RAM',...(GPUS.length?GPUS.map((_,n)=>'GPU-'+n):['GPU'])],
  SUMS=['ins','usage','perf','status'],sumOn=new Set(['ins','usage']),togSum=t=>{sumOn.has(t)?sumOn.delete(t):sumOn.add(t);renderSum()},
  sbox=(k,cs)=>!sumOn.has(k)?'':`<div class="sb"><span class="ti">${t('sum.'+k)}</span><div class="sc">${cs.join('')}</div></div>`;
-const GSYS=1.6,gOf=i=>{const g=i.gpu||'auto';return g=='cpu'?-1:g=='auto'?(i===ext?1:0):+g},
+const POOL=64,POOLUSED=21.8,roomOf=g=>{if(!GPUS.length)return null;const avail=Math.max(0,POOL-POOLUSED);if(g=='cpu')return GDEV.every(d=>d.unified)?{cap:avail,avail,room:null}:null;const n=g=='auto'?0:+g,d=GDEV[n];if(!d||!d.unified||!d.sup.mem)return null;const used=vramByGpu()[n].used,room=Math.max(0,d.vram-used);return {cap:Math.min(room,avail),avail,room}},umaWarn=(need,r,ok=t('btn.start'))=>popup({kind:'warn',title:t('w.fitUma.t'),msg:r.room==null?t('w.fitUma.cpu',{need:need.toFixed(1),cap:r.cap.toFixed(1)}):t('w.fitUma.m',{need:need.toFixed(1),cap:r.cap.toFixed(1),avail:r.avail.toFixed(1),room:r.room.toFixed(1)}),ok,cancel:t('btn.cancel')}),
+GSYS=1.6,gOf=i=>{const g=i.gpu||'auto';return g=='cpu'?-1:g=='auto'?(i===ext?1:0):+g},
  vramByGpu=()=>{const all=[ext,...list];return GPUS.map((_,g)=>{const parts=all.map((i,n)=>({name:i.name,v:gOf(i)==g?GB(i.loaded):0,col:`hsl(${n*70+210} 60% 55%)`})).filter(p=>p.v),used=GSYS+parts.reduce((t,p)=>t+p.v,0);return {parts,used,total:GVRAM[g],pct:Math.round(used/GVRAM[g]*100)}})};
 function renderSum(){
  $('utabs').innerHTML=SUMS.map(k=>`<button class="small${sumOn.has(k)?' on':''}" onclick="togSum('${k}')">${t('sum.'+k)}</button>`).join('');
@@ -335,7 +338,8 @@ function create(ev){const port=+$('p').value,nm=$('n').value.trim(),ms=[...docum
  const bad=!nm?[t('v.nameReq.t'),t('v.nameReq.m')]:[ext,...list].some(i=>i.name==nm)?[t('v.nameDup.t'),t('v.nameDup.m',{n:nm})]:!(port>=1024&&port<=65535)?[t('v.port.t'),t('v.port.m')]:[ext,...list].some(i=>i.port==port)||port==cfg.monPort?[t('port.conflict'),t('v.used.m',{p:port})]:null;
  if(bad){notify('warn',...bad);return false}
  const cap=({auto:GVRAM[0],cpu:Infinity})[$('gp').value]??GVRAM[+$('gp').value]??GVRAM[0],need=ms.map(m=>models.find(x=>x.n==m).gb).sort((a,b)=>b-a).slice(0,+$('mlr').value).reduce((t,x)=>t+x,0);
- if(need>cap-GSYS){popup({kind:'warn',title:t('w.fit.t'),msg:t('w.fit.m',{need:need.toFixed(1),cap:(cap-GSYS).toFixed(1)}),ok:t('btn.create'),cancel:t('btn.cancel')}).then(y=>{if(y){doCreate(ms,port);dlg.close()}});return false}
+ const room=roomOf($('gp').value);
+ if(room?need>room.cap:need>cap-GSYS){(room?umaWarn(need,room,t('btn.create')):popup({kind:'warn',title:t('w.fit.t'),msg:t('w.fit.m',{need:need.toFixed(1),cap:(cap-GSYS).toFixed(1)}),ok:t('btn.create'),cancel:t('btn.cancel')})).then(y=>{if(y){doCreate(ms,port);dlg.close()}});return false}
  doCreate(ms,port);return true}
 function doCreate(ms,port){
  list.push({id:Date.now(),name:$('n').value,port,models:ms,ctx:2048*2**($('cx').value-1),keep:KEEP[$('kp').value],maxLoaded:+$('mlr').value,parallel:+$('npr').value,gpu:$('gp').value,flash:$('fa').checked,kvq:$('kvq').value,loaded:[],state:'stopped'});log(`Created ${$('n').value} (port ${port})`,$('n').value);render()}

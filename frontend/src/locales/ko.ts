@@ -103,7 +103,7 @@ const ko: Messages = {
   'w.busy.t': '처리 중인 요청이 있습니다',
   'w.busy.m': '{n}에서 요청 {k}개를 처리하는 중입니다.\n끝날 때까지 기다린 뒤 중지하거나, 지금 바로 중지할 수 있습니다. 바로 중지하면 처리 중인 응답이 끊깁니다.',
   'btn.drainStop': '끝나면 중지', 'btn.stopNow': '바로 중지',
-  'w.fit.t': 'VRAM 부족 가능',
+  'w.fitUma.t': '메모리 부족 가능', 'w.fitUma.m': '동시에 로드될 모델이 약 {need} GB인데, 지금 쓸 수 있는 메모리는 약 {cap} GB입니다.\n(풀의 남은 메모리 {avail} GB와 GPU 최대치까지 남은 {room} GB 중 작은 쪽)\n계속하면 시스템이 느려지거나 일부가 CPU로 처리될 수 있습니다.', 'w.fitUma.cpu': '동시에 로드될 모델이 약 {need} GB인데, 지금 남은 메모리는 약 {cap} GB입니다.\n계속하면 시스템이 느려질 수 있습니다.', 'w.fit.t': 'VRAM 부족 가능',
   'w.fit.m': '동시에 로드될 모델이 약 {need} GB로, 선택한 장치의 사용 가능 VRAM({cap} GB)을 넘습니다.\n그래도 생성할까요?',
 
   'state.stopping': '중지 중', 'state.crashed': '비정상 종료',

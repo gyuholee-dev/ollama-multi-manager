@@ -104,7 +104,7 @@ const en: Messages = {
   'w.busy.t': 'Requests are running',
   'w.busy.m': '{n} is handling {k} request(s).\nYou can wait for them to finish and then stop, or stop right now, which cuts the running answers off.',
   'btn.drainStop': 'Stop when done', 'btn.stopNow': 'Stop now',
-  'w.fit.t': 'VRAM may be insufficient',
+  'w.fitUma.t': 'Memory may run short', 'w.fitUma.m': 'The models loaded together need about {need} GB, but about {cap} GB can be used now.\n(the smaller of the pool\'s free {avail} GB and the {room} GB left under the GPU maximum)\nIf you go on, the system may slow down or part of it may run on the CPU.', 'w.fitUma.cpu': 'The models loaded together need about {need} GB, but about {cap} GB is free now.\nIf you go on, the system may slow down.', 'w.fit.t': 'VRAM may be insufficient',
   'w.fit.m': 'The models loaded at the same time need about {need} GB, which exceeds the available VRAM of the selected device ({cap} GB).\nCreate it anyway?',
 
   'state.stopping': 'Stopping', 'state.crashed': 'Stopped unexpectedly',

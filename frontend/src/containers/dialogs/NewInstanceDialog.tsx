@@ -7,8 +7,10 @@ import { useDevices, useExternal } from '@/app/hooks';
 import { Dialog, DialogBody, DialogTitle } from '@/components/common/Dialog';
 import { Fold } from '@/components/common/Fold';
 import { ModelPicker } from '@/components/common/ModelPicker';
-import { fmtCtx, fmtKeep, fmtN, gpuLabel, KEEP, normModel } from '@/lib/format';
+import { fmtCtx, fmtKeep, fmtN, gpuLabel, KEEP } from '@/lib/format';
 import { gb } from '@/lib/units';
+import { modelNeed, unifiedRoom } from '@/lib/memory';
+import { useMonitorStore } from '@/stores/monitorStore';
 import { useModelStore } from '@/stores/modelStore';
 import { useT } from '@/locales/useT';
 import { useDialogStore } from '@/stores/dialogStore';
@@ -39,6 +41,7 @@ function Form({ port: firstPort }: { port: number }) {
   const monPort = useSettingsStore((s) => s.cfg.monPort);
   const external = useExternal();
   const devices = useDevices();
+  const system = useMonitorStore((s) => s.snap?.system);
 
   const [name, setName] = useState(() => { let k = 1; while (list.some((i) => i.name === `worker-${k}`)) k++; return `worker-${k}`; });
   const [port, setPort] = useState(String(firstPort));
@@ -77,10 +80,14 @@ function Form({ port: firstPort }: { port: number }) {
         auto_start: auto, idle_stop_min: auto ? Math.max(0, +idle || 0) : 0,
       },
     };
-    const sizes = installed.filter((m) => allowed.some((a) => normModel(a) === normModel(m.name))).map((m) => gb(m.size)).sort((x, y) => y - x);
-    const need = sizes.slice(0, maxLoaded).reduce((a, x) => a + x, 0); // the biggest models that can sit in memory together
+    const need = modelNeed(installed, allowed, maxLoaded); // the biggest models that can sit in memory together
     const device = gpu === 'cpu' ? undefined : devices[gpu === 'auto' ? 0 : +gpu];
-    if (device && need > gb(device.mem_total)
+    const room = unifiedRoom(devices, gpu === 'cpu' || gpu === 'auto' ? gpu : +gpu, system);
+    if (room) {
+      // memory shared with the CPU: compare with what can really be used now (the pool's free part and what is left under the GPU's maximum)
+      if (need > room.cap
+        && !(await popup({ kind: 'warn', title: t('w.fitUma.t'), msg: room.room == null ? t('w.fitUma.cpu', { need: need.toFixed(1), cap: room.cap.toFixed(1) }) : t('w.fitUma.m', { need: need.toFixed(1), cap: room.cap.toFixed(1), avail: room.avail.toFixed(1), room: room.room.toFixed(1) }), ok: t('btn.create'), cancel: t('btn.cancel') }))) return;
+    } else if (device && need > gb(device.mem_total)
       && !(await popup({ kind: 'warn', title: t('w.fit.t'), msg: t('w.fit.m', { need: need.toFixed(1), cap: gb(device.mem_total).toFixed(1) }), ok: t('btn.create'), cancel: t('btn.cancel') }))) return;
     if (body.options.listen === 'lan' && !body.options.api_key
       && !(await popup({ kind: 'warn', title: t('w.lan.t'), msg: t('w.lan.m'), ok: t('btn.open'), cancel: t('btn.cancel') }))) return;
