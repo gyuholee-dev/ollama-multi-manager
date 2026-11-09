@@ -152,7 +152,7 @@ class AppleProvider:
         util, used = parse_ioreg(run(["ioreg", "-r", "-d", "1", "-w0", "-c", "IOAccelerator"]))
         if util is None and used is None:
             raise RuntimeError("no GPU statistics")
-        self.supports = {"mem": used is not None, "util": util is not None, "temp": self._read_temp() is not None, "process": False}
+        self.supports = {"mem": used is not None, "util": util is not None, "temp": self._read_temp() is not None, "process": False, "process_util": False}
 
     def _read_temp(self) -> int | None:
         if self._temps is None:
@@ -173,6 +173,9 @@ class AppleProvider:
 
     def process_vram(self) -> ProcessVram | None:
         return None
+
+    def process_util(self):
+        return None  # per-process GPU time needs administrator rights on this platform (powermetrics)
 
     def close(self) -> None:
         pass

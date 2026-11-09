@@ -114,11 +114,14 @@ class AmdProvider:
                 index=i, uuid=f"amd-{dev.parent.name}", name=self._name(dev), mem_total=total, mem_used=used,
                 util_percent=min(100, busy) if busy is not None else None, temperature_c=temp,
                 vendor="amd", unified=unified, env_index=i,
-                supports={"mem": True, "util": busy is not None, "temp": temp is not None, "process": False},
+                supports={"mem": True, "util": busy is not None, "temp": temp is not None, "process": False, "process_util": False},
             ))
         return out
 
     def process_vram(self) -> ProcessVram | None:
+        return None
+
+    def process_util(self):
         return None
 
     def close(self) -> None:

@@ -125,10 +125,10 @@ dialog:not(#pop)>.dh{flex:none;background:var(--card)}dialog:not(#pop)>.dh>h3{po
 const VERSION='v0.1.0';let checking=false;
 const detectLang=()=>{for(const l of navigator.languages||[navigator.language]){const b=String(l||'').toLowerCase().split('-')[0];if(window.LOCALES[b])return b}return 'en'};
 const GMODES={
-  nv:{names:['NVIDIA GeForce RTX 4090','NVIDIA GeForce RTX 3090'],vram:[24,24],unified:false,sup:{mem:true,util:true,temp:true,process:true}},
-  mac:{names:['Apple M4 Pro'],vram:[17.8],unified:true,sup:{mem:true,util:true,temp:true,process:false}},
-  part:{names:['AMD Radeon Graphics'],vram:[16],unified:true,sup:{mem:true,util:false,temp:false,process:false}},
-  none:{names:[],vram:[],unified:false,sup:{mem:false,util:false,temp:false,process:false}}};
+  nv:{names:['NVIDIA GeForce RTX 4090','NVIDIA GeForce RTX 3090'],vram:[24,24],unified:false,sup:{mem:true,util:true,temp:true,process:true,process_util:true}},
+  mac:{names:['Apple M4 Pro'],vram:[17.8],unified:true,sup:{mem:true,util:true,temp:true,process:false,process_util:false}},
+  part:{names:['AMD Radeon Graphics'],vram:[16],unified:true,sup:{mem:true,util:false,temp:false,process:false,process_util:false}},
+  none:{names:[],vram:[],unified:false,sup:{mem:false,util:false,temp:false,process:false,process_util:false}}};
 let GPUS=[],GVRAM=[],GUNI=false,GSUP={};
 const setGpuMode=()=>{const m=GMODES[cfg.gpu]||GMODES.nv;GPUS=m.names;GVRAM=m.vram;GUNI=m.unified;GSUP=m.sup},
  uni=()=>GUNI&&GPUS.length>0,memN=()=>uni()?t('mon.unified'):'VRAM',memOk=()=>GPUS.length>0&&GSUP.mem;
@@ -194,7 +194,7 @@ function render(){
   headRow=(label,fig,n,warn)=>`<div class="top" style="margin:${n?14:8}px 0 0"><span>${label}</span><span class="sub"${warn?' style="color:var(--warn)"':''}>${fig}</span></div>`,
   gpuBoxes=()=>!GPUS.length?[mb('GPU','-',headRow('GPU','-',0)+bar([],true)+headRow(memN(),'-',1)+bar([],true)+`<div class="sub off-note">${t('mon.unsupported')}</div>`,'','GPU')]:GPUS.map((_,n)=>{
     const g=V[n],[u,tc,w,sy]=[[62,58,214,5],[4,41,28,2]][n]||[30,50,100,3],ps=g.parts,tp=ps.reduce((x,p)=>x+p.v,0),sysU=ps.length?Math.min(sy,u):u,
-     segs=[[S,sysU,'var(--sub)',sysU+'%'],...ps.map(p=>[p.name,(u-sysU)*p.v/Math.max(tp,1),p.col,Math.round((u-sysU)*p.v/Math.max(tp,1))+'%'])],
+     segs=GSUP.process_util?[[S,sysU,'var(--sub)',sysU+'%'],...ps.map(p=>[p.name,(u-sysU)*p.v/Math.max(tp,1),p.col,Math.round((u-sysU)*p.v/Math.max(tp,1))+'%'])]:[[t('mon.util'),u,'var(--accent)',u+'%']],
      util=headRow('GPU',`${GSUP.util?u+'%':'-'} · ${GSUP.temp?tc+'°C':'-'}${cfg.gpu=='nv'?` · ${w} W`:''}`,0)+(GSUP.util?bar(segs)+leg(segs):bar([],true)+`<div class="sub off-note">${t('mon.unsupported')}</div>`);
     let mem;
     if(!GSUP.mem)mem=headRow(memN(),'-',1)+bar([],true)+`<div class="sub off-note">${t('mon.unsupported')}</div>`;

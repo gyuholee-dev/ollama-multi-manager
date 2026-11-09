@@ -20,12 +20,16 @@ class FakeProvider:
     def __init__(self):
         self.table = {}      # pid -> {gpu: bytes|None}
         self.supported = True
+        self.util = None     # pid -> {gpu: percent}, or None when the provider cannot tell
 
     def devices(self):
         return [GpuInfo(0, "GPU-fake", "Fake GPU", 24 * 2**30, 2**30, 10, 40)]
 
     def process_vram(self):
         return self.table if self.supported else None
+
+    def process_util(self):
+        return self.util
 
     def close(self):
         pass

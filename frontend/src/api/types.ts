@@ -83,7 +83,7 @@ export interface GpuDevice {
   kind: 'gpu' | 'npu';
   unified: boolean; // memory shared with the CPU: there is no separate VRAM
   env_index: number | null;
-  supports: { mem: boolean; util: boolean; temp: boolean; process: boolean }; // what this device can report at all
+  supports: { mem: boolean; util: boolean; temp: boolean; process: boolean; process_util: boolean }; // what this device can report at all
 }
 
 export interface SystemStats {
@@ -141,6 +141,7 @@ export interface InstanceMetrics {
   vram_bytes: number | null;
   vram_by_gpu: Record<string, number>;
   vram_source: 'nvml' | 'estimated' | null;
+  gpu_util_by_gpu: Record<string, number> | null; // the instance's share (%) of each GPU's time; null when the driver cannot tell (Apple silicon, AMD)
   models: LoadedModel[];
   perf: Perf | null;
 }

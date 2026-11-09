@@ -84,7 +84,7 @@ def test_apple_provider_reports_one_unified_memory_device(monkeypatch):
     p = apple.AppleProvider(run=run, metal_limit=lambda: 17 * 2**30, temperatures=lambda: [("PMU tdie1", 39.6)])
     d = p.devices()[0]
     assert (d.name, d.vendor, d.unified, d.mem_total, d.mem_used, d.util_percent, d.temperature_c) == ("Apple M4 Pro", "apple", True, 17 * 2**30, 1106051072, 23, 40)
-    assert d.supports == {"mem": True, "util": True, "temp": True, "process": False} and p.process_vram() is None
+    assert d.supports == {"mem": True, "util": True, "temp": True, "process": False, "process_util": False} and p.process_vram() is None
     quiet = apple.AppleProvider(run=run, metal_limit=lambda: None, temperatures=lambda: [])  # no sensors: the reading is flagged missing
     assert quiet.limit == apple.default_gpu_limit(24 * 2**30)
     assert quiet.devices()[0].temperature_c is None and quiet.devices()[0].supports["temp"] is False
@@ -134,7 +134,7 @@ def test_amd_integrated_gpu_is_unified_and_adds_system_memory(tmp_path):
     d = p.devices()[0]
     assert (d.name, d.vendor, d.unified, d.util_percent, d.temperature_c) == ("AMD Phoenix1", "amd", True, 17, 47)
     assert d.mem_total == 512 * 2**20 + 8 * 2**30 and d.mem_used == 100 * 2**20 + 2**30
-    assert d.supports == {"mem": True, "util": True, "temp": True, "process": False} and p.process_vram() is None
+    assert d.supports == {"mem": True, "util": True, "temp": True, "process": False, "process_util": False} and p.process_vram() is None
 
 
 def test_amd_discrete_gpu_has_its_own_vram_and_missing_files_are_flagged(tmp_path):
@@ -177,3 +177,68 @@ def test_cpu_only_requests_ask_for_zero_gpu_layers():
     assert json.loads(force_cpu(body))["options"] == {"num_predict": 5, "num_gpu": 0}
     assert json.loads(force_cpu(b'{"model":"m"}'))["options"] == {"num_gpu": 0}
     assert force_cpu(b"not json") == b"not json" and force_cpu(b"[1]") == b"[1]"
+
+
+# ---- per-process GPU use
+
+class FakeNvml:
+    """Just enough of pynvml: per-process utilization samples the test controls (per GPU), and its 'not found' error."""
+
+    class NVMLError_NotFound(Exception):
+        pass
+
+    def __init__(self, samples):
+        self.samples, self.calls = samples, []  # gpu handle -> list of sample objects, or an exception
+
+    @staticmethod
+    def nvmlDeviceGetHandleByIndex(i):
+        return i
+
+    def nvmlDeviceGetProcessUtilization(self, handle, last_seen):
+        self.calls.append((handle, last_seen))
+        got = self.samples.get(handle)
+        if isinstance(got, Exception):
+            raise got
+        return [s for s in (got or []) if s.timeStamp > last_seen]
+
+
+class Sample:
+    def __init__(self, pid, ts, sm):
+        self.pid, self.timeStamp, self.smUtil = pid, ts, sm
+
+
+def nvml_with(samples, count=2):
+    p = providers.NvmlProvider.__new__(providers.NvmlProvider)
+    p._n, p._count, p._last_seen = FakeNvml(samples), count, {}
+    return p
+
+
+def test_nvml_gives_each_process_share_of_each_gpu_and_asks_only_for_new_samples():
+    p = nvml_with({0: [Sample(10, 5, 30), Sample(11, 6, 12)], 1: [Sample(10, 5, 4)]})
+    assert p.process_util() == {10: {0: 30, 1: 4}, 11: {0: 12}}
+    p._n.calls.clear()
+    assert p.process_util() == {}  # nothing newer: the processes are idle, which is an answer
+    assert p._n.calls == [(0, 6), (1, 5)]
+
+
+def test_nvml_cannot_tell_when_no_gpu_answers():
+    broken = nvml_with({0: RuntimeError("not supported"), 1: RuntimeError("not supported")})
+    assert broken.process_util() is None
+    mixed = nvml_with({0: RuntimeError("not supported"), 1: [Sample(7, 1, 55)]})
+    assert mixed.process_util() == {7: {1: 55}}  # one GPU that answers is enough to say something
+    idle = nvml_with({0: FakeNvml.NVMLError_NotFound()}, count=1)
+    assert idle.process_util() == {}
+
+
+def test_per_process_use_is_merged_over_vendors_with_global_gpu_numbers():
+    nv = Fake("nvml", [GpuInfo(0, "a", "N0", 8, 1, vendor="nvidia"), GpuInfo(1, "b", "N1", 8, 1, vendor="nvidia")])
+    nv.process_util = lambda: {10: {1: 40}}
+    amd = Fake("amd", [GpuInfo(0, "c", "A0", 4, 1, vendor="amd")])
+    amd.process_util = lambda: None
+    comp = CompositeProvider([nv, amd])
+    assert comp.process_util() == {10: {1: 40}}
+    amd.process_util = lambda: {20: {0: 9}}
+    assert comp.process_util() == {10: {1: 40}, 20: {2: 9}}
+    nv.process_util = lambda: None
+    amd.process_util = lambda: None
+    assert comp.process_util() is None

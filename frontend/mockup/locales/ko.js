@@ -22,7 +22,7 @@
   'u.cnt': '개', 'u.case': '건',
   'keep.unlimited': '무제한', 'keep.min': '{n}분', 'keep.hour': '{n}시간', 'keep.day': '{n}일',
   'exp.none': '만료 없음', 'exp.at': '{t} 만료',
-  'mon.unified': 'UMA', 'mon.umaFigures': 'GPU {gpu} / {limit} GB · ALL {used} / {total} GB ({pct}%)', 'mon.gpuOther': 'GPU 기타', 'mon.unsupported': '지원되지 않습니다', 'mock.gpu': '목업: GPU 상태', 'mock.gpu.nv': 'NVIDIA 2장 (VRAM)', 'mock.gpu.mac': 'Apple 실리콘 (통합 메모리)', 'mock.gpu.part': '부분 지원 (사용률·온도 없음)', 'mock.gpu.none': '미지원 (GPU 없음)', 'gpu.auto': '자동', 'gpu.n': 'GPU-{g} · {name}',
+  'mon.util': '사용률', 'mon.unified': 'UMA', 'mon.umaFigures': 'GPU {gpu} / {limit} GB · ALL {used} / {total} GB ({pct}%)', 'mon.gpuOther': 'GPU 기타', 'mon.unsupported': '지원되지 않습니다', 'mock.gpu': '목업: GPU 상태', 'mock.gpu.nv': 'NVIDIA 2장 (VRAM)', 'mock.gpu.mac': 'Apple 실리콘 (통합 메모리)', 'mock.gpu.part': '부분 지원 (사용률·온도 없음)', 'mock.gpu.none': '미지원 (GPU 없음)', 'gpu.auto': '자동', 'gpu.n': 'GPU-{g} · {name}',
 
   'state.running': '실행 중', 'state.stopped': '중지됨', 'state.starting': '시작 중', 'state.unreachable': '응답 없음',
 

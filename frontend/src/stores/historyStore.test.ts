@@ -3,7 +3,7 @@ import type { InstanceMetrics, Snapshot } from '@/api/types';
 import { MAX_SAMPLES, useHistoryStore } from './historyStore';
 
 const metrics = (cpu: number, rss: number, vram: number | null): InstanceMetrics => ({
-  state: 'running', pid: 1, responsive: true, cpu_percent: cpu, rss, vram_bytes: vram, vram_by_gpu: {}, vram_source: null, models: [],
+  state: 'running', pid: 1, responsive: true, cpu_percent: cpu, rss, vram_bytes: vram, vram_by_gpu: {}, vram_source: null, gpu_util_by_gpu: null, models: [],
   perf: { inflight: 1, queued: 2, processing: 1, requests: 0, requests_total: 0, errors: 0, errors_total: 0, cancelled: 0, models: {}, latency_avg: null, ttft_avg: null, prompt_tokens: 0, tokens_total: 0, prompt_tokens_total: 0, tokens: 0, eval_seconds: 0, tok_per_s: null, window_seconds: 300 },
 });
 const snap = (ts: number, instances: Record<string, InstanceMetrics>): Snapshot => ({

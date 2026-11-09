@@ -81,3 +81,15 @@ async def test_snapshot_503_before_first_collection(tmp_path, fake_exe, provider
 
 def test_prometheus_empty_snapshot():
     assert render(None, {}) == ""
+
+
+async def test_gpu_use_is_summed_over_the_process_tree_and_missing_when_the_provider_cannot_tell(env):
+    inst, pid = await running_instance(env)
+    child = psutil.Process(pid).children(recursive=True)[0].pid
+    env.provider.util = {child: {0: 35}, pid: {0: 5}, 999999: {0: 50}}  # an unrelated pid must not count
+    d = (await env.app.state.collector.collect())["instances"][str(inst["id"])]
+    assert d["gpu_util_by_gpu"] == {"0": 40}
+    env.provider.util = {}  # the provider answers: the instance is idle
+    assert (await env.app.state.collector.collect())["instances"][str(inst["id"])]["gpu_util_by_gpu"] == {}
+    env.provider.util = None  # it cannot tell (macOS, AMD): the screen shows the GPU's use as a whole
+    assert (await env.app.state.collector.collect())["instances"][str(inst["id"])]["gpu_util_by_gpu"] is None

@@ -13,7 +13,7 @@ import psutil
 
 from app.services.hub import Hub
 from app.services.instances import Handle, InstanceManager
-from app.services.monitor.providers import GpuProvider, ProcessVram
+from app.services.monitor.providers import GpuProvider, ProcessUtil, ProcessVram
 from app.services.settings import SettingsService
 
 log = logging.getLogger("omm.monitor")
@@ -70,14 +70,15 @@ class Collector:
         await asyncio.to_thread(self.provider.close)
 
     async def collect(self) -> dict[str, Any]:
-        system, gpus, pvram = await asyncio.gather(
+        system, gpus, pvram, putil = await asyncio.gather(
             asyncio.to_thread(self._system),
             asyncio.to_thread(self._safe_devices),
             asyncio.to_thread(self._safe_process_vram),
+            asyncio.to_thread(self._safe_process_util),
         )
         handles = list(self.manager.handles.values())
         results, external = await asyncio.gather(
-            asyncio.gather(*(self._instance(h, pvram) for h in handles), return_exceptions=True),
+            asyncio.gather(*(self._instance(h, pvram, putil) for h in handles), return_exceptions=True),
             self._external(),
         )
         instances: dict[str, Any] = {}
@@ -131,9 +132,19 @@ class Collector:
             log.exception("GPU per-process query failed")
             return None
 
+    def _safe_process_util(self) -> ProcessUtil | None:
+        fn = getattr(self.provider, "process_util", None)
+        if fn is None:
+            return None
+        try:
+            return fn()
+        except Exception:
+            log.exception("GPU per-process utilization query failed")
+            return None
+
     # ---- per instance
 
-    async def _instance(self, h: Handle, pvram: ProcessVram | None) -> dict[str, Any]:
+    async def _instance(self, h: Handle, pvram: ProcessVram | None, putil: ProcessUtil | None = None) -> dict[str, Any]:
         (models, responsive), (pids, cpu, rss) = await asyncio.gather(
             self._api_ps(h.inner_port or h.port), asyncio.to_thread(self._proc_stats, h.ps)
         )
@@ -142,6 +153,7 @@ class Collector:
             "state": h.state, "pid": h.ps.pid, "responsive": responsive,
             "cpu_percent": round(cpu, 1), "rss": rss,
             "vram_bytes": vram, "vram_by_gpu": by_gpu, "vram_source": source,
+            "gpu_util_by_gpu": self._attribute_util(pids, putil),
             "models": models,
             "perf": h.proxy.stats.snapshot() if h.proxy else None,
         }
@@ -177,6 +189,17 @@ class Collector:
             except psutil.Error:
                 continue
         return pids, cpu, rss
+
+    @staticmethod
+    def _attribute_util(pids: list[int], putil: ProcessUtil | None) -> dict[str, int] | None:
+        """The instance's share of each GPU's time (summed over its processes); None when the provider cannot tell."""
+        if putil is None:
+            return None
+        by_gpu: dict[int, int] = {}
+        for pid in pids:
+            for gpu, pct in putil.get(pid, {}).items():
+                by_gpu[gpu] = by_gpu.get(gpu, 0) + pct
+        return {str(g): min(100, p) for g, p in by_gpu.items()}
 
     @staticmethod
     def _attribute_vram(pids: list[int], pvram: ProcessVram | None, models: list[dict], responsive: bool):

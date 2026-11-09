@@ -13,7 +13,7 @@ const instance = (id: number, name: string, port: number, state: Instance['statu
 });
 
 const metrics = (over: Partial<InstanceMetrics> = {}): InstanceMetrics => ({
-  state: 'running', pid: 1, responsive: true, cpu_percent: 0, rss: 0, vram_bytes: null, vram_by_gpu: {}, vram_source: null, models: [], perf: null, ...over,
+  state: 'running', pid: 1, responsive: true, cpu_percent: 0, rss: 0, vram_bytes: null, vram_by_gpu: {}, vram_source: null, gpu_util_by_gpu: null, models: [], perf: null, ...over,
 });
 
 const snapshot = (instances: Record<string, InstanceMetrics>, devices: GpuDevice[] = []): Snapshot => ({
@@ -22,7 +22,7 @@ const snapshot = (instances: Record<string, InstanceMetrics>, devices: GpuDevice
 });
 
 const gpu = (index: number, used: number, total: number): GpuDevice => ({ index, uuid: `u${index}`, name: `GPU ${index}`, mem_total: total * GiB, mem_used: used * GiB, util_percent: null, temperature_c: null,
-  vendor: 'nvidia', kind: 'gpu', unified: false, env_index: index, supports: { mem: true, util: true, temp: true, process: true } });
+  vendor: 'nvidia', kind: 'gpu', unified: false, env_index: index, supports: { mem: true, util: true, temp: true, process: true, process_util: true } });
 
 describe('buildViews', () => {
   it('marks a running instance that does not answer as unreachable', () => {

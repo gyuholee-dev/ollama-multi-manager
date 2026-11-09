@@ -10,10 +10,12 @@ log = logging.getLogger("omm.monitor")
 
 # pid -> {gpu_index: bytes used, or None when the driver does not report it}
 ProcessVram = dict[int, dict[int, int | None]]
+# pid -> {gpu_index: percent of the GPU's time the process used}
+ProcessUtil = dict[int, dict[int, int]]
 
 
 def full_support() -> dict[str, bool]:
-    return {"mem": True, "util": True, "temp": True, "process": True}
+    return {"mem": True, "util": True, "temp": True, "process": True, "process_util": True}
 
 
 @dataclass
@@ -51,6 +53,9 @@ class GpuProvider(Protocol):
     def process_vram(self) -> ProcessVram | None:
         """Per-process VRAM, or None if this provider cannot tell."""
 
+    def process_util(self) -> ProcessUtil | None:
+        """Per-process GPU utilization, or None if this provider cannot tell."""
+
     def close(self) -> None: ...
 
 
@@ -63,6 +68,9 @@ class NullProvider:
         return []
 
     def process_vram(self) -> ProcessVram | None:
+        return None
+
+    def process_util(self) -> ProcessUtil | None:
         return None
 
     def close(self) -> None:
@@ -78,6 +86,7 @@ class NvmlProvider:
         self._n = pynvml
         pynvml.nvmlInit()
         self._count = pynvml.nvmlDeviceGetCount()
+        self._last_seen: dict[int, int] = {}  # per GPU: time stamp of the newest utilization sample taken
 
     def devices(self) -> list[GpuInfo]:
         n, out = self._n, []
@@ -110,6 +119,24 @@ class NvmlProvider:
                     if cur.get(i) is None:
                         cur[i] = value
         return result
+
+    def process_util(self) -> ProcessUtil | None:
+        """Per-process GPU use since the last call. None when no GPU can tell (older drivers, some Windows setups)."""
+        n, result, answered = self._n, {}, False
+        for i in range(self._count):
+            h = n.nvmlDeviceGetHandleByIndex(i)
+            try:
+                samples = n.nvmlDeviceGetProcessUtilization(h, self._last_seen.get(i, 0))
+            except getattr(n, "NVMLError_NotFound", ()):
+                samples, answered = [], True  # nothing ran on this GPU since the last look
+            except Exception:
+                continue  # this GPU cannot tell
+            else:
+                answered = True
+            for s in samples:
+                self._last_seen[i] = max(self._last_seen.get(i, 0), int(s.timeStamp))
+                result.setdefault(int(s.pid), {})[i] = max(0, min(100, int(s.smUtil)))
+        return result if answered else None
 
     def close(self) -> None:
         self._try(self._n.nvmlShutdown)
@@ -166,6 +193,25 @@ class CompositeProvider:
                 cur = merged.setdefault(pid, {})
                 for gpu, used in per_gpu.items():
                     cur[gpu + off] = used
+        return merged
+
+    def process_util(self) -> ProcessUtil | None:
+        if not self._offsets:
+            self.devices()
+        merged: ProcessUtil | None = None
+        for p, off in zip(self.providers, self._offsets):
+            try:
+                table = p.process_util()
+            except Exception:
+                log.exception("GPU per-process utilization query failed (%s)", p.name)
+                table = None
+            if table is None:
+                continue
+            merged = merged if merged is not None else {}
+            for pid, per_gpu in table.items():
+                cur = merged.setdefault(pid, {})
+                for gpu, pct in per_gpu.items():
+                    cur[gpu + off] = pct
         return merged
 
     def close(self) -> None:

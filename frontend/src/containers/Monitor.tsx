@@ -86,6 +86,13 @@ export function Monitor() {
     const d = g.device;
     const util = d.supports.util && d.util_percent != null ? `${d.util_percent}%` : '-';
     const temp = d.supports.temp && d.temperature_c != null ? `${d.temperature_c}°C` : '-';
+    // Use of the GPU, split by instance where the driver can tell (NVIDIA); otherwise the whole of it is one figure
+    const perInstance = d.supports.util && d.supports.process_util && mine.some((x) => x.m?.gpu_util_by_gpu != null);
+    const shares = mine.map((x) => ({ ...x, pct: Math.min(100, x.m?.gpu_util_by_gpu?.[String(d.index)] ?? 0) }));
+    const utilRest = Math.max(0, (d.util_percent ?? 0) - shares.reduce((a, x) => a + x.pct, 0));
+    const utilSegments: Segment[] = perInstance
+      ? [[systemLabel, utilRest, 'var(--sub)', `${utilRest}%`], ...shares.map((x): Segment => [x.name, x.pct, x.color, `${x.pct}%`])]
+      : [[t('mon.util'), d.util_percent ?? 0, 'var(--accent)', util]];
     const memLabel = d.unified ? t('mon.unified') : 'VRAM';
     let memory: ReactNode;
     if (!d.supports.mem) {
@@ -122,8 +129,8 @@ export function Monitor() {
     return (
       <MonitorBox key={`GPU-${n}`} title={`GPU-${n}`} summary={d.name}>
         <DeviceHead n={0} name="GPU" figures={`${util} · ${temp}`} />
-        <Bar segments={[[d.name, d.util_percent ?? 0, 'var(--accent)', '']]} off={!d.supports.util} />
-        {!d.supports.util && <div className="sub off-note">{t('mon.unsupported')}</div>}
+        <Bar segments={utilSegments} off={!d.supports.util} />
+        {d.supports.util ? <Legend segments={utilSegments} /> : <div className="sub off-note">{t('mon.unsupported')}</div>}
         {memory}
       </MonitorBox>
     );
