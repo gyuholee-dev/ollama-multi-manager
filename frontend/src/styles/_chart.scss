@@ -36,12 +36,16 @@
   // the graph's panel
   .plot {
     position: relative;
+    box-sizing: border-box;
+    height: 74px; // 64px of graph inside 5px of padding, the same in every graph
     margin-top: 4px;
     padding: 5px;
+    overflow: hidden; // the average box never sticks out of the panel
     border-radius: 6px;
     background: var(--bg);
 
     .rqc {
+      height: 64px;
       margin-top: 0;
       border-radius: 0;
       background: none;
@@ -56,7 +60,7 @@
     font-size: .6875rem;
     line-height: 1;
     padding: 3px 6px;
-    border-radius: 6px;
+    border-radius: 999px;
     background: color-mix(in srgb, var(--bg) 80%, var(--sub)); // a shade apart from the graph, so the number stands out and stays readable over the line
     color: var(--sub);
     pointer-events: none;

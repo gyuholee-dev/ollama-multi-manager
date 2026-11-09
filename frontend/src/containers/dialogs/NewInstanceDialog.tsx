@@ -53,6 +53,7 @@ function Form({ port: firstPort }: { port: number }) {
   const [idle, setIdle] = useState('10');
   const [lan, setLan] = useState(false);
   const [key, setKey] = useState('');
+  const [saveReq, setSaveReq] = useState(false);
   const [allowed, setAllowed] = useState<string[]>([]);
   const installed = useModelStore((s) => s.list);
 
@@ -72,7 +73,7 @@ function Form({ port: firstPort }: { port: number }) {
       options: {
         gpu: gpu === 'auto' || gpu === 'cpu' ? gpu : +gpu, context_length: 2048 * 2 ** (ctx - 1), keep_alive_min: KEEP[keep] ?? 5,
         max_loaded_models: maxLoaded, num_parallel: parallel, flash_attention: flash, kv_cache_type: kvq,
-        models_path: null, listen: lan ? 'lan' : 'local', api_key: key.trim() || null, allowed_models: allowed,
+        models_path: null, listen: lan ? 'lan' : 'local', api_key: key.trim() || null, allowed_models: allowed, save_requests: saveReq,
         auto_start: auto, idle_stop_min: auto ? Math.max(0, +idle || 0) : 0,
       },
     };
@@ -116,6 +117,8 @@ function Form({ port: firstPort }: { port: number }) {
             <div className="f row"><label htmlFor="as">{t('f.auto')}</label><input id="as" className="sw" type="checkbox" role="switch" checked={auto} onChange={(e) => setAuto(e.target.checked)} /></div>
             {auto && <div className="f" id="istw"><div className="f row"><label htmlFor="ist">{t('f.idle')}</label></div><input id="ist" type="number" min={0} max={1440} value={idle} onChange={(e) => setIdle(e.target.value)} /></div>}
             <div className="f row"><label htmlFor="lan">{t('f.lan')}</label><input id="lan" className="sw" type="checkbox" role="switch" checked={lan} onChange={(e) => setLan(e.target.checked)} /></div>
+            <div className="f row"><label htmlFor="sr">{t('f.saveReq')}</label><input id="sr" className="sw" type="checkbox" role="switch" checked={saveReq} onChange={(e) => setSaveReq(e.target.checked)} /></div>
+            {saveReq && <div className="sub">{t('f.saveReqHint')}</div>}
             <div className="f"><div className="f row"><label htmlFor="ak">{t('f.key')}</label></div>
               <span className="pr"><input id="ak" autoComplete="off" spellCheck={false} placeholder={t('f.keyPh')} value={key} onChange={(e) => setKey(e.target.value)} />
                 <button type="button" onClick={() => setKey(randomKey())}>{t('btn.genKey')}</button></span></div>

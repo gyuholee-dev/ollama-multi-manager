@@ -204,7 +204,7 @@ async def test_errors_models_and_history(env):
     assert [x["status"] for x in r["requests"]] == [502, 200, 200]  # newest first
     first = r["requests"][1]
     assert first["model"] == "b" and first["path"] == "/api/generate" and first["tokens"] == 4 and first["client"] == "127.0.0.1"
-    assert not any(k in ("prompt", "response", "content", "messages") for x in r["requests"] for k in x)  # nothing typed or answered is kept
+    assert not any(k in ("prompt", "response", "content", "messages") for x in r["requests"] for k in x)  # the list carries no content
     assert "omm_instance_request_errors_total" in prometheus.render(await env.app.state.collector.collect(), {inst["id"]: "p"})
 
 
@@ -514,3 +514,48 @@ async def test_instance_history_keeps_readings_of_a_running_instance_and_forgets
     await wait_for(lambda: env.app.state.manager.status(iid)["state"] == "stopped")
     collector._record(await collector.collect())
     assert (await env.client.get(f"/monitor/instances/{iid}/history")).json() == {"samples": []}
+
+
+async def test_the_request_journal_keeps_content_only_when_asked_to(env):
+    off = await start(env, "off")
+    on = await start(env, "on", save_requests=True)
+    for inst in (off, on):
+        assert (await gen(inst["port"], n=3)).status_code == 200
+        assert (await gen(inst["port"], n=2, path="/api/chat")).status_code in (200, 404)
+    async with httpx.AsyncClient(timeout=30) as c:  # an image-sized string and a long prompt are shortened
+        body = {"model": "m", "prompt": "x" * 3000, "stream": True, "options": {"num_predict": 2}}
+        assert (await c.post(f"http://127.0.0.1:{on['port']}/api/generate", json=body)).status_code == 200
+    await wait_for(lambda: len(env.app.state.manager.requests(on["id"])["requests"]) == 3)
+
+    quiet = (await env.client.get(f"/instances/{off['id']}/requests")).json()["requests"]
+    assert quiet and all(x["saved"] is False for x in quiet)
+    detail = (await env.client.get(f"/instances/{off['id']}/requests/{quiet[0]['id']}")).json()
+    assert "request" not in detail and "response" not in detail
+
+    rows = (await env.client.get(f"/instances/{on['id']}/requests")).json()["requests"]
+    assert all(x["saved"] is True and "request" not in x and "response" not in x for x in rows)  # the list stays light
+    newest = (await env.client.get(f"/instances/{on['id']}/requests/{rows[0]['id']}")).json()
+    assert newest["model"] == "m" and '"prompt"' in newest["request"] and "[3,000 characters]" in newest["request"]
+    assert newest["response"]
+    assert (await env.client.get(f"/instances/{on['id']}/requests/nope")).status_code == 404
+
+    journal = env.app.state.manager.request_log.path(on["id"])
+    assert journal.exists()
+    await env.client.post(f"/instances/{on['id']}/stop")
+    await wait_for(lambda: env.app.state.manager.status(on["id"])["state"] == "stopped")
+    assert len((await env.client.get(f"/instances/{on['id']}/requests")).json()["requests"]) == 3  # a stopped instance keeps its list
+    assert (await env.client.delete(f"/instances/{on['id']}")).status_code in (200, 204)
+    assert not journal.exists()
+
+
+def test_answers_are_put_together_from_streamed_lines():
+    from app.services.request_log import answer_text
+    nd = b'{"response":"Hel","done":false}\n{"response":"lo","done":false}\n{"done":true,"eval_count":2}\n'
+    assert answer_text(nd) == "Hello"
+    chat = b'{"message":{"role":"assistant","content":"Hi "}}\n{"message":{"role":"assistant","content":"there"},"done":true}\n'
+    assert answer_text(chat) == "Hi there"
+    sse = b'data: {"choices":[{"delta":{"content":"A"}}]}\n\ndata: {"choices":[{"delta":{"content":"B"}}]}\n\ndata: [DONE]\n'
+    assert answer_text(sse) == "AB"
+    assert answer_text(nd[:-10]) == "Hello"  # cut inside the last line
+    assert '"error"' in answer_text(b'{"error":"boom"}')
+    assert answer_text(b"plain text") == "plain text"

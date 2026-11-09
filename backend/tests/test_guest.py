@@ -51,6 +51,7 @@ async def test_guests_read_without_a_token_and_see_no_secrets(tmp_path, fake_exe
                 assert (await guest.get(f"{g}/info")).json()["guest"] is True
                 for path in ("/monitor/snapshot", "/monitor/history", f"/monitor/instances/{inst['id']}/history", "/monitor/requests", "/logs", "/pulls", f"/instances/{inst['id']}/requests"):
                     assert (await guest.get(f"{g}{path}")).status_code == 200, path
+                assert (await guest.get(f"{g}/instances/{inst['id']}/requests/abc")).status_code != 200  # saved content is not for guests
             assert (await main.get("/info")).json()["guest"] is False       # the main API is untouched
             assert (await main.get("/instances")).json()[0]["options"]["api_key"] == "super-secret-key"
 

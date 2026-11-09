@@ -151,6 +151,12 @@ async def instance_requests(iid: int, request: Request, limit: int = 50) -> dict
     return request.app.state.manager.requests(iid, max(1, min(limit, 200)))
 
 
+@api.get("/instances/{iid}/requests/{rid}")
+async def instance_request(iid: int, rid: str, request: Request) -> dict[str, Any]:
+    """What one request asked and what it was answered. Not offered to guests (see GUEST_READ_PATHS)."""
+    return request.app.state.manager.request_detail(iid, rid)
+
+
 @api.post("/instances/{iid}/start")
 async def start_instance(iid: int, request: Request) -> dict[str, Any]:
     return await request.app.state.manager.start(iid)

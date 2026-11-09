@@ -34,6 +34,7 @@ from app.db import Database
 from app.schemas import InstanceCreate, InstanceOptions, InstanceUpdate
 from app.services.hub import Hub
 from app.services.proxy import InstanceProxy, ProxyError, norm_model
+from app.services.request_log import RequestLog
 from app.services.request_stats import RequestStats
 from app.services.settings import SettingsService
 
@@ -162,6 +163,7 @@ class InstanceManager:
         self.db, self.hub, self.settings = db, hub, settings
         self.log_dir = data_dir / "logs"
         self.log_dir.mkdir(parents=True, exist_ok=True)
+        self.request_log = RequestLog(self.log_dir)
         self.handles: dict[int, Handle] = {}
         self.last_exit: dict[int, dict[str, Any]] = {}
         self.logs: dict[int, deque] = {}
@@ -235,6 +237,7 @@ class InstanceManager:
             raise InstanceError("running", "Stop the instance before deleting it", 409)
         self.db.execute("DELETE FROM instances WHERE id=?", (iid,))
         self.request_stats.delete_instance(iid)
+        self.request_log.delete(iid)
         self.logs.pop(iid, None)
         self.last_exit.pop(iid, None)
         self._log(0, "info", f"Deleted {row['name']}")
@@ -300,6 +303,7 @@ class InstanceManager:
             proxy = await self._open_proxy(iid, row, opts)
         proxy.attach(inner, opts.num_parallel)
         proxy.set_allowed(opts.allowed_models)
+        proxy.save_content = opts.save_requests
 
         log_path = self.log_dir / f"instance-{iid}.log"
         if log_path.exists() and log_path.stat().st_size > LOG_FILE_MAX_BYTES:
@@ -450,13 +454,27 @@ class InstanceManager:
         for p in alive:
             _signal(p, kill=True)
 
+    def _journal(self, iid: int, rec: Any, request: str | None, response: str | None) -> None:
+        self.request_log.add(iid, {
+            "ts": rec.ts, "path": rec.path, "model": rec.model, "status": rec.status, "outcome": rec.outcome,
+            "duration": round(rec.latency, 3), "ttft": round(rec.ttft, 3) if rec.ttft is not None else None,
+            "tokens": rec.tokens, "prompt_tokens": rec.prompt_tokens, "client": rec.client,
+        }, request, response)
+
     def requests(self, iid: int, limit: int = 50) -> dict[str, Any]:
-        """Recent requests relayed for this instance, plus the per-model numbers (last 5 minutes)."""
+        """The newest requests relayed for this instance (read from its request journal), plus the per-model numbers (last 5 minutes)."""
         self._row(iid)
         h = self.handles.get(iid)
-        if h is None or h.proxy is None:
-            return {"requests": [], "models": {}}
-        return {"requests": h.proxy.stats.recent(limit), "models": h.proxy.stats.snapshot()["models"]}
+        models = h.proxy.stats.snapshot()["models"] if h is not None and h.proxy is not None else {}
+        return {"requests": self.request_log.recent(iid, limit), "models": models}
+
+    def request_detail(self, iid: int, rid: str) -> dict[str, Any]:
+        """One journal entry with what was asked and answered (empty when content saving was off for it)."""
+        self._row(iid)
+        entry = self.request_log.entry(iid, rid)
+        if entry is None:
+            raise InstanceError("not_found", "That request is no longer in the journal", 404)
+        return entry
 
     async def models(self, iid: int) -> list[dict[str, Any]]:
         """Models this running instance can serve (asks the instance itself, so a custom models path is respected)."""
@@ -498,7 +516,8 @@ class InstanceManager:
         if not port_free(port, host):
             raise InstanceError("port_in_use", f"Port {port} is already in use", 409)
         proxy = InstanceProxy(row["name"], port, None, opts.num_parallel, recorder=lambda rec: self.request_stats.record(iid, rec),
-                              host=host, api_key=opts.api_key)
+                              host=host, api_key=opts.api_key, journal=lambda rec, req, resp: self._journal(iid, rec, req, resp))
+        proxy.save_content = opts.save_requests
         proxy.ensure = lambda: self.ensure_running(iid)
         proxy.set_allowed(opts.allowed_models)
         if opts.listen == "lan" and not opts.api_key:

@@ -1,6 +1,6 @@
 import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react';
 import { api } from '@/api/client';
-import type { InstanceSample, Perf, RequestsResponse, SeriesPoint } from '@/api/types';
+import type { InstanceSample, Perf, RequestDetail, RequestEntry, RequestsResponse, SeriesPoint } from '@/api/types';
 import { BarChart, LineChart, niceMax } from '@/components/charts/Charts';
 import { Collapse } from '@/components/common/Collapse';
 import type { InstanceView } from '@/lib/derive';
@@ -8,7 +8,7 @@ import { expAt, fmtUp, hms } from '@/lib/format';
 import { gb } from '@/lib/units';
 import { useT } from '@/locales/useT';
 import { useLogStore } from '@/stores/logStore';
-import { MAX_SAMPLES, useHistoryStore, type Sample } from '@/stores/historyStore';
+import { useHistoryStore, type Sample } from '@/stores/historyStore';
 import { useMonitorStore } from '@/stores/monitorStore';
 import { useUiStore } from '@/stores/uiStore';
 
@@ -38,6 +38,43 @@ function Cell({ label, value, unit, tone }: { label: string; value: ReactNode; u
       <div className="sub">{label}</div>
       <span className="val" style={tone ? { color: `var(${tone})` } : undefined}>{value}{unit ? <small>{unit}</small> : null}</span>
     </div>
+  );
+}
+
+/** One line of the recent-request list; opened, it shows what was asked and answered (read from the journal when first opened). */
+function RequestRow({ iid, r }: { iid: number; r: RequestEntry }) {
+  const t = useT();
+  const [open, setOpen] = useState(false);
+  const [detail, setDetail] = useState<RequestDetail | 'failed' | null>(null);
+  const toggle = () => {
+    setOpen(!open);
+    if (!open && detail === null) {
+      api.get<RequestDetail>(`/instances/${iid}/requests/${r.id}`).then(setDetail, () => setDetail('failed'));
+    }
+  };
+  return (
+    <>
+      <tr className={`rqr ${r.outcome === 'error' ? 'bad' : r.outcome === 'cancelled' ? 'cx' : ''}${open ? ' op' : ''}`} onClick={toggle} aria-expanded={open}>
+        <td><span className="material-icons rqa">chevron_right</span>{hms(r.ts * 1000)}</td><td>{r.path}</td>
+        <td className="r">{r.outcome === 'cancelled' ? t('rq.cancelled') : r.status}</td>
+        <td className="r">{r.duration.toFixed(1)} s</td><td className="r">{r.prompt_tokens ?? '-'} / {r.tokens ?? '-'}</td></tr>
+      {open && (
+        <tr className="rqd"><td colSpan={5}>
+          {detail === null ? <div className="sub">…</div> : detail === 'failed' ? <div className="sub">{t('rq.noDetail')}</div> : (
+            <>
+              <div className="sub">{t('rq.model')}: <span className="val">{detail.model || '-'}</span> · {t('rq.client')}: <span className="val">{detail.client || '-'}</span>
+                {detail.ttft != null && <> · {t('im.ttft')}: <span className="val">{detail.ttft.toFixed(1)} s</span></>}</div>
+              {detail.saved ? (
+                <>
+                  <div className="sub rqh">{t('rq.asked')}</div><pre className="rqp">{detail.request}</pre>
+                  <div className="sub rqh">{t('rq.answered')}</div><pre className="rqp">{detail.response || '-'}</pre>
+                </>
+              ) : <div className="sub rqh">{t('rq.notSaved')}</div>}
+            </>
+          )}
+        </td></tr>
+      )}
+    </>
   );
 }
 
@@ -178,9 +215,9 @@ export function MonitorBody({ id, view }: { id: number; view: InstanceView }) {
             </Collapse>
             <Collapse id="hour" title={t('im.hour')}>
               <div className="sc" style={{ marginBottom: 12 }}>
-                <Cell label={t('im.total')} value={total} unit={` ${t('u.case')}`} />
-                <Cell label={t('c.fail')} value={errors} unit={` ${t('u.case')}`} tone={errors ? '--err' : undefined} />
-                <Cell label={t('im.tokens')} value={`${tokIn} / ${tokOut}`} />
+                <Cell label={t('im.total')} value={<>{total} / <span style={errors ? { color: 'var(--err)' } : undefined}>{errors}</span></>} unit={` ${t('u.case')}`} />
+                <Cell label={t('im.tokIn')} value={tokIn} />
+                <Cell label={t('im.tokOut')} value={tokOut} />
               </div>
               <BarChart title={t('im.reqs')} value={nowReq} max={reqMax} bars={series.map((x) => ({ total: x.requests, errors: x.errors }))} left={hourLeft} right={hourRight} />
               <LineChart title={t('im.speed')} value={nowSpeed} points={series.map((x) => x.tok_per_s)} max={speedMax} left={hourLeft} right={hourRight} floor={1}
@@ -211,7 +248,6 @@ export function MonitorBody({ id, view }: { id: number; view: InstanceView }) {
               {live ? <LineChart title={t('im.conc')} value={last ? `${last.processing} + ${last.queued}` : undefined}
                 points={slots.map((x) => (x ? x.processing + x.queued : null))} max={view.parallel} left={liveLeft} right={liveRight} floor={1} format={(v) => v.toFixed(1)} /> : collecting}
             </Collapse>
-            <div className="sub" style={{ marginTop: 6 }}>{t('im.keepNote', { n: MAX_SAMPLES })}</div>
           </div>
           )}
 
@@ -220,13 +256,8 @@ export function MonitorBody({ id, view }: { id: number; view: InstanceView }) {
             <Collapse id="recent" title={t('rq.recent')}>
               {recent.length ? (
                 <div className="rqw"><table className="rq"><tbody>
-                  <tr><th>{t('rq.time')}</th><th>{t('rq.path')}</th><th>{t('rq.model')}</th><th className="r">{t('rq.status')}</th><th className="r">{t('rq.dur')}</th><th className="r">{t('rq.tok')}</th></tr>
-                  {recent.map((r, k) => (
-                    <tr key={`${r.ts}-${k}`} className={r.outcome === 'error' ? 'bad' : r.outcome === 'cancelled' ? 'cx' : ''}>
-                      <td>{hms(r.ts * 1000)}</td><td>{r.path}</td><td>{r.model || '-'}</td>
-                      <td className="r">{r.outcome === 'cancelled' ? t('rq.cancelled') : r.status}</td>
-                      <td className="r">{r.duration.toFixed(1)} s</td><td className="r">{r.prompt_tokens ?? '-'} / {r.tokens ?? '-'}</td></tr>
-                  ))}
+                  <tr><th>{t('rq.time')}</th><th>{t('rq.path')}</th><th className="r">{t('rq.status')}</th><th className="r">{t('rq.dur')}</th><th className="r">{t('rq.tok')}</th></tr>
+                  {recent.map((r) => <RequestRow key={r.id} iid={id} r={r} />)}
                 </tbody></table></div>
               ) : <div className="sub">{t('rq.none')}</div>}
             </Collapse>

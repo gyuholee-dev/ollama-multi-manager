@@ -5,7 +5,7 @@ import { buildViews, perfAll, sortViews, vramByGpu } from './derive';
 
 const options = {
   gpu: 'auto', context_length: 4096, keep_alive_min: 5, max_loaded_models: 1, num_parallel: 1, flash_attention: false,
-  kv_cache_type: 'f16', models_path: null, listen: 'local', auto_start: false, idle_stop_min: 0, api_key: null,
+  kv_cache_type: 'f16', models_path: null, listen: 'local', auto_start: false, idle_stop_min: 0, api_key: null, save_requests: false,
 } as const;
 
 const instance = (id: number, name: string, port: number, state: Instance['status']['state'] = 'running'): Instance => ({

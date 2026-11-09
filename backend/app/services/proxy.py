@@ -29,6 +29,8 @@ from starlette.requests import Request
 from starlette.responses import JSONResponse, Response, StreamingResponse
 from starlette.routing import Route
 
+from .request_log import answer_text, shorten_request
+
 log = logging.getLogger("omm.proxy")
 
 # Only these are counted; everything else (tags, ps, pull, ...) is relayed without being measured.
@@ -39,8 +41,8 @@ INFERENCE_PATHS = frozenset({
 HOP_BY_HOP = frozenset({"connection", "keep-alive", "proxy-authenticate", "proxy-authorization", "te", "trailers", "transfer-encoding", "upgrade", "host"})
 SKIP_RESPONSE = HOP_BY_HOP | {"date", "server"}  # the proxy's own server adds these
 STATS_TAIL = 64 * 1024  # the stats object is at the end of the answer; keep only that much
+ANSWER_CAP = 1024 * 1024  # bytes of an answer collected for the request journal (when content saving is on)
 WINDOW_SECONDS = 300.0
-HISTORY_SIZE = 200
 
 
 class ProxyError(RuntimeError):
@@ -150,7 +152,6 @@ class PerfStats:
         self.parallel = max(1, parallel)
         self.inflight: dict[str, int] = {}  # model -> requests currently relayed
         self.records: deque[Record] = deque()
-        self.history: deque[Record] = deque(maxlen=HISTORY_SIZE)  # newest last; kept past the 5-minute window
         self.total = 0
         self.errors_total = 0
         self.tokens_total = 0
@@ -166,7 +167,6 @@ class PerfStats:
         else:
             self.inflight.pop(model, None)
         self.records.append(rec)
-        self.history.append(rec)
         self.total += 1
         if rec.outcome == "error":
             self.errors_total += 1
@@ -220,22 +220,16 @@ class PerfStats:
             m["tok_per_s"] = m["tokens"] / m["eval_seconds"] if m["eval_seconds"] > 0 else None
         return out
 
-    def recent(self, limit: int) -> list[dict[str, Any]]:
-        """Newest first. No prompts or answers are kept, only what happened to each request."""
-        return [
-            {"ts": r.ts, "path": r.path, "model": r.model, "status": r.status, "outcome": r.outcome,
-             "duration": round(r.latency, 3), "ttft": round(r.ttft, 3) if r.ttft is not None else None,
-             "tokens": r.tokens, "prompt_tokens": r.prompt_tokens, "client": r.client}
-            for r in list(self.history)[::-1][:limit]
-        ]
-
 
 class InstanceProxy:
     def __init__(self, name: str, port: int, upstream_port: int | None, parallel: int, recorder: Callable[[Record], None] | None = None,
-                 host: str = "127.0.0.1", api_key: str | None = None):
+                 host: str = "127.0.0.1", api_key: str | None = None,
+                 journal: Callable[[Record, str | None, str | None], None] | None = None):
         self.name, self.port, self.upstream_port = name, port, upstream_port  # upstream None = standby (nothing behind the port)
         self.host, self.api_key = host, api_key  # host 0.0.0.0 = reachable from the network
         self.recorder = recorder  # called with every finished request (the manager stores per-minute sums)
+        self.journal = journal  # called with every finished request, plus its body and answer when save_content is on
+        self.save_content = False  # keep what was asked and answered (the instance's "save request content" option)
         self.stats = PerfStats(parallel)
         self.ready = False  # True once the upstream answers; requests arriving earlier wait (see ensure)
         self.ensure: Callable[[], Awaitable[bool]] | None = None  # set by the manager: make the upstream ready, True if it is
@@ -314,10 +308,12 @@ class InstanceProxy:
         if self.allowed and request.method == "GET" and path in LIST_PATHS:
             return await self._filtered_list(request, path, headers)
         model = ""
+        req_body = b""
         if measured and self.draining:
             return JSONResponse({"error": "The instance is stopping"}, status_code=503, headers={"Retry-After": "5"})
         if measured:
             body = await request.body()  # small JSON; read whole to learn the model name
+            req_body = body
             model = model_of(body)
             content: Any = body
             self.stats.begin(model)
@@ -327,7 +323,7 @@ class InstanceProxy:
 
         client = request.client.host if request.client else ""
 
-        def finish(outcome: str, status: int, ttft: float | None, tail: bytes, streamed: bool = False) -> None:
+        def finish(outcome: str, status: int, ttft: float | None, tail: bytes, streamed: bool = False, answer: bytes = b"") -> None:
             if not measured:
                 return
             latency = time.monotonic() - started
@@ -340,6 +336,12 @@ class InstanceProxy:
                     self.recorder(rec)
                 except Exception:  # statistics must never break a request
                     log.exception("Could not store request statistics")
+            if self.journal is not None:
+                try:
+                    saved = self.save_content
+                    self.journal(rec, shorten_request(req_body) if saved else None, answer_text(answer) if saved else None)
+                except Exception:  # the journal must never break a request either
+                    log.exception("Could not write the request journal")
 
         try:
             resp = await self._client.send(self._client.build_request(request.method, url, headers=headers, content=content), stream=True)
@@ -352,6 +354,8 @@ class InstanceProxy:
             tail = b""
             outcome = "cancelled"  # stays so when the client goes away before the answer is complete
             sent = 0
+            answer = bytearray()
+            keep_answer = measured and self.save_content
             try:
                 async for chunk in resp.aiter_raw():
                     if ttft is None:
@@ -359,6 +363,8 @@ class InstanceProxy:
                     sent += len(chunk)
                     if measured:
                         tail = (tail + chunk)[-STATS_TAIL:]
+                    if keep_answer and len(answer) < ANSWER_CAP:
+                        answer += chunk[: ANSWER_CAP - len(answer)]
                     yield chunk
                 outcome = "ok" if resp.status_code < 400 else "error"
             except httpx.HTTPError:
@@ -369,7 +375,7 @@ class InstanceProxy:
                     outcome = "ok"  # the client left only after receiving everything
                 with anyio.CancelScope(shield=True):
                     await resp.aclose()  # closing the upstream request is what makes Ollama stop generating
-                finish(outcome, resp.status_code, ttft, tail, resp.headers.get("content-type", "").startswith("text/event-stream"))
+                finish(outcome, resp.status_code, ttft, tail, resp.headers.get("content-type", "").startswith("text/event-stream"), bytes(answer))
 
         out_headers = {k: v for k, v in resp.headers.items() if k.lower() not in SKIP_RESPONSE}
         return StreamingResponse(body(), status_code=resp.status_code, headers=out_headers)

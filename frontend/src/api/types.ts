@@ -15,6 +15,7 @@ export interface InstanceOptions {
   auto_start: boolean;
   idle_stop_min: number;
   api_key: string | null; // a guest only ever sees "********"
+  save_requests?: boolean; // keep the content of requests and answers in the instance's request journal
   allowed_models?: string[]; // the models the instance serves; empty or missing = every installed model
 }
 
@@ -185,6 +186,8 @@ export interface InstalledModel {
 }
 
 export interface RequestEntry {
+  id: string;
+  saved: boolean; // the journal holds what was asked and answered (the instance's "save request content" option was on)
   ts: number; // seconds
   path: string;
   model: string;
@@ -195,6 +198,12 @@ export interface RequestEntry {
   tokens: number | null;
   prompt_tokens: number | null;
   client: string;
+}
+
+/** One journal entry as the detail call returns it: the list's numbers plus the saved content. */
+export interface RequestDetail extends RequestEntry {
+  request?: string;
+  response?: string;
 }
 
 export interface RequestsResponse {

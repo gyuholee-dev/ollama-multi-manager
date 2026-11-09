@@ -10,9 +10,11 @@
 }
 
 .rqw {
-  max-height: 220px;
+  max-height: 360px;
+  padding: 0 8px;
+  margin: 4px -14px 0 -14px;
+  scrollbar-gutter: stable;
   overflow: auto;
-  margin-top: 4px;
 }
 
 .rq {
@@ -43,5 +45,68 @@
 
   tr.cx td {
     color: var(--sub);
+  }
+
+  th:first-child,
+  td:first-child {
+    padding-left: 12px;
+  }
+
+  th:last-child,
+  td:last-child {
+    padding-right: 12px;
+  }
+
+  .rqr {
+    cursor: pointer;
+
+    td {
+      transition: background-color .15s;
+    }
+
+    td:first-child {
+      border-radius: 999px 0 0 999px;
+    }
+
+    td:last-child {
+      border-radius: 0 999px 999px 0;
+    }
+
+    &:hover td {
+      background: var(--bg);
+    }
+
+    .rqa {
+      font-size: 1rem;
+      display: inline-block;
+      vertical-align: middle;
+      margin: 0 2px 0 -4px;
+      transition: transform .15s;
+    }
+
+    &.op .rqa {
+      transform: rotate(90deg);
+    }
+  }
+
+  .rqd td {
+    white-space: normal;
+    padding: 4px 12px 10px 28px;
+  }
+
+  .rqh {
+    margin-top: 8px;
+  }
+
+  .rqp {
+    margin: 2px 0 0;
+    padding: 6px 8px;
+    max-height: 160px;
+    overflow: auto;
+    border-radius: 6px;
+    background: var(--bg);
+    font: inherit;
+    white-space: pre-wrap;
+    word-break: break-word;
   }
 }
