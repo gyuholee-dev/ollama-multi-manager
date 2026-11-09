@@ -41,7 +41,7 @@ export const splitModel = (name: string): { family: string; tag: string } => {
   return { family, tag: name.slice(family.length + 1) };
 };
 
-/** "Automatic", "CPU" or "GPU 1 · NVIDIA ...": how an instance's device setting is shown. */
+/** "Automatic", "CPU" or "GPU-1 · NVIDIA ...": how an instance's device setting is shown. */
 /** What the GPU's memory is called: VRAM, or unified memory when it is shared with the CPU (Apple silicon, integrated graphics). */
 /** Every GPU shares its memory with the CPU (Apple silicon, integrated graphics): there is one pool, not a separate VRAM. */
 export const isUnified = (devices: { unified: boolean }[]): boolean => devices.length > 0 && devices.every((d) => d.unified);

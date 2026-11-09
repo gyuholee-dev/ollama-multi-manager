@@ -23,7 +23,7 @@ const en: Messages = {
   'u.cnt': '', 'u.case': '',
   'keep.unlimited': 'Unlimited', 'keep.min': '{n} min', 'keep.hour': '{n} h', 'keep.day': '{n} d',
   'exp.none': 'No expiry', 'exp.at': 'Expires {t}',
-  'mon.unified': 'UMA', 'mon.gpuShare': 'GPU in use {used} GB · limit {limit} GB', 'mon.gpuOther': 'Other GPU', 'mon.unsupported': 'Not supported', 'gpu.auto': 'Auto', 'gpu.n': 'GPU {g} · {name}',
+  'mon.unified': 'UMA', 'mon.umaFigures': 'GPU {gpu} / {limit} GB · ALL {used} / {total} GB ({pct}%)', 'mon.gpuOther': 'Other GPU', 'mon.unsupported': 'Not supported', 'gpu.auto': 'Auto', 'gpu.n': 'GPU-{g} · {name}',
 
   'state.running': 'Running', 'state.stopped': 'Stopped', 'state.starting': 'Starting', 'state.unreachable': 'Unresponsive',
 

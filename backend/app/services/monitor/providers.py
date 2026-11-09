@@ -20,7 +20,7 @@ def full_support() -> dict[str, bool]:
 class GpuInfo:
     """One compute device as a provider reports it.
 
-    `index` is the number the app shows (GPU 0, GPU 1, ...) and is assigned by the CompositeProvider across all
+    `index` is the number the app shows (GPU-0, GPU-1, ...) and is assigned by the CompositeProvider across all
     vendors; `env_index` is the device's own number for its vendor's driver (CUDA_VISIBLE_DEVICES and the like).
     `supports` says which readings this device can give at all, so the UI can tell "not supported" from "no value yet".
     `unified` marks memory shared with the CPU (Apple silicon, integrated graphics): there is no separate VRAM then.

@@ -61,7 +61,7 @@ describe('vramByGpu', () => {
     expect(usage[0]?.pct).toBe(75);
   });
 
-  it('puts an estimate on GPU 0 for "auto", on the chosen GPU otherwise, and not at all for CPU', () => {
+  it('puts an estimate on GPU-0 for "auto", on the chosen GPU otherwise, and not at all for CPU', () => {
     const estimated = (gpuOption: 'auto' | 'cpu' | number) => {
       const inst = instance(1, 'a', 11435);
       inst.options.gpu = gpuOption;

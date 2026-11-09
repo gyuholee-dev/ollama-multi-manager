@@ -93,7 +93,7 @@ def build_env(port: int, o: InstanceOptions, base: dict[str, str], default_model
         for k in every:
             env[k] = "-1"  # Apple silicon has no such switch: the proxy asks for zero GPU layers instead (see InstanceProxy.cpu_only)
     elif isinstance(o.gpu, int):
-        # the number is the app's own (GPU 0, 1, ... across vendors); the driver wants its own per-vendor number
+        # the number is the app's own (GPU-0, GPU-1, ... across vendors); the driver wants its own per-vendor number
         dev = next((d for d in devices or [] if d.index == o.gpu), None)
         if dev is None:
             env["CUDA_VISIBLE_DEVICES"] = str(o.gpu)  # devices unknown: assume NVIDIA numbering, as before

@@ -169,7 +169,7 @@ const so={k:'name',d:1},SO=[['name','f.name'],['port','f.port'],['state','f.stat
  setSort=k=>{if(so.k==k)so.d=-so.d;else{so.k=k;so.d=1}render()};
 const GB=a=>a.reduce((t,x)=>t+parseFloat(x.split('·')[1]),0),
  cell=(k,v,u='',c='')=>`<div><div class="sub">${k}</div><span class="val"${c?` style="color:var(${c})"`:''}>${v}${u?`<small>${u}</small>`:''}</span></div>`,
- MONS=['CPU','RAM','GPU','VRAM'],monOn=new Set(MONS),togMon=t=>{monOn.has(t)?monOn.delete(t):monOn.add(t);render()},
+ monOff=new Set(),togMon=t=>{monOff.has(t)?monOff.delete(t):monOff.add(t);render()},monTabs=()=>['CPU','RAM',...(GPUS.length?GPUS.map((_,n)=>'GPU-'+n):['GPU'])],
  SUMS=['ins','usage','perf','status'],sumOn=new Set(['ins','usage']),togSum=t=>{sumOn.has(t)?sumOn.delete(t):sumOn.add(t);renderSum()},
  sbox=(k,cs)=>!sumOn.has(k)?'':`<div class="sb"><span class="ti">${t('sum.'+k)}</span><div class="sc">${cs.join('')}</div></div>`;
 const GSYS=1.6,gOf=i=>{const g=i.gpu||'auto';return g=='cpu'?-1:g=='auto'?(i===ext?1:0):+g},
@@ -184,19 +184,29 @@ function renderSum(){
   sbox('perf',[cell(t('c.reqs'),2,t('u.case')),cell(t('c.latency'),1.4,' s'),cell(t('c.speed'),87,' tok/s')]),
   sbox('status',[cell(t('c.warn'),warn?warn:t('c.ok'),warn?t('u.case'):'',warn?'--warn':'--ok'),cell(t('c.errs'),errs,t('u.case')),cell(t('c.mon'),cfg.extMon?t('c.on'):t('c.off'),cfg.extMon?` :${cfg.monPort}`:''),cell(t('c.updated'),hms(Date.now()).slice(0,5)) ]) ].join('')||`<div class="sub" style="grid-column:1/-1">${t('sum.empty')}</div>`}
 function render(){
- $('mtabs').innerHTML=MONS.map(t=>`<button class="small${monOn.has(t)?' on':''}" onclick="togMon('${t}')">${t=='VRAM'?memN():t}</button>`).join('');
+ $('mtabs').innerHTML=monTabs().map(t=>`<button class="small${monOff.has(t)?'':' on'}" onclick="togMon('${t}')">${t}</button>`).join('');
  $('stabs').innerHTML=SO.map(([k,x])=>`<button class="small${so.k==k?' on':''}" onclick="setSort('${k}')">${t(x)}${so.k==k?mi(so.d>0?'arrow_upward':'arrow_downward'):''}</button>`).join('');
  const runL=list.filter(i=>i.state=='running'),wt=i=>GB(i.loaded)||1,wsum=runL.reduce((a,i)=>a+wt(i),0),share=(i,total)=>total*wt(i)/wsum,anyRun=runL.length>0,S=t('mon.system'),O=t('mon.other'),V=vramByGpu(),used=V.reduce((t,g)=>t+g.used,0),total=V.reduce((t,g)=>t+g.total,0),pct=total?Math.round(used/total*100):0,pmax=V.length?Math.max(...V.map(g=>g.pct)):0;
- const mb=(t,v,body,w='',lbl=t)=>monOn.has(t)?`<div class="sb"><div class="top" style="margin:0"><span class="ti">${lbl}</span><span class="sub"${w}>${v}</span></div>${body}</div>`:'',
+ const mb=(t,v,body,w='',lbl=t)=>!monOff.has(t)?`<div class="sb"><div class="top" style="margin:0"><span class="ti">${lbl}</span><span class="sub"${w}>${v}</span></div>${body}</div>`:'',
   bar=(ps,off)=>`<div class="bar${off?' off':''}">${ps.map(p=>`<i title="${p[0]}" style="width:${p[1]}%;background:${p[2]}"></i>`).join('')}</div>`,
   unsup=()=>`<div class="top" style="margin:8px 0 0"><span>-</span><span class="sub">-</span></div>${bar([],true)}<div class="sub off-note">${t('mon.unsupported')}</div>`,
   leg=(ps)=>`<div class="leg">${ps.map(p=>`<span><s style="background:${p[2]}"></s>${p[0]} ${p[3]}</span>`).join('')}</div>`,
-  gpuRows=!GPUS.length?unsup():[[62,58,214,5],[4,41,28,2]].slice(0,GPUS.length).map(([u,tc,w,sy],n)=>{const ps=V[n].parts,tp=ps.reduce((x,p)=>x+p.v,0),sysU=ps.length?Math.min(sy,u):u,segs=[[S,sysU,'var(--sub)',sysU+'%'],...ps.map(p=>[p.name,(u-sysU)*p.v/tp,p.col,Math.round((u-sysU)*p.v/tp)+'%'])];return `<div class="top" style="margin:${n?14:8}px 0 0"><span>${gpuName(n)}</span><span class="sub">${GSUP.util?u+'%':'-'} · ${GSUP.temp?tc+'°C':'-'}${cfg.gpu=='nv'?` · ${w} W`:''}</span></div>${GSUP.util?bar(segs)+leg(segs):bar([],true)+`<div class="sub off-note">${t('mon.unsupported')}</div>`}`}).join('');
+  headRow=(label,fig,n,warn)=>`<div class="top" style="margin:${n?14:8}px 0 0"><span>${label}</span><span class="sub"${warn?' style="color:var(--warn)"':''}>${fig}</span></div>`,
+  gpuBoxes=()=>!GPUS.length?[mb('GPU','-',headRow('GPU','-',0)+bar([],true)+headRow(memN(),'-',1)+bar([],true)+`<div class="sub off-note">${t('mon.unsupported')}</div>`,'','GPU')]:GPUS.map((_,n)=>{
+    const g=V[n],[u,tc,w,sy]=[[62,58,214,5],[4,41,28,2]][n]||[30,50,100,3],ps=g.parts,tp=ps.reduce((x,p)=>x+p.v,0),sysU=ps.length?Math.min(sy,u):u,
+     segs=[[S,sysU,'var(--sub)',sysU+'%'],...ps.map(p=>[p.name,(u-sysU)*p.v/Math.max(tp,1),p.col,Math.round((u-sysU)*p.v/Math.max(tp,1))+'%'])],
+     util=headRow('GPU',`${GSUP.util?u+'%':'-'} · ${GSUP.temp?tc+'°C':'-'}${cfg.gpu=='nv'?` · ${w} W`:''}`,0)+(GSUP.util?bar(segs)+leg(segs):bar([],true)+`<div class="sub off-note">${t('mon.unsupported')}</div>`);
+    let mem;
+    if(!GSUP.mem)mem=headRow(memN(),'-',1)+bar([],true)+`<div class="sub off-note">${t('mon.unsupported')}</div>`;
+    else if(GUNI){const other=Math.max(0,g.used-ps.reduce((a,p)=>a+p.v,0)),sys=Math.max(0,21.8-g.used),pp=[[S,sys/64*100,'var(--sub)',sys.toFixed(1)+' GB'],...ps.map(p=>[p.name,p.v/64*100,p.col,p.v.toFixed(1)+' GB']),...(other>0.05?[[t('mon.gpuOther'),other/64*100,'var(--line)',other.toFixed(1)+' GB']]:[])];
+      mem=headRow(memN(),t('mon.umaFigures',{gpu:g.used.toFixed(1),limit:g.total,used:'21.8',total:64,pct:34}),1,g.pct>85)+bar(pp)+leg(pp)}
+    else{const pp=[[S,GSYS/g.total*100,'var(--sub)',GSYS.toFixed(1)+' GB'],...ps.map(p=>[p.name,p.v/g.total*100,p.col,p.v.toFixed(1)+' GB'])];mem=headRow(memN(),`${g.used.toFixed(1)} / ${g.total} GB (${g.pct}%)`,1,g.pct>85)+bar(pp)+leg(pp)}
+    return mb(`GPU-${n}`,GPUS[n],util+mem)});
  $('mon').innerHTML=[
   mb('CPU',t('mon.cpu',{pct:23,n:12}),bar([...runL.map(i=>[i.name,share(i,9),`hsl(${list.indexOf(i)*70+210} 60% 55%)`]),[O,14,'var(--sub)']])+leg([...runL.map(i=>[i.name,share(i,9),`hsl(${list.indexOf(i)*70+210} 60% 55%)`,Math.round(share(i,9))+'%']),[O,14,'var(--sub)','14%']])),
   mb('RAM','21.8 / 64 GB (34%)',bar([[S,15/64*100,'var(--sub)'],...runL.map(i=>[i.name,share(i,6.8)/64*100,`hsl(${list.indexOf(i)*70+210} 60% 55%)`])])+leg([[S,15,'var(--sub)','15.0 GB'],...runL.map(i=>[i.name,share(i,6.8),`hsl(${list.indexOf(i)*70+210} 60% 55%)`,share(i,6.8).toFixed(1)+' GB'])])),
-  mb('GPU',GPUS.length?t('mon.gpus',{n:GPUS.length}):'-',gpuRows),
-  mb('VRAM',uni()&&GSUP.mem?'21.8 / 64 GB (34%)':GPUS.length&&GSUP.mem?`${used.toFixed(1)} / ${total} GB (${pct}%)`:'-',!GPUS.length||!GSUP.mem?unsup():uni()?(()=>{const gu=V.reduce((a,g)=>a+g.used,0),parts=V.flatMap(g=>g.parts),other=Math.max(0,gu-parts.reduce((a,p)=>a+p.v,0)),sys=Math.max(0,21.8-gu),ps=[[S,sys/64*100,'var(--sub)',sys.toFixed(1)+' GB'],...parts.map(p=>[p.name,p.v/64*100,p.col,p.v.toFixed(1)+' GB']),...(other>0.05?[[t('mon.gpuOther'),other/64*100,'var(--line)',other.toFixed(1)+' GB']]:[])];return V.map((g,n)=>`<div class="top" style="margin:${n?14:8}px 0 0"><span>${gpuName(n)}</span><span class="sub"${g.pct>85?' style="color:var(--warn)"':''}>${t('mon.gpuShare',{used:g.used.toFixed(1),limit:g.total})}</span></div>`).join('')+bar(ps)+leg(ps)})():V.map((g,n)=>{const ps=[[S,GSYS/g.total*100,'var(--sub)',GSYS.toFixed(1)+' GB'],...g.parts.map(p=>[p.name,p.v/g.total*100,p.col,p.v.toFixed(1)+' GB'])];return `<div class="top" style="margin:${n?14:8}px 0 0"><span>${gpuName(n)}</span><span class="sub"${g.pct>85?' style="color:var(--warn)"':''}>${g.used.toFixed(1)} / ${g.total} GB (${g.pct}%)</span></div>`+bar(ps)+leg(ps.map(p=>[p[0],p[1],p[2],p[3]]))}).join(''),pmax>85?' style="color:var(--warn)"':'',memN()) ].join('')||`<div class="sub" style="grid-column:1/-1">${t('sum.empty')}</div>`;
+  ...gpuBoxes()
+ ].join('')||`<div class="sub" style="grid-column:1/-1">${t('sum.empty')}</div>`;
  renderSum();
  $('grid').innerHTML=sorted().map(i=>`<div class="card"><div class="top"><span class="ti">${i.name}</span><span class="badge ${i.state}">${stL(i.state)}</span></div>
   ${portLine(i.port,i.ctx,i.loaded)}

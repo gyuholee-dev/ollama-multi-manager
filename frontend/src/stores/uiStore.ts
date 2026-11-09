@@ -16,7 +16,7 @@ interface UiState {
   sortKey: SortKey;
   sortDir: 1 | -1;
   sumOn: string[];
-  monOn: string[];
+  monOff: string[]; // system monitor boxes switched off (a box that is not listed is shown: a new GPU starts on)
   imHide: string[]; // the categories of the instance monitor window that are switched off
   imFold: string[]; // the sub-sections of the instance monitor window that are closed
   collapsed: SectionId[];
@@ -48,7 +48,7 @@ export const useUiStore = create<UiState>()(
       sortKey: 'name',
       sortDir: 1,
       sumOn: ['ins', 'usage'],
-      monOn: ['CPU', 'RAM', 'GPU', 'VRAM'],
+      monOff: [],
       imHide: [],
       imFold: [],
       collapsed: [],
@@ -63,14 +63,25 @@ export const useUiStore = create<UiState>()(
         set(sortKey === key ? { sortDir: (-sortDir) as 1 | -1 } : { sortKey: key, sortDir: 1 });
       },
       toggleSum: (id) => set({ sumOn: toggle(get().sumOn, id) }),
-      toggleMon: (id) => set({ monOn: toggle(get().monOn, id) }),
+      toggleMon: (id) => set({ monOff: toggle(get().monOff, id) }),
       toggleImCat: (id) => set({ imHide: toggle(get().imHide, id) }),
       toggleImFold: (id) => set({ imFold: toggle(get().imFold, id) }),
       toggleSection: (id) => set({ collapsed: toggle(get().collapsed, id) }),
     }),
     {
       name: 'omm-ui',
-      partialize: (s) => ({ sortKey: s.sortKey, sortDir: s.sortDir, sumOn: s.sumOn, monOn: s.monOn, imHide: s.imHide, imFold: s.imFold, collapsed: s.collapsed }),
+      version: 1,
+      // version 0 saved the boxes that were on; the choice for CPU and RAM carries over (GPU boxes are per GPU now and start on)
+      migrate: (state, version) => {
+        const s = state as { monOn?: string[]; monOff?: string[] };
+        if (version < 1) {
+          const on = Array.isArray(s.monOn) ? s.monOn : ['CPU', 'RAM'];
+          s.monOff = ['CPU', 'RAM'].filter((k) => !on.includes(k));
+          delete s.monOn;
+        }
+        return s as never;
+      },
+      partialize: (s) => ({ sortKey: s.sortKey, sortDir: s.sortDir, sumOn: s.sumOn, monOff: s.monOff, imHide: s.imHide, imFold: s.imFold, collapsed: s.collapsed }),
     },
   ),
 );
