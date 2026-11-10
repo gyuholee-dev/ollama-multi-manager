@@ -29,8 +29,8 @@ export function ModelPicker({ value, onChange }: { value: string[]; onChange: (m
             {models.map((m) => {
               const id = `pick-${m.name}`;
               return (
-                <div className="f row" key={m.name}>
-                  <label htmlFor={id}>{m.name} · {gb(m.size).toFixed(1)} GB</label>
+                <div className="fld" key={m.name}>
+                  <label className="fld__label" htmlFor={id}>{m.name} · {gb(m.size).toFixed(1)} GB</label>
                   <input id={id} className="sw" type="checkbox" role="switch" checked={picked.has(normModel(m.name))} onChange={(e) => toggle(m.name, e.target.checked)} />
                 </div>
               );

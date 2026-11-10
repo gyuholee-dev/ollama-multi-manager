@@ -8,6 +8,13 @@ a {
   text-decoration: none; // links are never underlined
 }
 
+// one focus ring everywhere, in the accent colour (the browser's own ring takes the system's accent, which is another colour)
+// (:where keeps it weightless, so a control that needs another offset or none just says so)
+:where(button, input, select, textarea, a):focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
 body {
   margin: 0;
   height: 100vh;

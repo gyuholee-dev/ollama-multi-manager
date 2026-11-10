@@ -14,12 +14,18 @@
   --err: light-dark(#c62828,#ff8a80);
   --errbg: light-dark(#fbe3e3,#401a1a);
   --off: light-dark(#e0e0e0,#333);
-  --accent: light-dark(#2563eb,#6b9bff);
+  --accent: #5c8df6; // the same blue in both themes
   --btn: light-dark(#d9d9d9,#363636);
-  --field: light-dark(#d0d0d0,#101010);
+  --field: light-dark(#d0d0d0,#181818);
   --surf: var(--bg);
   --ghost-hover: light-dark(#dcdcdc,#151515);
   --ghost-active: light-dark(#cdcdcd,#0d0d0d);
+
+  // the rows of a form
+  --row-h: 37px;
+  --row-line: color-mix(in srgb,var(--line) 50%,transparent);
+  --row-trim: 9px; // the empty half of a row: its height minus a line of text, halved
+  --fill-hover: light-dark(var(--ghost-hover),var(--card)); // a fill under the pointer on a form's surface (set again by .card)
 
   &[data-theme=light] {
     color-scheme: light;

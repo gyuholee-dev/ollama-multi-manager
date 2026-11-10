@@ -1,21 +1,5 @@
 // controls
 
-#det:has(#pn) .box,
-#det:has(#mp) .box,
-#det:has(#dt) .box,
-#dlg .box {
-  background: var(--bg);
-  --surf: var(--bg);
-}
-
-#det:has(#pn) input,
-#det:has(#mp) input:not([type=checkbox]),
-#det:has(#mp) select,
-#dlg input:not(.sw),
-#dlg select {
-  background: var(--field);
-}
-
 input.sw {
   appearance: none;
   flex: none;
@@ -63,6 +47,12 @@ input.sw {
   padding: 14px;
   border-radius: 12px;
 
+  // on the surface of a dialog or of the monitor window, a box is the darker shade
+  dialog &,
+  .mwin & {
+    background: var(--bg);
+  }
+
   &:last-child {
     margin-bottom: 0;
   }
@@ -87,31 +77,6 @@ label {
   white-space: nowrap;
 }
 
-.f {
-  margin: 10px 0;
-
-  &:last-child {
-    margin-bottom: 0;
-  }
-
-  > label {
-    display: block;
-    width: fit-content;
-    margin-bottom: 6px;
-  }
-
-  &.row {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 8px;
-
-    > label {
-      margin: 0;
-    }
-  }
-}
-
 .cat {
   margin-bottom: 12px;
 
@@ -132,25 +97,6 @@ label {
   margin-bottom: 4px;
   font-weight: 500;
   font-size: 1rem;
-}
-
-.sel {
-  display: block;
-  position: relative;
-
-  select {
-    appearance: none;
-    padding-right: 30px;
-  }
-
-  .material-icons {
-    position: absolute;
-    right: 8px;
-    top: 50%;
-    margin-top: -8px;
-    color: var(--sub);
-    pointer-events: none;
-  }
 }
 
 h3 {

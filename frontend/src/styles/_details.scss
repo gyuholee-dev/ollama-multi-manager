@@ -1,5 +1,46 @@
 // details
 
+// a key and its value on one line (the details and monitor windows)
+.kv {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin: 10px 0;
+
+  &:last-child {
+    margin-bottom: 0;
+  }
+
+  &:has(.ml) {
+    align-items: flex-start;
+  }
+
+  > label {
+    margin: 0;
+  }
+
+  > span {
+    text-align: right;
+  }
+
+  .addr {
+    margin-right: -6px;
+  }
+}
+
+.ml {
+  text-align: right;
+}
+
+.lm + .lm {
+  margin-top: 8px;
+}
+
+.gp {
+  height: 4px;
+}
+
 .rqc {
   display: block;
   width: 100%;

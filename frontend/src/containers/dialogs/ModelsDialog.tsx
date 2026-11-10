@@ -59,9 +59,9 @@ export function ModelsDialog() {
     <Dialog id="det" onClose={close}>
       <DialogTitle id="mdl" onClose={close}>{t('hdr.models')}</DialogTitle>
       <DialogBody>
-      <div className="f"><div className="f row"><label htmlFor="pn">{t('mdl.download')}</label></div>
+      <div className="fld fld--stack mdl-add"><label className="fld__label" htmlFor="pn">{t('mdl.download')}</label>
         <div className="pr">
-          <input id="pn" spellCheck={false} placeholder={t('mdl.dlPh')} value={name} onChange={(e) => setName(e.target.value)}
+          <input id="pn" className="fld__box" spellCheck={false} placeholder={t('mdl.dlPh')} value={name} onChange={(e) => setName(e.target.value)}
             onKeyDown={(e) => { if (e.key === 'Enter') void submit(); }} />
           <button type="button" onClick={() => void submit()}>{t('mdl.download')}</button>
         </div>

@@ -12,7 +12,7 @@ import { useDialogStore } from '@/stores/dialogStore';
 import { useMonitorStore } from '@/stores/monitorStore';
 import { useModelStore } from '@/stores/modelStore';
 
-const Row = ({ k, children }: { k: string; children: ReactNode }) => <div className="f row"><label>{k}</label><span>{children}</span></div>;
+const Row = ({ k, children }: { k: string; children: ReactNode }) => <div className="kv"><label>{k}</label><span>{children}</span></div>;
 
 const Models = ({ items, empty }: { items: { key: string; text: string }[]; empty: string }) => (
   <div className="ml">
@@ -64,8 +64,8 @@ function Details({ view: i }: { view: InstanceView }) {
           <Row k={t('f.parallel')}>{fmtN(i.parallel, t)}</Row>
         </div>
         <div className="box"><span className="ti">{t('d.models')}</span>
-          <div className="f row"><label>{t('d.loaded')}</label><Models empty={t('d.none')} items={i.loaded.map((x) => ({ key: x.name, text: `${x.name} · ${x.gb.toFixed(1)} GB` }))} /></div>
-          <div className="f row"><label>{t('d.avail')}</label><Models empty={t('d.none')} items={availableItems} /></div>
+          <div className="kv"><label>{t('d.loaded')}</label><Models empty={t('d.none')} items={i.loaded.map((x) => ({ key: x.name, text: `${x.name} · ${x.gb.toFixed(1)} GB` }))} /></div>
+          <div className="kv"><label>{t('d.avail')}</label><Models empty={t('d.none')} items={availableItems} /></div>
         </div>
         <div className="box"><span className="ti">{t('d.res')}</span>
           <Row k={t('d.vram', { mem: memoryLabel(devices, t) })}>{vram}</Row>

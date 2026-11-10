@@ -52,16 +52,8 @@
   }
 }
 
-.card>.sel {
-  margin: 10px 0;
-}
-
-.card .sel select {
-  width: 100%;
-  background: var(--bg);
-}
-
 .card {
+  --fill-hover: light-dark(var(--ghost-hover),color-mix(in srgb,var(--card) 86%,var(--text))); // lighter than the card itself
   background: var(--card);
   border: 1px solid var(--line);
   border-radius: 12px;

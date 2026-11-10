@@ -179,7 +179,7 @@ export function MonitorBody({ id, view }: { id: number; view: InstanceView }) {
           <div className="box"><span className="ti">{t('d.models')}</span>
             <Collapse id="loaded" title={t('d.loaded')}>
               {view.loaded.length ? view.loaded.map((x) => (
-                <div className="f row" key={x.name}><label>{x.name} · {x.gb.toFixed(1)} GB</label><span className="sub">{expAt(x.exp, view.keep, t)}</span></div>
+                <div className="kv" key={x.name}><label>{x.name} · {x.gb.toFixed(1)} GB</label><span className="sub">{expAt(x.exp, view.keep, t)}</span></div>
               )) : <div className="sub">{t('d.none')}</div>}
             </Collapse>
             <Collapse id="bymodel" title={t('rq.byModel')}>

@@ -54,3 +54,20 @@
   display: flex;
   gap: 6px;
 }
+
+.model > span:first-child {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.model > .sub {
+  flex: none;
+  white-space: nowrap;
+}
+
+// the model name field above the list in the models window
+.mdl-add {
+  padding: 16px 0 10px;
+}

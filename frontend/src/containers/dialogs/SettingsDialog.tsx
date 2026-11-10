@@ -10,20 +10,26 @@ import { useMonitorStore } from '@/stores/monitorStore';
 import { useSettingsStore, type Cfg } from '@/stores/settingsStore';
 
 const Switch = ({ id, label, hint, checked, onChange }: { id: string; label: string; hint?: string; checked: boolean; onChange: (v: boolean) => void }) => (
-  <div className="f row">
-    {hint ? <div className="ot"><label htmlFor={id}>{label}</label><span className="sub">{hint}</span></div> : <label htmlFor={id}>{label}</label>}<input id={id} className="sw" type="checkbox" role="switch" checked={checked} onChange={(e) => onChange(e.target.checked)} /></div>
+  <div className={hint ? 'fld fld--note' : 'fld'}>
+    <label className="fld__label" htmlFor={id}>{label}</label>
+    <input id={id} className="sw" type="checkbox" role="switch" checked={checked} onChange={(e) => onChange(e.target.checked)} />
+    {hint && <span className="fld__note sub">{hint}</span>}
+  </div>
 );
 
 const Select = ({ id, label, value, options, onChange }: { id: string; label: string; value: string | number; options: [string | number, string][]; onChange: (v: string) => void }) => (
-  <div className="f h"><div className="f row"><label htmlFor={id}>{label}</label></div>
-    <span className="sel">
+  <div className="fld">
+    <label className="fld__label" htmlFor={id}>{label}</label>
+    <span className="fld__select">
       <select id={id} value={value} onChange={(e) => onChange(e.target.value)}>{options.map(([k, text]) => <option key={k} value={k}>{text}</option>)}</select>
       <span className="material-icons">expand_more</span>
     </span>
   </div>
 );
 
-const Box = ({ title, children }: { title: string; children: ReactNode }) => <div className="box"><span className="ti">{title}</span>{children}</div>;
+const Box = ({ title, children }: { title: string; children: ReactNode }) => (
+  <div className="box fgroup"><div className="fgroup__head"><h4 className="fgroup__title">{title}</h4></div>{children}</div>
+);
 
 /** Every change is stored the moment it is made (switches and lists at once, text and numbers when the field is left). */
 export function SettingsDialog() {
@@ -64,30 +70,30 @@ export function SettingsDialog() {
         </Box>
         <Box title={t('set.web')}>
           <Switch id="em" label={t('set.ext')} hint={t('set.extHint')} checked={cfg.extMon} onChange={(v) => apply({ extMon: v }, 'extMon')} />
-          <div className="f h"><div className="f row"><label htmlFor="mport">{t('set.extPort')}</label></div>
-            <input id="mport" type="number" min={1024} max={65535} value={cfg.monPort} onChange={(e) => edit({ monPort: +e.target.value })}
+          <div className="fld"><label className="fld__label" htmlFor="mport">{t('set.extPort')}</label>
+            <input id="mport" className="fld__text" type="number" min={1024} max={65535} value={cfg.monPort} onChange={(e) => edit({ monPort: +e.target.value })}
               onBlur={() => void commitSetting('monPort')} onKeyDown={onEnter('monPort')} /></div>
-          <div className="f h"><div className="f row"><label htmlFor="mpw">{t('set.extPw')}</label></div>
-            <input id="mpw" type="password" autoComplete="new-password" value={pw} placeholder={pwSet ? t('set.extPwSet') : t('set.extPwUnset')}
+          <div className="fld"><label className="fld__label" htmlFor="mpw">{t('set.extPw')}</label>
+            <input id="mpw" className="fld__text" type="password" autoComplete="new-password" value={pw} placeholder={pwSet ? t('set.extPwSet') : t('set.extPwUnset')}
               onChange={(e) => setPw(e.target.value)} onBlur={() => void savePw()} onKeyDown={(e) => { if (e.key === 'Enter') void savePw(); }} /></div>
         </Box>
         <Box title={t('new.server')}>
-          <div className="f"><div className="f row"><label htmlFor="ex">{t('set.exe')}</label></div>
+          <div className="fld fld--stack"><label className="fld__label" htmlFor="ex">{t('set.exe')}</label>
             <span className="pr">
-              <input id="ex" value={cfg.exe} placeholder={t('set.exePh')} onChange={(e) => edit({ exe: e.target.value })}
+              <input id="ex" className="fld__box" value={cfg.exe} placeholder={t('set.exePh')} onChange={(e) => edit({ exe: e.target.value })}
                 onBlur={() => void commitSetting('exe')} onKeyDown={onEnter('exe')} />
               <button type="button" onClick={() => void browse('exe')}>{t('set.browse')}</button>
             </span></div>
-          <div className="f"><div className="f row"><label htmlFor="mp">{t('set.models')}</label></div>
+          <div className="fld fld--stack"><label className="fld__label" htmlFor="mp">{t('set.models')}</label>
             <span className="pr">
-              <input id="mp" value={cfg.modelsPath} placeholder="~/.ollama/models" onChange={(e) => edit({ modelsPath: e.target.value })}
+              <input id="mp" className="fld__box" value={cfg.modelsPath} placeholder="~/.ollama/models" onChange={(e) => edit({ modelsPath: e.target.value })}
                 onBlur={() => void commitSetting('modelsPath')} onKeyDown={onEnter('modelsPath')} />
               <button type="button" onClick={() => void browse('modelsPath')}>{t('set.browse')}</button>
             </span></div>
         </Box>
         <Box title={t('set.update')}>
-          <div className="f row">
-            <label>{t('set.ver', { v: `v${version}` })}</label>
+          <div className="fld fld--btn">
+            <label className="fld__label">{t('set.ver', { v: `v${version}` })}</label>
             <button type="button" disabled>{t('set.check')}</button>{/* not wired yet */}
           </div>
         </Box>

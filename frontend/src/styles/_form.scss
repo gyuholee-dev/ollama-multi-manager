@@ -1,0 +1,262 @@
+// form: the windows with settings (new instance, settings, model download)
+//
+// A form is a stack of groups. A group (.fgroup, which is also a .box) has a head (title, optional note) and fields.
+// Everything in a group is closed by a hairline except its last item, so no rule has to take a line away again.
+//
+//   .fgroup            the surface (look: .box)
+//     .fgroup__head      title (.fgroup__title) and optional note (.fgroup__note)
+//     .fld               one field: label on the left, control on the right, one row high (--row-h)
+//       .fld__label        the label
+//       .fld__text         a text/number/password input without a box of its own
+//       .fld__select       a select without a box of its own (wrapper, with the arrow icon inside)
+//       input.sw           a switch
+//       .fld__note         a description under the label (with .fld--note)
+//     .fld--stack        a field whose control sits below the label (.fld__box = boxed input, .pr = input + button)
+//     .fld--btn          a row with a button in it
+//     .fold              a section that opens and closes (see _fold.scss)
+
+.fgroup {
+  &__head {
+    padding-bottom: 10px;
+    border-bottom: 1px solid var(--row-line);
+  }
+
+  &__title {
+    display: block;
+    margin: 0;
+    font-size: 1rem;
+    font-weight: 500;
+  }
+
+  &__note {
+    display: block;
+    margin-top: 4px;
+  }
+}
+
+// ---- a field: the label left, the control right
+
+.fld {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: var(--row-h);
+
+  &:not(&--stack):not(:last-child) {
+    border-bottom: 1px solid var(--row-line);
+  }
+
+  &__label {
+    margin: 0 auto 0 0; // takes what the control leaves
+  }
+
+  // a text/number/password input: no box, the text sits at the right edge of the row
+  &__text {
+    flex: none;
+    width: auto;
+    min-width: 120px;
+    padding: 0;
+    border: 0;
+    border-radius: 4px;
+    background: none;
+    text-align: right;
+    field-sizing: content;
+
+    &:focus-visible {
+      outline: 2px solid var(--accent);
+      outline-offset: 3px;
+    }
+
+    // the one that fills the row (the name of a new instance)
+    &--grow {
+      flex: 1;
+      min-width: 0;
+      field-sizing: fixed;
+    }
+  }
+
+  // a select: no box either; it shows a fill under the pointer
+  &__select {
+    position: relative;
+    flex: none;
+
+    select {
+      appearance: none;
+      width: auto;
+      padding: 4px 24px 4px 6px;
+      border: 0;
+      border-radius: 8px;
+      background: none;
+      text-align: right;
+      text-align-last: right;
+      cursor: pointer;
+      transition: background-color .2s;
+
+      &:hover {
+        background: var(--fill-hover);
+      }
+
+      &:focus-visible {
+        outline: 2px solid var(--accent);
+        outline-offset: 0; // hugs the select's own box
+      }
+    }
+
+    .material-icons {
+      position: absolute;
+      right: 4px;
+      top: 50%;
+      margin-top: -8px;
+      color: var(--sub);
+      pointer-events: none;
+    }
+  }
+
+  // a description under the label; the label and the control keep the usual row height
+  &--note {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    align-items: center;
+    column-gap: 12px;
+    padding-bottom: 8px;
+
+    .fld__label {
+      grid-row: 1;
+      display: flex;
+      align-items: center;
+      min-height: var(--row-h);
+    }
+
+    > .sw {
+      grid-row: 1;
+      grid-column: 2;
+    }
+  }
+
+  &__note {
+    grid-column: 1 / -1;
+    margin: 0;
+  }
+
+  // the control sits below the label (a path and its button, an API key, a slider)
+  &--stack {
+    display: block;
+    padding: 10px 0 4px;
+    min-height: 0;
+
+    .fld__label {
+      display: block;
+      width: fit-content;
+      margin: 0 0 6px;
+    }
+
+    &:last-child {
+      padding-bottom: 0;
+    }
+  }
+
+  // a boxed input (the controls of a stacked field)
+  &__box {
+    width: 100%;
+    background: var(--field);
+  }
+
+  // a slider: its label and value on one line, the slider below
+  &__head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    margin-bottom: 5px;
+  }
+
+  &__value {
+    font-size: .875rem;
+  }
+}
+
+// the first field of a folded card sits at its top edge, a stack has its own spacing
+.fold__card > .fld--stack:first-child {
+  padding-top: 0;
+}
+
+// A row's text is centred in its one-row height, which leaves an empty half above and below. At the ends of a group
+// that empty space is pulled in, so the gap to the surface's edge is the same as at the other side of the text.
+.fgroup > :is(.fld, .fold):last-child:not(.fld--stack, .fld--note, .fld--btn),
+.fold__card > .fld:last-child:not(.fld--stack, .fld--note, .fld--btn) {
+  margin-bottom: calc(var(--row-trim) * -1);
+}
+
+.fold__card > .fld:first-child:not(.fld--stack, .fld--note, .fld--btn) {
+  margin-top: calc(var(--row-trim) * -1);
+}
+
+// ---- a slider
+
+.rg {
+  appearance: none;
+  -webkit-appearance: none;
+  width: 100%;
+  height: 14px;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: none;
+  accent-color: var(--accent);
+  cursor: pointer;
+  --p: 0%;
+
+  &:focus {
+    outline: 0;
+  }
+
+  &::-webkit-slider-runnable-track {
+    height: 4px;
+    border-radius: 2px;
+    background: linear-gradient(to right,var(--accent) var(--p),light-dark(#d0d0d0,#3a3a3a) var(--p));
+  }
+
+  &::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 14px;
+    height: 14px;
+    margin-top: -5px;
+    border-radius: 50%;
+    border: 0;
+    background: var(--accent);
+  }
+
+  &::-moz-range-track {
+    height: 4px;
+    border-radius: 2px;
+    background: light-dark(#d0d0d0,#3a3a3a);
+  }
+
+  &::-moz-range-progress {
+    height: 4px;
+    border-radius: 2px;
+    background: var(--accent);
+  }
+
+  &::-moz-range-thumb {
+    width: 14px;
+    height: 14px;
+    border: 0;
+    border-radius: 50%;
+    background: var(--accent);
+  }
+}
+
+// numbers are typed, not stepped
+input[type=number] {
+  appearance: textfield;
+  -moz-appearance: textfield;
+
+  &::-webkit-inner-spin-button,
+  &::-webkit-outer-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+  }
+}

@@ -8,12 +8,12 @@ export function Collapse({ id, title, children }: { id: string; title: string; c
   const folded = useUiStore((s) => s.imFold.includes(id));
   const toggle = useUiStore((s) => s.toggleImFold);
   return (
-    <div className="cat nc">
-      <label className="ch"><span className="ti">{title}</span>
-        <input type="checkbox" className="cc" aria-label={t('new.toggle', { n: title })} checked={!folded} onChange={() => toggle(id)} />
-        <span className="tog"><span className="material-icons">expand_more</span></span>
+    <div className="fold fold--pill">
+      <label className="fold__head"><span className="fold__title">{title}</span>
+        <input type="checkbox" className="fold__check" aria-label={t('new.toggle', { n: title })} checked={!folded} onChange={() => toggle(id)} />
+        <span className="material-icons fold__icon">expand_more</span>
       </label>
-      <div className="cb"><div><div className="card" style={{ marginTop: 8, padding: 14 }}>{children}</div></div></div>
+      <div className="fold__panel"><div className="fold__inner"><div className="card fold__card">{children}</div></div></div>
     </div>
   );
 }
