@@ -9,10 +9,10 @@
   "license": "MIT",
   "scripts": {
     "start": "yarn build:frontend && electron .",
+    "start:dev": "node scripts/start-dev.js",
     "build:backend": "node scripts/build-backend.js",
     "dist:dir": "yarn build:frontend && yarn build:backend && electron-builder --dir",
     "dist": "yarn build:frontend && yarn build:backend && electron-builder",
-    "dev:frontend": "vite --config frontend/vite.config.mts",
     "build:frontend": "tsc --noEmit -p frontend && vite build --config frontend/vite.config.mts",
     "typecheck": "tsc --noEmit -p frontend",
     "test:frontend": "vitest run --config frontend/vitest.config.ts"
