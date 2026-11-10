@@ -52,21 +52,25 @@ header {
   }
 }
 
-// the buttons of the page's header are icons only, with no fill: just a hover and press shade
-// (the monitor window's category buttons keep their words and their look)
+// the page header's buttons: an icon before the label, no border or fill, just a hover and press shade
+// (the monitor window's category buttons keep their look)
 header:not(.mwh) {
+  .btns {
+    display: flex;
+    gap: 4px;
+  }
+
   i.material-icons {
     display: inline-block;
-    font-size: 1.25rem;
+    font-size: 1.125rem;
   }
 
   button {
-    width: 30px;
     height: 30px;
-    padding: 0;
+    padding: 0 12px;
     display: inline-flex;
     align-items: center;
-    justify-content: center;
+    gap: 6px;
     border: 0;
     background: none;
 
@@ -78,9 +82,18 @@ header:not(.mwh) {
     &:active {
       background: light-dark(var(--ghost-active),color-mix(in srgb,var(--card) 88%,var(--text)));
     }
+  }
 
-    span {
-      display: none;
+  // narrower than 640px: icons only
+  @media (max-width: 639.98px) {
+    button {
+      width: 30px;
+      padding: 0;
+      justify-content: center;
+
+      span {
+        display: none;
+      }
     }
   }
 }
