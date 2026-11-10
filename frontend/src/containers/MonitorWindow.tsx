@@ -37,7 +37,7 @@ export function MonitorWindow({ id }: { id: number }) {
   return (
     <div id="det" className="mwin">
       <header className="mwh">
-        <h1>{t('im.title', { n: view.name })}</h1>
+        <h1>{view.name}</h1>
         <div className="btns"><CategoryButtons /></div>
       </header>
       <div className="dbody"><MonitorBody id={id} view={view} /></div>

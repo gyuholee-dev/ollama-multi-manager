@@ -63,6 +63,7 @@ header:not(.mwh) {
   i.material-icons {
     display: inline-block;
     font-size: 1.125rem;
+    margin-left: -2px;
   }
 
   button {
@@ -91,9 +92,19 @@ header:not(.mwh) {
       padding: 0;
       justify-content: center;
 
+      i.material-icons {
+        margin-left: 0;
+      }
+
       span {
         display: none;
       }
     }
   }
+}
+
+// the monitor window's category buttons: the shown ones (active) take the page background colour
+header.mwh button.on,
+header.mwh button.on:hover {
+  background: var(--bg);
 }
