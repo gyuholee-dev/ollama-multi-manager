@@ -23,7 +23,7 @@ class Database:
             old = self._conn.execute("PRAGMA user_version").fetchone()[0]
             self._conn.executescript(SCHEMA_PATH.read_text(encoding="utf-8"))
             if 0 < old < 2:
-                # v2: the old "external monitoring" (on by default, only /metrics) became "web monitoring", which serves the web UI. A
+                # v2: the old "external monitoring" (on by default, only /metrics) became "web access", which serves the web UI. A
                 # database that predates this would silently open the UI to the network: switch it off once.
                 self._conn.execute("UPDATE settings SET value='false' WHERE key='external_monitoring_enabled'")
                 self._conn.execute("DELETE FROM settings WHERE key='external_monitoring_web'")

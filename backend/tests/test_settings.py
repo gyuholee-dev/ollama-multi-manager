@@ -26,7 +26,7 @@ async def test_null_clears_nullable_setting(env):
 
 
 def test_an_old_database_gets_web_access_switched_off_once(tmp_path):
-    """Web monitoring used to be on by default and served only /metrics; now it serves the web UI to the network."""
+    """Web access used to be on by default and served only /metrics; now it serves the web UI to the network."""
     from app.db import Database
     db = Database(tmp_path / "app.db")
     db.migrate()

@@ -12,7 +12,7 @@ INSERT OR IGNORE INTO settings (key, value) VALUES
     ('theme',                      '"system"'),   -- system | light | dark
     ('launch_at_login',            'false'),
     ('minimize_to_tray',           'false'),
-    ('external_monitoring_enabled','false'),  -- 웹 모니터링 = 같은 포트에서 읽기 전용(게스트) 웹 화면 제공
+    ('external_monitoring_enabled','false'),  -- 웹 접속 = 같은 앱 화면을 LAN에 제공. 비밀번호를 정하면 로그인한 방문자만 전체 사용, 비밀번호가 없으면 읽기 전용(게스트)
     ('external_monitoring_port',   '9100'),
     ('refresh_interval_seconds',   '3'),
     ('ollama_executable_path',     'null'),

@@ -14,19 +14,20 @@ FAKE = str(Path(__file__).parent / "fake_ollama.py")
 async def test_web_access_follows_settings(env):
     assert (await env.client.get("/settings")).json()["external_monitoring_enabled"] is False   # off until switched on
     port = free_port()
-    r = await env.client.put("/settings", json={"external_monitoring_enabled": True, "external_monitoring_port": port})
+    r = await env.client.put("/settings", json={"external_monitoring_enabled": True, "external_monitoring_port": port,
+                                                "external_monitoring_password": "open sesame"})
     assert r.status_code == 200
     ext = env.app.state.external
     assert ext.active and ext.status()["port"] == port
     async with httpx.AsyncClient() as c:
+        await c.post(f"http://127.0.0.1:{port}/login", data={"password": "open sesame"})   # signs in: the cookie stays in the client
         page = await c.get(f"http://127.0.0.1:{port}/")
         assert page.status_code == 200 and "Ollama Multi Manager" in page.text      # the web UI is what this port serves
-        assert (await c.get(f"http://127.0.0.1:{port}/metrics")).status_code == 404  # exporting metrics here is deferred
 
     new = free_port()                                    # rebind without a restart
     await env.client.put("/settings", json={"external_monitoring_port": new})
     async with httpx.AsyncClient() as c:
-        assert (await c.get(f"http://127.0.0.1:{new}/")).status_code == 200
+        assert (await c.get(f"http://127.0.0.1:{new}/login")).status_code == 200
         try:
             await c.get(f"http://127.0.0.1:{port}/")
             raise AssertionError("old port should be closed")

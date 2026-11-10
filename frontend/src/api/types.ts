@@ -46,17 +46,21 @@ export interface Settings {
   theme: 'system' | 'light' | 'dark';
   launch_at_login: boolean;
   minimize_to_tray: boolean;
-  external_monitoring_enabled: boolean; // "web monitoring" in the UI
+  external_monitoring_enabled: boolean; // "web access" in the UI
   external_monitoring_port: number;
+  external_monitoring_password_set: boolean; // the password itself is never sent
+  external_monitoring_session_hours: number; // how long a web sign-in lasts
   refresh_interval_seconds: number;
   ollama_executable_path?: string | null; // left out for guests
   default_models_path?: string | null;
 }
-export type SettingsPatch = Partial<Settings>;
+/** `external_monitoring_password` is write-only: "" removes the password. */
+export type SettingsPatch = Partial<Omit<Settings, 'external_monitoring_password_set'>> & { external_monitoring_password?: string };
 
 export interface WebAccessStatus {
   enabled: boolean;
   port: number;
+  password_set: boolean;
   active: boolean;
   error: string | null;
 }
@@ -66,7 +70,7 @@ export interface Info {
   platform: string;
   lan_ip: string;
   external_monitoring: WebAccessStatus;
-  guest: boolean;
+  guest: boolean; // true on the read-only page of web access without a password
 }
 
 // ---- monitoring

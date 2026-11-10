@@ -1,6 +1,6 @@
-import type { ReactNode } from 'react';
+import { useState, type ReactNode } from 'react';
 import { log } from '@/app/log';
-import { commitSetting, resetSettings } from '@/app/settingsActions';
+import { commitPassword, commitSetting, resetSettings } from '@/app/settingsActions';
 import { Dialog, DialogBody, DialogTitle } from '@/components/common/Dialog';
 import { pickPath } from '@/desktop';
 import { LOCALES } from '@/locales';
@@ -32,6 +32,8 @@ export function SettingsDialog() {
   const cfg = useSettingsStore((s) => s.cfg);
   const edit = useSettingsStore((s) => s.edit);
   const version = useMonitorStore((s) => s.info?.version ?? '?');
+  const pwSet = useMonitorStore((s) => s.info?.external_monitoring.password_set ?? false);
+  const [pw, setPw] = useState('');
 
   const apply = (patch: Partial<Cfg>, field: keyof Cfg) => { edit(patch); void commitSetting(field); };
   const onEnter = (field: keyof Cfg) => (e: React.KeyboardEvent) => { if (e.key === 'Enter') void commitSetting(field); };
@@ -42,6 +44,7 @@ export function SettingsDialog() {
     log(`Path selected: ${picked}`);
     apply({ [field]: picked }, field);
   };
+  const savePw = async () => { if (pw && (await commitPassword(pw))) setPw(''); };
   const save = () => { log('Settings saved'); close(); }; // every change is already stored; this just closes the window
 
   return (
@@ -57,11 +60,16 @@ export function SettingsDialog() {
           <Switch id="tray" label={t('set.tray')} checked={cfg.tray} onChange={(v) => apply({ tray: v }, 'tray')} />
         </Box>
         <Box title={t('set.monitor')}>
+          <Select id="iv" label={t('set.interval')} value={cfg.interval} options={[1, 3, 5, 10].map((n) => [n, t('sec.n', { n })])} onChange={(v) => apply({ interval: +v }, 'interval')} />
+        </Box>
+        <Box title={t('set.web')}>
           <Switch id="em" label={t('set.ext')} hint={t('set.extHint')} checked={cfg.extMon} onChange={(v) => apply({ extMon: v }, 'extMon')} />
           <div className="f h"><div className="f row"><label htmlFor="mport">{t('set.extPort')}</label></div>
             <input id="mport" type="number" min={1024} max={65535} value={cfg.monPort} onChange={(e) => edit({ monPort: +e.target.value })}
               onBlur={() => void commitSetting('monPort')} onKeyDown={onEnter('monPort')} /></div>
-          <Select id="iv" label={t('set.interval')} value={cfg.interval} options={[1, 3, 5, 10].map((n) => [n, t('sec.n', { n })])} onChange={(v) => apply({ interval: +v }, 'interval')} />
+          <div className="f h"><div className="f row"><label htmlFor="mpw">{t('set.extPw')}</label></div>
+            <input id="mpw" type="password" autoComplete="new-password" value={pw} placeholder={pwSet ? t('set.extPwSet') : t('set.extPwUnset')}
+              onChange={(e) => setPw(e.target.value)} onBlur={() => void savePw()} onKeyDown={(e) => { if (e.key === 'Enter') void savePw(); }} /></div>
         </Box>
         <Box title={t('new.server')}>
           <div className="f"><div className="f row"><label htmlFor="ex">{t('set.exe')}</label></div>

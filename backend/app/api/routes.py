@@ -33,7 +33,7 @@ def hide_secrets(inst: dict[str, Any]) -> dict[str, Any]:
 
 
 def require_token(request: Request) -> None:
-    if is_guest(request):  # the guest listener only lets read-only paths through
+    if is_guest(request) or request.scope.get("omm_web"):  # the guest listener only lets read-only paths through; the web port has checked a password cookie
         return
     auth = request.headers.get("authorization", "")
     given = auth[7:] if auth.lower().startswith("bearer ") else ""
@@ -260,7 +260,7 @@ ws_router = APIRouter()
 @ws_router.websocket("/ws")
 async def ws(websocket: WebSocket) -> None:
     st = websocket.app.state
-    if not is_guest(websocket) and not _token_ok(st.token, websocket.query_params.get("token", "")):
+    if not (is_guest(websocket) or websocket.scope.get("omm_web")) and not _token_ok(st.token, websocket.query_params.get("token", "")):
         await websocket.close(code=1008)
         return
     await websocket.accept()

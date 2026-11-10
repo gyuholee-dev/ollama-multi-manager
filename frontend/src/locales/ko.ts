@@ -6,7 +6,7 @@ const ko: Messages = {
   'app.title': 'Ollama Multi Manager',
 
   'hdr.new': '새 인스턴스', 'hdr.models': '모델 관리', 'hdr.settings': '환경설정',
-  'srv.title': '웹 모니터링 · {a}',
+  'srv.title': '웹 접속 · {a}',
 
   'sec.sum': '요약', 'sec.mon': '시스템 모니터', 'sec.inst': '서버 인스턴스', 'sec.logs': '로그',
   'sec.hide': '숨기기', 'sec.show': '펼치기',
@@ -43,7 +43,7 @@ const ko: Messages = {
   'c.total': '전체', 'c.running': '실행 중', 'c.stopped': '중지', 'c.unreach': '응답 없음',
   'c.mem': '메모리', 'c.models': '로드 모델', 'c.reqs': '처리 중 요청', 'c.queued': '대기', 'c.latency': '평균 응답',
   'c.speed': '평균 속도', 'c.warn': '경고', 'c.ok': '정상', 'c.errs': '최근 오류',
-  'c.mon': '웹 모니터링', 'c.on': '켬', 'c.off': '끔', 'c.updated': '갱신',
+  'c.mon': '웹 접속', 'c.on': '켬', 'c.off': '끔', 'c.updated': '갱신',
 
   'mon.cpu': '{pct}% · {n} 코어', 'mon.system': '시스템', 'mon.other': '기타', 'mon.gpus': '{n}개',
 
@@ -54,8 +54,8 @@ const ko: Messages = {
   'set.title': '환경설정', 'set.general': '일반', 'set.login': '시스템 시작 시 자동 실행',
   'set.tray': '트레이로 최소화', 'set.lang': '언어', 'set.theme': '테마',
   'theme.system': '시스템', 'theme.light': '라이트', 'theme.dark': '다크',
-  'set.monitor': '모니터', 'set.ext': '웹 모니터링', 'set.extPort': '웹 모니터링 포트',
-  'set.interval': '상태 갱신 주기', 'sec.n': '{n}초',
+  'set.monitor': '모니터', 'set.web': '웹 접속', 'set.ext': '웹 접속 허용', 'set.extPort': '웹 접속 포트',
+  'set.interval': '측정 주기', 'sec.n': '{n}초',
   'set.exe': '올라마 실행 파일', 'set.exePh': '비워두면 자동 탐색', 'set.browse': '찾아보기',
   'set.models': '모델 경로 (OLLAMA_MODELS 기본값)', 'set.update': '업데이트',
   'set.ver': '현재 버전 {v}', 'set.check': '업데이트 확인', 'set.checking': '확인 중…',
@@ -64,8 +64,8 @@ const ko: Messages = {
   'upd.title': '업데이트 확인', 'upd.latest': '최신 버전입니다. ({v})',
   'rst.title': '환경설정 초기화', 'rst.msg': '모든 환경설정을 기본값으로 되돌리고 저장합니다.', 'rst.ok': '초기화',
   'port.conflict': '포트 충돌',
-  'sv.portMsg': '웹 모니터링 포트 {p}은(는) 인스턴스가 사용 중입니다.\n다른 포트를 지정하세요.',
-  'ext.title': '웹 모니터링', 'ext.msg': '웹 모니터링 서버가 포트 {p}으로 다시 시작됩니다.',
+  'sv.portMsg': '웹 접속 포트 {p}은(는) 인스턴스가 사용 중입니다.\n다른 포트를 지정하세요.',
+  'ext.title': '웹 접속', 'ext.msg': '웹 접속 서버가 포트 {p}으로 다시 시작됩니다.',
   'rr.t': '재시작 필요', 'rr.m': '새 실행 파일 또는 모델 경로를 적용하려면 실행 중인 인스턴스를 재시작해야 합니다.',
 
   'mdl.param': '파라미터 {p} · 양자화 {q}', 'mdl.estimate': '현재 환경 기준 추정치',
@@ -98,7 +98,7 @@ const ko: Messages = {
   'f.lan': 'LAN에서 접속 허용', 'f.key': 'API 키', 'f.keyPh': '비워 두면 인증하지 않습니다', 'btn.genKey': '생성', 'd.addr': '접속 주소',
   'w.lan.t': '인증 없이 네트워크에 공개', 'w.lan.m': '이 인스턴스는 같은 네트워크의 모든 기기에서 인증 없이 쓸 수 있게 됩니다. API 키를 설정하는 것을 권장합니다.', 'btn.open': '공개',
   'f.auto': '요청이 오면 자동 시작', 'f.idle': '유휴 시 자동 중지 (분, 0 = 안 함)', 'card.auto': '요청이 오면 자동 시작', 'auto.idle': '켬 · 유휴 {n}분 후 중지',
-  'set.extHint': '켜면 아래 포트의 주소를 브라우저로 열어 이 화면을 읽기 전용(게스트)으로 볼 수 있습니다. 로그인이 없으므로 신뢰하는 네트워크에서만 켜세요.', 'guest.badge': '읽기 전용',
+  'set.extHint': '켜면 아래 포트의 주소를 브라우저로 열어 이 화면을 쓸 수 있습니다. 비밀번호를 정하면 로그인한 사람만 그대로 쓰고, 정하지 않으면 로그인 없이 읽기 전용(게스트)으로만 보입니다.', 'guest.badge': '읽기 전용', 'set.extPw': '웹 접속 비밀번호', 'set.extPwSet': '설정됨 (바꾸려면 입력)', 'set.extPwUnset': '설정 안 됨', 'ext.pwShort': '비밀번호는 4자 이상이어야 합니다.', 'ext.pwSaved': '비밀번호를 저장했습니다. 이미 로그인한 접속은 다시 로그인해야 합니다.',
   'boot.loading': '불러오는 중…',
   'w.busy.t': '처리 중인 요청이 있습니다',
   'w.busy.m': '{n}에서 요청 {k}개를 처리하는 중입니다.\n끝날 때까지 기다린 뒤 중지하거나, 지금 바로 중지할 수 있습니다. 바로 중지하면 처리 중인 응답이 끊깁니다.',

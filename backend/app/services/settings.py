@@ -7,6 +7,9 @@ from typing import Any
 
 from app.db import Database
 from app.schemas import SettingsPatch
+from app.services.webauth import DEFAULT_SESSION_HOURS, MIN_PASSWORD_LENGTH, hash_password
+
+PASSWORD_KEY = "external_monitoring_password_hash"  # stored, never returned: the settings show only whether one is set
 
 
 class SettingsError(ValueError):
@@ -18,7 +21,10 @@ class SettingsService:
         self.db = db
 
     def all(self) -> dict[str, Any]:
-        return {r["key"]: json.loads(r["value"]) for r in self.db.query("SELECT key, value FROM settings")}
+        values = {r["key"]: json.loads(r["value"]) for r in self.db.query("SELECT key, value FROM settings") if r["key"] != PASSWORD_KEY}
+        values["external_monitoring_password_set"] = bool(self.get(PASSWORD_KEY))
+        values.setdefault("external_monitoring_session_hours", DEFAULT_SESSION_HOURS)
+        return values
 
     def get(self, key: str) -> Any:
         row = self.db.one("SELECT value FROM settings WHERE key=?", (key,))
@@ -26,6 +32,11 @@ class SettingsService:
 
     def update(self, patch: SettingsPatch) -> dict[str, Any]:
         values = {k: getattr(patch, k) for k in patch.model_fields_set}
+        if "external_monitoring_password" in values:  # stored as a hash; an empty one removes the password
+            password = values.pop("external_monitoring_password") or ""
+            if password and len(password) < MIN_PASSWORD_LENGTH:
+                raise SettingsError(f"The web access password needs at least {MIN_PASSWORD_LENGTH} characters")
+            values[PASSWORD_KEY] = hash_password(password) if password else None
         exe = values.get("ollama_executable_path")
         if exe is not None and not (os.path.isfile(exe) and os.access(exe, os.X_OK)):
             raise SettingsError(f"ollama_executable_path is not an executable file: {exe}")

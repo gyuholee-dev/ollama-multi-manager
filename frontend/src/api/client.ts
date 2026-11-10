@@ -1,7 +1,7 @@
 // Thin client for the backend's REST API. The page is served by the backend itself, so requests are same-origin.
 // Electron passes the session token in the URL fragment (#token=...), which is read once and then removed from the
 // address bar. The token is kept in sessionStorage so a reload of the page (which no longer has the fragment) stays
-// signed in. A guest page (web monitoring) has no token at all.
+// signed in. A guest page (web access) has no token at all.
 
 export class ApiError extends Error {
   readonly status: number;

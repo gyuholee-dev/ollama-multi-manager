@@ -264,12 +264,12 @@ input.rg:focus {
 
     select {
       width: auto;
-      padding-right: 24px;
+      text-align: right;
       text-align-last: right;
     }
 
     .material-icons {
-      right: 0;
+      right: 4px;
     }
   }
 
@@ -280,10 +280,32 @@ input.rg:focus {
   }
 }
 
-// (the windows' own field colour is set by id, e.g. "#det:has(#mp) select", so the clear background must be forced)
-.f.h:not(.row)>input,
-.f.h:not(.row)>.sel select {
-  background: none !important;
+// (the windows' own field colour is set by id, e.g. "#det:has(#mp) select": the clear background has to outweigh it)
+:is(#dlg,#det:has(#mp)) .f.h:not(.row)>input,
+:is(#dlg,#det:has(#mp)) .f.h:not(.row)>.sel select {
+  background: none;
+}
+
+// a select shows a fill under the pointer (dark mode: lighter than the box; light mode: darker)
+:is(#dlg,#det:has(#mp)) .f.h:not(.row)>.sel select {
+  padding: 4px 24px 4px 6px;
+  border-radius: 8px; // the same as the buttons
+  cursor: pointer;
+  transition: background-color .2s;
+
+  &:hover {
+    background: light-dark(var(--ghost-hover),var(--card));
+  }
+
+  // the ring hugs the select's own box (it has a fill of its own on hover), not floating away from it
+  &:focus-visible {
+    outline-offset: 0;
+  }
+}
+
+// inside a folded card (already the lighter colour) the fill has to be lighter still
+:is(#dlg,#det:has(#mp)) .card .f.h:not(.row)>.sel select:hover {
+  background: light-dark(var(--ghost-hover),color-mix(in srgb,var(--card) 86%,var(--text)));
 }
 
 // the new instance's name fills the row

@@ -1,4 +1,4 @@
-"""Render the latest snapshot in Prometheus text format (GET /metrics on the main API; exporting it on the web monitoring port is deferred)."""
+"""Render the latest snapshot in Prometheus text format (GET /metrics on the main API; exporting it on the web access port is deferred)."""
 from __future__ import annotations
 
 from typing import Any

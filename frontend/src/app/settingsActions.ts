@@ -1,5 +1,5 @@
 import { api } from '@/api/client';
-import type { Info } from '@/api/types';
+import type { Info, Settings } from '@/api/types';
 import { notifySettingsChanged } from '@/desktop';
 import { t } from '@/locales/useT';
 import { useInstancesStore } from '@/stores/instancesStore';
@@ -16,7 +16,7 @@ const portProblem = (port: number): [string, string] | null => {
 };
 
 /**
- * Stores what the settings form changed, right after the field was edited. A bad web monitoring port is refused and the
+ * Stores what the settings form changed, right after the field was edited. A bad web access port is refused and the
  * form goes back to what is saved. The changes of paths are applied to instances only when they start again.
  */
 export async function commitSetting(field: keyof Cfg): Promise<void> {
@@ -30,6 +30,8 @@ export async function commitSetting(field: keyof Cfg): Promise<void> {
       return;
     }
   }
+  // a path counts as changed only when its text differs from what was saved (touching the field and leaving it changes nothing)
+  const pathChanged = (field === 'exe' || field === 'modelsPath') && String(cfg[field]).trim() !== String(store.saved[field]).trim();
   try {
     await store.save();
   } catch (e) {
@@ -43,10 +45,24 @@ export async function commitSetting(field: keyof Cfg): Promise<void> {
     const x = useMonitorStore.getState().info?.external_monitoring;
     if (x?.enabled && !x.active) void notify('warn', t('ext.title'), x.error ?? '');
   }
-  if (field === 'exe' || field === 'modelsPath') void loadModels(); // another executable or folder: another list
-  if ((field === 'exe' || field === 'modelsPath') && useInstancesStore.getState().list.some((i) => i.status.state === 'running' || i.status.state === 'starting')) {
+  if (pathChanged) void loadModels(); // another executable or folder: another list
+  if (pathChanged && useInstancesStore.getState().list.some((i) => i.status.state === 'running' || i.status.state === 'starting')) {
     void notify('info', t('rr.t'), t('rr.m'));
   }
+}
+
+/** Sets the web access password (write-only: the backend keeps only a hash). Resolves true when it was saved. */
+export async function commitPassword(password: string): Promise<boolean> {
+  if (password.length < 4) { await notify('warn', t('ext.title'), t('ext.pwShort')); return false; }
+  try {
+    await api.put<Settings>('/settings', { external_monitoring_password: password });
+  } catch (e) {
+    await fail(e);
+    return false;
+  }
+  try { useMonitorStore.getState().setInfo(await api.get<Info>('/info')); } catch { /* keep the old info */ }
+  void notify('info', t('ext.title'), t('ext.pwSaved'));
+  return true;
 }
 
 export async function resetSettings(): Promise<void> {
