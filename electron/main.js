@@ -17,6 +17,8 @@ const log = (...a) => console.log(new Date().toISOString(), '[shell]', ...a);
 
 // Developer mode: OMM_DEV=1 (or true/yes/on). Works for `yarn start` and for a packaged app alike.
 const DEV = /^(1|true|yes|on)$/i.test(process.env.OMM_DEV || '');
+// OMM_MOCKUP=1: also serves the design mockup (frontend/mockup) on this PC, independent of developer mode.
+const MOCKUP = /^(1|true|yes|on)$/i.test(process.env.OMM_MOCKUP || '');
 const MENU_LABEL = {
   ko: { reload: '새로고침', freeze: '화면 갱신 중지', resume: '화면 갱신 재개', inspect: '검사' },
   en: { reload: 'Reload', freeze: 'Pause updates', resume: 'Resume updates', inspect: 'Inspect' },
@@ -278,8 +280,8 @@ if (!app.requestSingleInstanceLock()) {
     session.defaultSession.setPermissionCheckHandler((_wc, permission) => allowed(permission));
     if (DEV) {
       log('Developer mode is on (OMM_DEV)');
-      mockup = await startMockupServer({ dir: path.join(__dirname, '..', 'frontend', 'mockup'), log });
     }
+    if (MOCKUP) mockup = await startMockupServer({ dir: path.join(__dirname, '..', 'frontend', 'mockup'), log });
     await refreshSettings();
     createWindow();
   });

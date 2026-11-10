@@ -1,6 +1,6 @@
 'use strict';
-// Developer mode only: serves the design mockup (frontend/mockup) on a fixed local port, so it is always at the
-// same address next to the app. It listens on this PC only and is never started in a normal run.
+// Only with OMM_MOCKUP=1: serves the design mockup (frontend/mockup) on a fixed local port, so it is always at the
+// same address next to the app. It listens on this PC only and is not started otherwise.
 
 const fs = require('node:fs');
 const http = require('node:http');
