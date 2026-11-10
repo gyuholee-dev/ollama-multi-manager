@@ -50,11 +50,11 @@ export function SettingsDialog() {
       <DialogBody>
       <div>
         <Box title={t('set.general')}>
-          <Switch id="lg" label={t('set.login')} checked={cfg.login} onChange={(v) => apply({ login: v }, 'login')} />
-          <Switch id="tray" label={t('set.tray')} checked={cfg.tray} onChange={(v) => apply({ tray: v }, 'tray')} />
           <Select id="lang" label={t('set.lang')} value={cfg.lang} options={Object.keys(LOCALES).map((k) => [k, LOCALES[k]?._name ?? k])} onChange={(v) => apply({ lang: v }, 'lang')} />
           <Select id="t" label={t('set.theme')} value={cfg.theme} onChange={(v) => apply({ theme: v as Cfg['theme'] }, 'theme')}
             options={[['system', t('theme.system')], ['light', t('theme.light')], ['dark', t('theme.dark')]]} />
+          <Switch id="lg" label={t('set.login')} checked={cfg.login} onChange={(v) => apply({ login: v }, 'login')} />
+          <Switch id="tray" label={t('set.tray')} checked={cfg.tray} onChange={(v) => apply({ tray: v }, 'tray')} />
         </Box>
         <Box title={t('set.monitor')}>
           <Switch id="em" label={t('set.ext')} hint={t('set.extHint')} checked={cfg.extMon} onChange={(v) => apply({ extMon: v }, 'extMon')} />

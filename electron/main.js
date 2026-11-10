@@ -228,9 +228,23 @@ if (!app.requestSingleInstanceLock()) {
   // ---- IPC
   // Only the backend's own UI may talk to the shell: a frame that came from anywhere else is ignored.
   const fromUi = e => { try { return new URL(e.senderFrame.url).origin === backend.url; } catch { return false; } };
-  ipcMain.handle('pick-path', async (e, kind) => {
+  // where the picker opens: the path now in the field (or the nearest folder above it that exists), else the home directory
+  const startPath = current => {
+    let p = String(current || '').trim();
+    if (p.startsWith('~')) p = path.join(app.getPath('home'), p.slice(1));
+    while (p && path.isAbsolute(p) && !fs.existsSync(p)) {
+      const up = path.dirname(p);
+      if (up === p) { p = ''; break; }
+      p = up;
+    }
+    return p && path.isAbsolute(p) ? p : app.getPath('home');
+  };
+  ipcMain.handle('pick-path', async (e, kind, current) => {
     if (!fromUi(e)) return null;
-    const r = await dialog.showOpenDialog(win, { properties: kind === 'dir' ? ['openDirectory', 'createDirectory'] : ['openFile'] });
+    const r = await dialog.showOpenDialog(win, {
+      defaultPath: startPath(current),
+      properties: kind === 'dir' ? ['openDirectory', 'createDirectory'] : ['openFile'],
+    });
     return r.canceled ? null : r.filePaths[0];
   });
   ipcMain.on('settings-changed', e => { if (fromUi(e)) refreshSettings(); });

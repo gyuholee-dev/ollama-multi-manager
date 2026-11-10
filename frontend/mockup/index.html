@@ -268,11 +268,11 @@ function showMon(id,page=monPage){curMon=id;monPage=page;const i=by(id),r=seeded
   for(const k in lv){const e=$('lv-'+k);if(e)e.innerHTML=lv[k]()}},cfg.interval*1000)}
 function openCfg(){monOk=cfg.monPort;monWas=cfg.extMon;const v=cfg;$('det').innerHTML=`<h3>${t('set.title')} <button style="float:right" onclick="det.close()">${mi('close')}</button></h3>
 <div class="dbody"> <div oninput="upd()" onchange="chg(event)"><div class="box"><span class="ti">${t('set.general')}</span>
+ <div class="f h"><div class="f row"><label>${t('set.lang')}</label></div><span class="sel"><select id="lang">${opt(Object.keys(LOCALES).map(k=>[k,LOCALES[k]._name]),v.lang)}</select>${caret}</span></div>
+ <div class="f h"><div class="f row"><label>${t('set.theme')}</label></div><span class="sel"><select id="t">${opt([['system',t('theme.system')],['light',t('theme.light')],['dark',t('theme.dark')]],v.theme)}</select>${caret}</span></div>
  ${chk('lg',t('set.login'),v.login)}
  ${chk('tray',t('set.tray'),v.tray)}
  <div class="f h"><div class="f row"><label>${t('mock.gpu')}</label></div><span class="sel"><select id="gpumode">${opt(Object.keys(GMODES).map(k=>[k,t('mock.gpu.'+k)]),v.gpu)}</select>${caret}</span></div>
- <div class="f h"><div class="f row"><label>${t('set.lang')}</label></div><span class="sel"><select id="lang">${opt(Object.keys(LOCALES).map(k=>[k,LOCALES[k]._name]),v.lang)}</select>${caret}</span></div>
- <div class="f h"><div class="f row"><label>${t('set.theme')}</label></div><span class="sel"><select id="t">${opt([['system',t('theme.system')],['light',t('theme.light')],['dark',t('theme.dark')]],v.theme)}</select>${caret}</span></div>
  </div><div class="box"><span class="ti">${t('set.monitor')}</span>
  ${chk('em',t('set.ext'),v.extMon)}
  <div class="f h"><div class="f row"><label>${t('set.extPort')}</label></div><input id="mport" type="number" min="1024" max="65535" value="${v.monPort}"></div>
