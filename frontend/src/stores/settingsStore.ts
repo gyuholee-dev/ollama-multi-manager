@@ -10,7 +10,7 @@ export interface Cfg {
   login: boolean;
   tray: boolean;
   interval: number;
-  extMon: boolean; // "web access"
+  extMon: boolean; // "web monitoring"
   monPort: number;
   exe: string;
   modelsPath: string;

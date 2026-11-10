@@ -7,7 +7,7 @@ const en: Messages = {
   'app.title': 'Ollama Multi Manager',
 
   'hdr.new': 'New instance', 'hdr.models': 'Models', 'hdr.settings': 'Settings',
-  'srv.title': 'Web access · {a}',
+  'srv.title': 'Web monitoring · {a}',
 
   'sec.sum': 'Summary', 'sec.mon': 'System monitor', 'sec.inst': 'Server instances', 'sec.logs': 'Logs',
   'sec.hide': 'Hide', 'sec.show': 'Show',
@@ -44,7 +44,7 @@ const en: Messages = {
   'c.total': 'Total', 'c.running': 'Running', 'c.stopped': 'Stopped', 'c.unreach': 'Unresponsive',
   'c.mem': 'Memory', 'c.models': 'Loaded models', 'c.reqs': 'Active requests', 'c.queued': 'waiting', 'c.latency': 'Avg. response',
   'c.speed': 'Avg. speed', 'c.warn': 'Warnings', 'c.ok': 'Normal', 'c.errs': 'Recent errors',
-  'c.mon': 'Web access', 'c.on': 'On', 'c.off': 'Off', 'c.updated': 'Updated',
+  'c.mon': 'Web monitoring', 'c.on': 'On', 'c.off': 'Off', 'c.updated': 'Updated',
 
   'mon.cpu': '{pct}% · {n} cores', 'mon.system': 'System', 'mon.other': 'Other', 'mon.gpus': '{n} GPUs',
 
@@ -55,7 +55,7 @@ const en: Messages = {
   'set.title': 'Settings', 'set.general': 'General', 'set.login': 'Launch at system startup',
   'set.tray': 'Minimize to tray', 'set.lang': 'Language', 'set.theme': 'Theme',
   'theme.system': 'System', 'theme.light': 'Light', 'theme.dark': 'Dark',
-  'set.monitor': 'Monitor', 'set.ext': 'Web access', 'set.extPort': 'Web access port',
+  'set.monitor': 'Monitor', 'set.ext': 'Web monitoring', 'set.extPort': 'Web monitoring port',
   'set.interval': 'Refresh interval', 'sec.n': '{n} s',
   'set.exe': 'Ollama executable', 'set.exePh': 'Auto-detect if empty', 'set.browse': 'Browse',
   'set.models': 'Model path (OLLAMA_MODELS default)', 'set.update': 'Update',
@@ -65,8 +65,8 @@ const en: Messages = {
   'upd.title': 'Update check', 'upd.latest': 'You are up to date. ({v})',
   'rst.title': 'Reset settings', 'rst.msg': 'All settings will be reset to their defaults and saved.', 'rst.ok': 'Reset',
   'port.conflict': 'Port conflict',
-  'sv.portMsg': 'Web access port {p} is used by an instance.\nChoose a different port.',
-  'ext.title': 'Web access', 'ext.msg': 'The web access server will restart on port {p}.',
+  'sv.portMsg': 'Web monitoring port {p} is used by an instance.\nChoose a different port.',
+  'ext.title': 'Web monitoring', 'ext.msg': 'The web monitoring server will restart on port {p}.',
   'rr.t': 'Restart required', 'rr.m': 'Restart the running instances to apply the new executable or model path.',
 
   'mdl.param': 'Parameters {p} · Quantization {q}', 'mdl.estimate': 'Estimate for the current environment',

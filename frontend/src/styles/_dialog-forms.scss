@@ -217,3 +217,233 @@ input.rg:focus {
   flex: none;
   white-space: nowrap;
 }
+
+// a form field in a window: the label on the left, the input on the right, in a row 37px high with a line above it
+// (the paths and the API key stay stacked, with their buttons below the label)
+.f.h:not(.row),
+.f.row:has(>input.sw) {
+  box-sizing: border-box;
+  height: 37px;
+  margin: 0;
+  padding: 0;
+  border-bottom: 1px solid color-mix(in srgb,var(--line) 50%,transparent);
+}
+
+.f.h:not(.row) {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+
+  > .f.row {
+    flex: 1;
+    min-width: 0;
+    margin: 0;
+  }
+
+  // the input has no box of its own: its text sits right-aligned on the row
+  > input,
+  > .sel select {
+    background: none;
+    border: 0;
+    border-radius: 4px;
+    padding: 0;
+    text-align: right;
+  }
+
+  > input {
+    flex: none;
+    width: auto;
+    min-width: 120px;
+    field-sizing: content;
+  }
+
+  > .sel {
+    flex: none;
+    width: auto;
+
+    select {
+      width: auto;
+      padding-right: 24px;
+      text-align-last: right;
+    }
+
+    .material-icons {
+      right: 0;
+    }
+  }
+
+  > input:focus-visible,
+  > .sel select:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 3px;
+  }
+}
+
+// (the windows' own field colour is set by id, e.g. "#det:has(#mp) select", so the clear background must be forced)
+.f.h:not(.row)>input,
+.f.h:not(.row)>.sel select {
+  background: none !important;
+}
+
+// the new instance's name fills the row
+.f.h:not(.row)>#n {
+  flex: 1;
+  width: auto;
+  field-sizing: fixed;
+}
+
+.f.h:not(.row):has(>#n)>.f.row {
+  flex: none;
+}
+
+// an option with a description: the label and the input make the usual 37px line, the description below it spans the whole width
+.ot {
+  display: contents;
+}
+
+.f.row:has(>.ot):has(>input.sw) {
+  flex-wrap: wrap;
+  gap: 0 12px;
+  height: auto;
+  padding: 0 0 8px;
+
+  label {
+    order: 1;
+    flex: 1;
+    display: flex;
+    align-items: center;
+    min-height: 37px;
+  }
+
+  > input {
+    order: 2;
+  }
+
+  .sub {
+    order: 3;
+    flex: 0 0 100%;
+  }
+}
+
+// a section that opens and closes is a row like the fields: 37px high with a line above it, its name in line with the labels
+// (no hover fill: that would stick out past the line)
+#dlg .cat.nc {
+  margin: 0;
+  border-bottom: 1px solid color-mix(in srgb,var(--line) 50%,transparent);
+
+  .cb .card {
+    margin-bottom: 8px;
+  }
+}
+
+#dlg .cat.nc>.ch {
+  box-sizing: border-box;
+  height: 37px;
+  margin: 0;
+  padding: 0;
+  border-radius: 0;
+
+  &:hover,
+  &:active {
+    background: none;
+  }
+
+  > .ti {
+    font-size: inherit; // the same size as the labels
+  }
+}
+
+// the description under a box's title keeps its distance from the rows below it
+#dlg .box>.sub {
+  margin-bottom: 8px;
+}
+
+// every item of a box has a line below it (the box's title and description too), the last one has none
+:is(#dlg,#det:has(#mp)) .box {
+  > .ti,
+  > .sub,
+  > .f,
+  > .cat.nc {
+    border-bottom: 1px solid color-mix(in srgb,var(--line) 50%,transparent);
+  }
+
+  > .ti {
+    padding-bottom: 10px;
+    margin-bottom: 0;
+  }
+
+  // (a label + input row directly under the title: the old "title + field" spacing must not add to it)
+  > .ti+.f.h {
+    margin-top: 0;
+  }
+
+  > .sub {
+    margin: 0;
+    padding: 8px 0;
+  }
+
+  // a description right under the title belongs to the title: one item, one line below both
+  > .ti:has(+.sub) {
+    padding-bottom: 4px;
+    border-bottom: 0;
+  }
+
+  > .ti+.sub {
+    padding-top: 0;
+  }
+
+  // stacked fields (a path and its button) and plain lines of text
+  > .f:not(.h):not(:has(>input.sw)) {
+    margin: 0;
+    padding: 10px 0 4px;
+    border-bottom: 0; // stacked fields have no line between them
+
+    &:last-child {
+      padding-bottom: 0;
+    }
+  }
+
+  // (as specific as the rules above, which an id inside :is() makes heavy)
+  > .ti:last-child,
+  > .sub:last-child,
+  > .f:last-child,
+  > .cat.nc:last-child {
+    border-bottom: 0;
+  }
+}
+
+// the last row's text is centred in its 37px line: pull the box's edge in by the empty half so the gap below matches the one above
+.f.h:not(.row):last-child,
+.f.row:has(>input.sw):last-child,
+#dlg .cat.nc:last-child {
+  margin-bottom: -9px;
+}
+
+// the same at the top of a folded card: the first row's empty upper half is pulled in
+.cat .card>.f.h:not(.row):first-child,
+.cat .card>.f.row:has(>input.sw):first-child {
+  margin-top: -9px;
+}
+
+// the last item of a group has no line below it (after the rules above, which would otherwise win)
+.f.h:not(.row):last-child,
+.f.row:has(>input.sw):last-child,
+#dlg .cat.nc:last-child {
+  border-bottom: 0;
+}
+
+// stacked fields inside a folded card follow the same rule as those directly in a box
+:is(#dlg,#det:has(#mp)) .card>.f:not(.h):not(:has(>input.sw)) {
+  margin: 0;
+  padding: 10px 0 4px;
+  border-bottom: 0;
+
+  &:first-child {
+    padding-top: 0;
+  }
+
+  &:last-child {
+    padding-bottom: 0;
+  }
+}

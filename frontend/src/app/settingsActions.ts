@@ -16,7 +16,7 @@ const portProblem = (port: number): [string, string] | null => {
 };
 
 /**
- * Stores what the settings form changed, right after the field was edited. A bad web access port is refused and the
+ * Stores what the settings form changed, right after the field was edited. A bad web monitoring port is refused and the
  * form goes back to what is saved. The changes of paths are applied to instances only when they start again.
  */
 export async function commitSetting(field: keyof Cfg): Promise<void> {

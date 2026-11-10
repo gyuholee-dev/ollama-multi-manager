@@ -46,7 +46,7 @@ export interface Settings {
   theme: 'system' | 'light' | 'dark';
   launch_at_login: boolean;
   minimize_to_tray: boolean;
-  external_monitoring_enabled: boolean; // "web access" in the UI
+  external_monitoring_enabled: boolean; // "web monitoring" in the UI
   external_monitoring_port: number;
   refresh_interval_seconds: number;
   ollama_executable_path?: string | null; // left out for guests

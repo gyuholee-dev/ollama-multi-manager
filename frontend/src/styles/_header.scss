@@ -80,7 +80,9 @@ header:not(.mwh) {
       background: light-dark(var(--ghost-hover),var(--card));
     }
 
-    &:active {
+    // pressed, or its window is open
+    &:active,
+    &.on {
       background: light-dark(var(--ghost-active),color-mix(in srgb,var(--card) 88%,var(--text)));
     }
   }

@@ -1,4 +1,4 @@
-"""Web access: the app's own web UI, served read-only to guests on a port that can listen on the LAN.
+"""Web monitoring: the app's own web UI, served read-only to guests on a port that can listen on the LAN.
 
 It is a second HTTP server, apart from the main API. Guests need no login: only GET and the live WebSocket are
 accepted, only a fixed list of read endpoints is reachable, and no secrets are included. Anything that changes state
@@ -47,7 +47,7 @@ MAX_GUEST_SOCKETS = 20
 
 
 class GuestGate:
-    """ASGI front door of the web access port."""
+    """ASGI front door of the web monitoring port."""
 
     def __init__(self, main_app: Any, static_app: Any):
         self.main_app, self.static_app = main_app, static_app
@@ -122,7 +122,7 @@ class ExternalMonitor:
         self.error = None
         if not port_free(port):
             self.error = f"Port {port} is already in use"
-            log.warning("Web access not started: %s", self.error)
+            log.warning("Web monitoring not started: %s", self.error)
             return
         server = uvicorn.Server(uvicorn.Config(self._app(), host=self.host, port=port, log_level="warning", lifespan="off", timeout_graceful_shutdown=2))
         server.install_signal_handlers = lambda: None  # the main server owns signal handling
@@ -133,7 +133,7 @@ class ExternalMonitor:
                 break
             await asyncio.sleep(0.05)
         if server.started:
-            log.info("Web access listening on %s:%d", self.host, port)
+            log.info("Web monitoring listening on %s:%d", self.host, port)
         else:
             self.error = self.error or "Failed to start"
             await self._stop()

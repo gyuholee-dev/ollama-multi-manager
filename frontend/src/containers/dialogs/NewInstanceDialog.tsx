@@ -103,8 +103,8 @@ function Form({ port: firstPort }: { port: number }) {
       <DialogTitle onClose={close}>{t('new.title')}</DialogTitle>
       <DialogBody><form onSubmit={(e) => void submit(e)}>
         <div className="box" id="sv"><span className="ti">{t('new.server')}</span>
-          <div className="f"><div className="f row"><label htmlFor="n">{t('f.name')}</label></div><input id="n" required placeholder="worker-4" value={name} onChange={(e) => setName(e.target.value)} /></div>
-          <div className="f"><div className="f row"><label htmlFor="p">{t('f.port')}</label></div><input id="p" type="number" required placeholder="11438" value={port} onChange={(e) => setPort(e.target.value)} /></div>
+          <div className="f h"><div className="f row"><label htmlFor="n">{t('f.name')}</label></div><input id="n" required placeholder="worker-4" value={name} onChange={(e) => setName(e.target.value)} /></div>
+          <div className="f h"><div className="f row"><label htmlFor="p">{t('f.port')}</label></div><input id="p" type="number" required placeholder="11438" value={port} onChange={(e) => setPort(e.target.value)} /></div>
           <Fold title={t('new.general')} hint={t('new.generalT')}>
             <Slider label={t('f.ctx')} shown={fmtCtx(2048 * 2 ** (ctx - 1))} min={1} max={7} value={ctx} onChange={setCtx} />
             <Slider label={t('f.keep')} shown={fmtKeep(KEEP[keep] ?? 5, t)} min={0} max={9} value={keep} onChange={setKeep} />
@@ -112,20 +112,22 @@ function Form({ port: firstPort }: { port: number }) {
             <Slider label={t('f.parallel')} shown={fmtN(parallel, t)} min={1} max={8} value={parallel} onChange={setParallel} />
           </Fold>
           <Fold title={t('new.advanced')} hint={t('new.advancedT')}>
-            <div className="f"><div className="f row"><label htmlFor="gp">{t('f.device')}</label></div>
+            <div className="f h"><div className="f row"><label htmlFor="gp">{t('f.device')}</label></div>
               <span className="sel"><select id="gp" value={gpu} onChange={(e) => setGpu(e.target.value)}>
                 {['auto', 'cpu', ...devices.map((d) => String(d.index))].map((g) => <option key={g} value={g}>{gpuLabel(g === 'auto' || g === 'cpu' ? g : +g, devices, t)}</option>)}
               </select><span className="material-icons">expand_more</span></span></div>
-            <div className="f"><div className="f row"><label htmlFor="kvq">{t('f.kvq')}</label></div>
+            <div className="f h"><div className="f row"><label htmlFor="kvq">{t('f.kvq')}</label></div>
               <span className="sel"><select id="kvq" value={kvq} onChange={(e) => setKvq(e.target.value as typeof kvq)}>
                 <option value="f16">{t('opt.f16')}</option><option value="q8_0">q8_0</option><option value="q4_0">q4_0</option>
               </select><span className="material-icons">expand_more</span></span></div>
             <div className="f row"><label htmlFor="fa">{t('f.flash')}</label><input id="fa" className="sw" type="checkbox" role="switch" checked={flash} onChange={(e) => setFlash(e.target.checked)} /></div>
             <div className="f row"><label htmlFor="as">{t('f.auto')}</label><input id="as" className="sw" type="checkbox" role="switch" checked={auto} onChange={(e) => setAuto(e.target.checked)} /></div>
-            {auto && <div className="f" id="istw"><div className="f row"><label htmlFor="ist">{t('f.idle')}</label></div><input id="ist" type="number" min={0} max={1440} value={idle} onChange={(e) => setIdle(e.target.value)} /></div>}
+            {auto && <div className="f h" id="istw"><div className="f row"><label htmlFor="ist">{t('f.idle')}</label></div><input id="ist" type="number" min={0} max={1440} value={idle} onChange={(e) => setIdle(e.target.value)} /></div>}
             <div className="f row"><label htmlFor="lan">{t('f.lan')}</label><input id="lan" className="sw" type="checkbox" role="switch" checked={lan} onChange={(e) => setLan(e.target.checked)} /></div>
-            <div className="f row"><label htmlFor="sr">{t('f.saveReq')}</label><input id="sr" className="sw" type="checkbox" role="switch" checked={saveReq} onChange={(e) => setSaveReq(e.target.checked)} /></div>
-            {saveReq && <div className="sub">{t('f.saveReqHint')}</div>}
+            <div className="f row">
+              {saveReq ? <div className="ot"><label htmlFor="sr">{t('f.saveReq')}</label><span className="sub">{t('f.saveReqHint')}</span></div> : <label htmlFor="sr">{t('f.saveReq')}</label>}
+              <input id="sr" className="sw" type="checkbox" role="switch" checked={saveReq} onChange={(e) => setSaveReq(e.target.checked)} />
+            </div>
             <div className="f"><div className="f row"><label htmlFor="ak">{t('f.key')}</label></div>
               <span className="pr"><input id="ak" autoComplete="off" spellCheck={false} placeholder={t('f.keyPh')} value={key} onChange={(e) => setKey(e.target.value)} />
                 <button type="button" onClick={() => setKey(randomKey())}>{t('btn.genKey')}</button></span></div>

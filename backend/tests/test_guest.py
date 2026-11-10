@@ -1,4 +1,4 @@
-"""Guest mode: the web UI on the web access port is read-only and needs no login."""
+"""Guest mode: the web UI on the web monitoring port is read-only and needs no login."""
 import json
 
 import httpx
@@ -109,7 +109,7 @@ async def test_live_updates_reach_guests_and_other_sockets_are_refused(env):
     try:
         async with websockets.connect(f"ws://127.0.0.1:{port}/ws") as ws:
             await ws.recv()
-        raise AssertionError("nothing should accept a guest socket once web access is off")
+        raise AssertionError("nothing should accept a guest socket once web monitoring is off")
     except (OSError, websockets.exceptions.ConnectionClosed, websockets.exceptions.InvalidStatus):
         pass
 
