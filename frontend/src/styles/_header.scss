@@ -21,28 +21,20 @@ header {
   margin: 0;
 }
 
+// one row, 50px high: the title on the left, the buttons on the right
 header {
   flex: none;
-  padding: 0;
-  display: block; // two rows: the title above, the web access address and the buttons below
+  height: 50px;
+  padding: 10px 16px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
 
-  .hr1,
-  .hr2 {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    padding: 0 16px;
-  }
-
-  .hr1 {
-    height: 40px;
-    padding-top: 6px;
-  }
-
-  .hr2 {
-    height: 40px;
-    padding-bottom: 10px;
-    justify-content: space-between;
+  h1 {
+    flex: 0 1 auto;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
   }
 
   i.material-icons {
@@ -51,76 +43,44 @@ header {
 
   button {
     height: 30px;
+    white-space: nowrap;
   }
 
   .btns {
     margin-left: auto;
     flex: none;
   }
-
-  button {
-    white-space: nowrap;
-  }
 }
 
-#srv {
-  cursor: pointer;
-  position: relative;
-  flex: 0 100 auto;
-  padding: 2px 6px;
-  margin: 0;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  min-width: 0;
-  color: var(--sub);
-  font-size: .75rem;
-
-  &:hover {
-    background: var(--ghost-hover);
-  }
-}
-
-#srv {
-  border-radius: 8px;
-  transition: background-color .1s;
-
-  &:active,
-  &.pressed {
-    background: var(--ghost-active);
-  }
-
-  &::before {
-    content: "";
-    width: 8px;
-    height: 8px;
-    border-radius: 50%;
-    background: var(--ok);
-    flex: none;
-  }
-
-  .d {
-    min-width: 0;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-  }
-}
-
-@media (max-width:639px) {
-  header:not(.mwh) i.material-icons {
+// the buttons of the page's header are icons only, with no fill: just a hover and press shade
+// (the monitor window's category buttons keep their words and their look)
+header:not(.mwh) {
+  i.material-icons {
     display: inline-block;
     font-size: 1.25rem;
   }
-  header:not(.mwh) button {
+
+  button {
     width: 30px;
     height: 30px;
     padding: 0;
     display: inline-flex;
     align-items: center;
     justify-content: center;
-  }
-  header:not(.mwh) span {
-    display: none;
+    border: 0;
+    background: none;
+
+    // dark mode: lighter than the page behind it (the card colour); light mode: darker than it; a little stronger while pressed
+    &:hover {
+      background: light-dark(var(--ghost-hover),var(--card));
+    }
+
+    &:active {
+      background: light-dark(var(--ghost-active),color-mix(in srgb,var(--card) 88%,var(--text)));
+    }
+
+    span {
+      display: none;
+    }
   }
 }

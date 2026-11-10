@@ -27,18 +27,18 @@ export function MonitorWindow({ id }: { id: number }) {
 
   const note = (text: string) => (
     <div id="det" className="mwin">
-      <header className="mwh"><div className="hr1"><h1>{t('app.title')}</h1></div></header>
+      <header className="mwh"><h1>{t('app.title')}</h1></header>
       <div id="boot" role="status">{text}</div>
     </div>
   );
   if (!ready) return note(t('boot.loading'));
   if (!view) return note(t('im.removed'));
-  // the same header as the main window (title above, buttons below, right aligned) that stays while the body scrolls
+  // the same header as the main window (title on the left, buttons on the right) that stays while the body scrolls
   return (
     <div id="det" className="mwin">
       <header className="mwh">
-        <div className="hr1"><h1>{t('im.title', { n: view.name })}</h1></div>
-        <div className="hr2"><div className="btns"><CategoryButtons /></div></div>
+        <h1>{t('im.title', { n: view.name })}</h1>
+        <div className="btns"><CategoryButtons /></div>
       </header>
       <div className="dbody"><MonitorBody id={id} view={view} /></div>
     </div>

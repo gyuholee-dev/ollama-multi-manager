@@ -8,12 +8,12 @@ html[data-titlebar=custom] {
     user-select: none;
   }
 
-  header .hr1 {
-    padding-left: 88px; // the traffic-light buttons sit in the first row
+  header {
+    padding-left: 88px; // the traffic-light buttons sit at the left end
+    padding-right: 10px; // the buttons on the right sit close to the window's rounded corner, as the traffic lights do
   }
 
   header button,
-  header #srv,
   header .btns {
     -webkit-app-region: no-drag;
   }
