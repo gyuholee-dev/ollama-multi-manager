@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import type { PullTask } from '@/api/types';
+import type { InstalledModel, PullTask } from '@/api/types';
 import { loadModels, pullAction, removeModel, removePull, startPull } from '@/app/modelActions';
 import { Dialog, DialogBody, DialogTitle } from '@/components/common/Dialog';
 import { Icon } from '@/components/common/Icon';
@@ -46,7 +46,7 @@ export function ModelsDialog() {
     if (finished !== seen.current) { seen.current = finished; void loadModels(); }
   }, [finished]);
 
-  type Row = { task?: PullTask; model?: { name: string; size: number }; tag: string };
+  type Row = { task?: PullTask; model?: InstalledModel; tag: string };
   const groups = new Map<string, Row[]>();
   const add = (family: string, row: Row) => groups.set(family, [...(groups.get(family) ?? []), row]);
   unfinished(tasks).forEach((task) => { const { family, tag } = splitModel(task.model); add(family, { task, tag }); });
@@ -75,7 +75,7 @@ export function ModelsDialog() {
             {rows.map((row) => row.task ? <DownloadCard key={row.task.id} task={row.task} /> : (
               <div className="card mc" key={row.model!.name}>
                 <div className="top" style={{ margin: 0 }}><span className="ti tag">{row.model!.name}</span><span className="sub">{gb(row.model!.size).toFixed(1)} GB</span></div>
-                <div className="sub mi"><span>{modelInfo(row.tag, t)}</span></div>
+                <div className="sub mi"><span>{modelInfo(row.tag, t, row.model!.details)}</span></div>
                 <div className="btns" style={{ justifyContent: 'space-between' }}>
                   <a className="btn small" href={`https://ollama.com/library/${encodeURI(row.model!.name)}`} target="_blank" rel="noopener noreferrer" aria-label={t('mdl.library')} title={t('mdl.library')}><Icon name="open_in_new" /></a>
                   <button className="small" onClick={() => void removeModel(row.model!.name)}>{t('btn.delete')}</button>

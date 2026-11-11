@@ -28,11 +28,16 @@ export const expAt = (exp: string | null, keep: number, t: Translate): string =>
 
 export const hms = (tsMs: number): string => new Date(tsMs).toLocaleTimeString('en-GB');
 
-/** "7B" and "Q4_K_M" read out of a model tag such as "qwen3:8b-q4_K_M" -> "parameters 8B · quantization Q4_K_M". */
-export const modelInfo = (tag: string, t: Translate): string => {
+/** "parameters 11.9B · quantization Q4_K_M": what Ollama reports about the model (`details`), as it is; what it does not say
+ *  is read out of the tag, such as "qwen3:8b-q4_K_M" (a model made from another with `ollama create` often has no such tag). */
+export const modelInfo = (tag: string, t: Translate, details?: Record<string, unknown>): string => {
+  const given = (key: string): string => { const v = details?.[key]; return typeof v === 'string' ? v.trim() : ''; };
   const p = tag.match(/(?:^|[-:])(\d+(?:\.\d+)?)b(?=-|$)/i);
   const q = tag.match(/(q\d+(?:_[a-z0-9]+)*|nvfp\d+|fp\d+|bf\d+)/i);
-  return t('mdl.param', { p: p?.[1] ? `${p[1]}B` : '-', q: q?.[1] ? q[1].toUpperCase() : '-' });
+  return t('mdl.param', {
+    p: given('parameter_size') || (p?.[1] ? `${p[1]}B` : '-'),
+    q: given('quantization_level') || (q?.[1] ? q[1].toUpperCase() : '-'),
+  });
 };
 
 /** "gemma4:12b-it-q4_K_M" -> family "gemma4", tag "12b-it-q4_K_M" */

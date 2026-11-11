@@ -30,6 +30,13 @@ describe('format', () => {
     expect(modelInfo('latest', en)).toBe(en('mdl.param', { p: '-', q: '-' }));
   });
 
+  it('prefers what Ollama reports about the model to what its tag says', () => {
+    const details = { parameter_size: '11.9B', quantization_level: 'Q4_K_M' };
+    expect(modelInfo('12b-it-q4_K_M', en, details)).toBe(en('mdl.param', { p: '11.9B', q: 'Q4_K_M' }));
+    expect(modelInfo('1.5b-gpu', en, { parameter_size: '1.5B', quantization_level: 'Q4_K_M' })).toBe(en('mdl.param', { p: '1.5B', q: 'Q4_K_M' }));
+    expect(modelInfo('1.5b-base', en, { parameter_size: '', quantization_level: 5 })).toBe(en('mdl.param', { p: '1.5B', q: '-' })); // not given: the tag
+  });
+
   it('splits a model name into family and tag', () => {
     expect(splitModel('gemma4:12b-it-q4_K_M')).toEqual({ family: 'gemma4', tag: '12b-it-q4_K_M' });
     expect(splitModel('qwen2.5-coder:1.5b')).toEqual({ family: 'qwen2.5-coder', tag: '1.5b' });
