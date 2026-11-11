@@ -72,7 +72,7 @@ const ko: Messages = {
   'rr.t': '재시작 필요', 'rr.m': '새 실행 파일 또는 모델 경로를 적용하려면 실행 중인 인스턴스를 재시작해야 합니다.',
 
   'mdl.param': '파라미터 {p} · 양자화 {q}', 'mdl.estimate': '현재 환경 기준 추정치',
-  'mdl.library': '라이브러리', 'mdl.none': '설치된 모델이 없습니다.', 'mdl.stats': '{path} · 모델 {n}개 · 총 {gb} GB',
+  'mdl.library': '라이브러리', 'mdl.none': '설치된 모델이 없습니다.', 'mdl.stats': '{path} · 모델 {n}개 · 총 {size}',
   'mdl.download': '다운로드', 'mdl.dlPh': '다운로드할 모델 (예: qwen3:8b-q4_K_M)',
   'mdl.dup.title': '이미 설치된 모델', 'mdl.dup.msg': '{n} 모델은 이미 설치되어 있습니다.',
   'mdl.empty.title': '모델 이름 필요', 'mdl.empty.msg': '다운로드할 모델 이름을 입력하세요.',

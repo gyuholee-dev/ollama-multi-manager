@@ -12,11 +12,11 @@ const system = (used: number): SystemStats => ({ cpu_percent: 0, cpu_count: 12, 
 describe('modelNeed', () => {
   const installed = [{ name: 'a:8b', size: 5 * GiB }, { name: 'b:7b', size: 4 * GiB }, { name: 'c:3b', size: 2 * GiB }];
   it('adds up the biggest models that can sit in memory together', () => {
-    expect(modelNeed(installed, ['a:8b', 'b:7b', 'c:3b'], 2)).toBe(9);
-    expect(modelNeed(installed, ['b:7b', 'c:3b'], 1)).toBe(4);
+    expect(modelNeed(installed, ['a:8b', 'b:7b', 'c:3b'], 2)).toBe(9 * GiB);
+    expect(modelNeed(installed, ['b:7b', 'c:3b'], 1)).toBe(4 * GiB);
   });
   it('counts every installed model when none is selected', () => {
-    expect(modelNeed(installed, [], 3)).toBe(11);
+    expect(modelNeed(installed, [], 3)).toBe(11 * GiB);
     expect(modelNeed([], [], 3)).toBe(0);
   });
 });
@@ -24,19 +24,21 @@ describe('modelNeed', () => {
 describe('unifiedRoom', () => {
   it('is the pool\'s free part when that is less than what is left under the GPU maximum', () => {
     const r = unifiedRoom([dev({})], 'auto', system(12.9))!;
-    expect(r.avail).toBeCloseTo(11.1);
-    expect(r.room).toBeCloseTo(17.1);
-    expect(r.cap).toBeCloseTo(11.1);
+    expect(r.avail / GiB).toBeCloseTo(11.1);
+    expect(r.room! / GiB).toBeCloseTo(17.1);
+    expect(r.cap / GiB).toBeCloseTo(11.1);
   });
   it('is what is left under the GPU maximum when that is less', () => {
     const r = unifiedRoom([dev({ mem_used: 10 * GiB })], 0, system(3))!;
-    expect(r.avail).toBeCloseTo(21);
-    expect(r.room).toBeCloseTo(7.8);
-    expect(r.cap).toBeCloseTo(7.8);
+    expect(r.avail / GiB).toBeCloseTo(21);
+    expect(r.room! / GiB).toBeCloseTo(7.8);
+    expect(r.cap / GiB).toBeCloseTo(7.8);
   });
   it('uses the whole pool for an instance that runs on the CPU, and none of the GPU numbers', () => {
     const r = unifiedRoom([dev({})], 'cpu', system(12.9))!;
-    expect(r).toEqual({ cap: expect.closeTo(11.1), avail: expect.closeTo(11.1), room: null });
+    expect(r.room).toBeNull();
+    expect(r.cap / GiB).toBeCloseTo(11.1);
+    expect(r.avail / GiB).toBeCloseTo(11.1);
   });
   it('is not there where memory is not shared or cannot be read', () => {
     expect(unifiedRoom([dev({ unified: false })], 'auto', system(1))).toBeNull();

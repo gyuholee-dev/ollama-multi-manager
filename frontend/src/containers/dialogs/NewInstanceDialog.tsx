@@ -10,7 +10,7 @@ import { ModelPicker } from '@/components/common/ModelPicker';
 import { fmtCtx, fmtKeep, fmtN, gpuLabel, KEEP } from '@/lib/format';
 import { copyText } from '@/lib/clipboard';
 import { API_KEY_MIN, randomKey } from '@/lib/random';
-import { gb } from '@/lib/units';
+import { gb, gbDecimal } from '@/lib/units';
 import { modelNeed, unifiedRoom } from '@/lib/memory';
 import { useMonitorStore } from '@/stores/monitorStore';
 import { useModelStore } from '@/stores/modelStore';
@@ -93,9 +93,9 @@ function Form({ port: firstPort }: { port: number }) {
     if (room) {
       // memory shared with the CPU: compare with what can really be used now (the pool's free part and what is left under the GPU's maximum)
       if (need > room.cap
-        && !(await popup({ kind: 'warn', title: t('w.fitUma.t'), msg: room.room == null ? t('w.fitUma.cpu', { need: need.toFixed(1), cap: room.cap.toFixed(1) }) : t('w.fitUma.m', { need: need.toFixed(1), cap: room.cap.toFixed(1), avail: room.avail.toFixed(1), room: room.room.toFixed(1) }), ok: t('btn.create'), cancel: t('btn.cancel') }))) return;
-    } else if (device && need > gb(device.mem_total)
-      && !(await popup({ kind: 'warn', title: t('w.fit.t'), msg: t('w.fit.m', { need: need.toFixed(1), cap: gb(device.mem_total).toFixed(1) }), ok: t('btn.create'), cancel: t('btn.cancel') }))) return;
+        && !(await popup({ kind: 'warn', title: t('w.fitUma.t'), msg: room.room == null ? t('w.fitUma.cpu', { need: gbDecimal(need).toFixed(1), cap: gb(room.cap).toFixed(1) }) : t('w.fitUma.m', { need: gbDecimal(need).toFixed(1), cap: gb(room.cap).toFixed(1), avail: gb(room.avail).toFixed(1), room: gb(room.room).toFixed(1) }), ok: t('btn.create'), cancel: t('btn.cancel') }))) return;
+    } else if (device && need > device.mem_total
+      && !(await popup({ kind: 'warn', title: t('w.fit.t'), msg: t('w.fit.m', { need: gbDecimal(need).toFixed(1), cap: gb(device.mem_total).toFixed(1) }), ok: t('btn.create'), cancel: t('btn.cancel') }))) return;
     if (body.options.listen === 'lan' && !body.options.api_key
       && !(await popup({ kind: 'warn', title: t('w.lan.t'), msg: t('w.lan.m'), ok: t('btn.open'), cancel: t('btn.cancel') }))) return;
     try {

@@ -1,6 +1,7 @@
 import { api } from '@/api/client';
 import { buildViews, vramByGpu } from '@/lib/derive';
 import { modelNeed, unifiedRoom } from '@/lib/memory';
+import { gb, gbDecimal } from '@/lib/units';
 import { t } from '@/locales/useT';
 import { useInstancesStore } from '@/stores/instancesStore';
 import { useModelStore } from '@/stores/modelStore';
@@ -33,8 +34,8 @@ export async function changeState(id: number, state: 'running' | 'stopped'): Pro
       // memory shared with the CPU: the models this instance may load at once against what can really be used now
       if (need > room.cap && !(await popup({
         kind: 'warn', title: t('w.fitUma.t'), ok: t('btn.start'), cancel: t('btn.cancel'),
-        msg: room.room == null ? t('w.fitUma.cpu', { need: need.toFixed(1), cap: room.cap.toFixed(1) })
-          : t('w.fitUma.m', { need: need.toFixed(1), cap: room.cap.toFixed(1), avail: room.avail.toFixed(1), room: room.room.toFixed(1) }),
+        msg: room.room == null ? t('w.fitUma.cpu', { need: gbDecimal(need).toFixed(1), cap: gb(room.cap).toFixed(1) })
+          : t('w.fitUma.m', { need: gbDecimal(need).toFixed(1), cap: gb(room.cap).toFixed(1), avail: gb(room.avail).toFixed(1), room: gb(room.room).toFixed(1) }),
       }))) return;
     } else {
       const usage = vramByGpu(views, devices);

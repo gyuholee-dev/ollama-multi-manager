@@ -1,7 +1,7 @@
 import { useEffect } from 'react';
 import { loadModels } from '@/app/modelActions';
 import { normModel, splitModel } from '@/lib/format';
-import { gb } from '@/lib/units';
+import { sizeText, sizeTitle } from '@/lib/units';
 import { useT } from '@/locales/useT';
 import { useModelStore } from '@/stores/modelStore';
 import { Fold } from './Fold';
@@ -30,7 +30,7 @@ export function ModelPicker({ value, onChange }: { value: string[]; onChange: (m
               const id = `pick-${m.name}`;
               return (
                 <div className="fld" key={m.name}>
-                  <label className="fld__label" htmlFor={id}>{m.name} · {gb(m.size).toFixed(1)} GB</label>
+                  <label className="fld__label" htmlFor={id} title={sizeTitle(m.size)}>{m.name} · {sizeText(m.size)}</label>
                   <input id={id} className="sw" type="checkbox" role="switch" checked={picked.has(normModel(m.name))} onChange={(e) => toggle(m.name, e.target.checked)} />
                 </div>
               );

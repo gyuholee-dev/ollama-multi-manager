@@ -6,7 +6,7 @@ import { Dialog, DialogBody, DialogTitle } from '@/components/common/Dialog';
 import { StateBadge } from '@/components/common/StateBadge';
 import type { InstanceView } from '@/lib/derive';
 import { expAt, fmtCtx, fmtKeep, fmtN, fmtUp, gpuLabel, memoryLabel, normModel } from '@/lib/format';
-import { gb } from '@/lib/units';
+import { gb, sizeText } from '@/lib/units';
 import { useT } from '@/locales/useT';
 import { useDialogStore } from '@/stores/dialogStore';
 import { useMonitorStore } from '@/stores/monitorStore';
@@ -40,9 +40,9 @@ function Details({ view: i }: { view: InstanceView }) {
   const availableItems = i.allowed.length
     ? i.allowed.map((name) => {
       const size = installed.find((x) => normModel(x.name) === normModel(name))?.size;
-      return { key: name, text: size != null ? `${name} · ${gb(size).toFixed(1)} GB` : name };
+      return { key: name, text: size != null ? `${name} · ${sizeText(size)}` : name };
     })
-    : avail.map((x) => ({ key: x.name, text: `${x.name} · ${gb(x.size).toFixed(1)} GB` }));
+    : avail.map((x) => ({ key: x.name, text: `${x.name} · ${sizeText(x.size)}` }));
 
   const m = i.metrics;
   const vram = devices.some((d) => d.supports.mem) && m?.vram_bytes != null ? `${gb(m.vram_bytes).toFixed(1)} GB${m.vram_source === 'estimated' ? ' ~' : ''}` : '-';

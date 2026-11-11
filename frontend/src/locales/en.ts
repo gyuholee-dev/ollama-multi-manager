@@ -73,7 +73,7 @@ const en: Messages = {
   'rr.t': 'Restart required', 'rr.m': 'Restart the running instances to apply the new executable or model path.',
 
   'mdl.param': 'Parameters {p} · Quantization {q}', 'mdl.estimate': 'Estimate for the current environment',
-  'mdl.library': 'Library', 'mdl.none': 'No models installed.', 'mdl.stats': '{path} · {n} models · {gb} GB total',
+  'mdl.library': 'Library', 'mdl.none': 'No models installed.', 'mdl.stats': '{path} · {n} models · {size} total',
   'mdl.download': 'Download', 'mdl.dlPh': 'Model to download (e.g. qwen3:8b-q4_K_M)',
   'mdl.dup.title': 'Already installed', 'mdl.dup.msg': '{n} is already installed.',
   'mdl.empty.title': 'Model name required', 'mdl.empty.msg': 'Enter the name of the model to download.',

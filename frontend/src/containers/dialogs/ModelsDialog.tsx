@@ -4,7 +4,7 @@ import { loadModels, pullAction, removeModel, removePull, startPull } from '@/ap
 import { Dialog, DialogBody, DialogTitle } from '@/components/common/Dialog';
 import { Icon } from '@/components/common/Icon';
 import { modelInfo, splitModel } from '@/lib/format';
-import { gb } from '@/lib/units';
+import { sizeBoth, sizeText, sizeTitle } from '@/lib/units';
 import { useT } from '@/locales/useT';
 import { useDialogStore } from '@/stores/dialogStore';
 import { useModelStore } from '@/stores/modelStore';
@@ -15,11 +15,12 @@ function DownloadCard({ task }: { task: PullTask }) {
   const t = useT();
   const off = task.status !== 'pulling';
   const pct = `${Math.floor(task.percent ?? 0)}%`;
-  const size = task.total ? ` · ${gb(task.completed).toFixed(1)} / ${gb(task.total).toFixed(1)} GB` : '';
+  const size = task.total ? ` · ${sizeText(task.completed)} / ${sizeText(task.total)}` : '';
+  const sizeHint = task.total ? `${sizeTitle(task.completed) ?? sizeText(task.completed)} / ${sizeTitle(task.total) ?? sizeText(task.total)}` : undefined; // the same in GiB
   const text = task.status === 'paused' ? `${t('mdl.paused')} · ${pct}${size}` : task.status === 'error' ? `${t('mdl.failed')} · ${pct}${size}` : pct + size;
   return (
     <div className="card mc" id={`dl-${task.id}`} data-s={task.status}>
-      <div className="top" style={{ margin: 0 }}><span className="ti tag">{task.model}</span><span className="sub">{text}</span></div>
+      <div className="top" style={{ margin: 0 }}><span className="ti tag">{task.model}</span><span className="sub" title={sizeHint}>{text}</span></div>
       <div className="mi"><div className={`dl${off ? ' off' : ''}`}><i style={{ width: `${task.percent ?? 0}%` }} /></div></div>
       <div className="btns" style={{ justifyContent: 'space-between' }}>
         <button className="small" onClick={() => void pullAction(task.id, off ? 'resume' : 'pause')}>{t(off ? 'btn.resume' : 'btn.pause')}</button>
@@ -53,7 +54,7 @@ export function ModelsDialog() {
   list.forEach((model) => { const { family, tag } = splitModel(model.name); add(family, { model, tag }); });
 
   const submit = async () => { if (await startPull(name)) setName(''); };
-  const stats = t('mdl.stats', { path: path || '~/.ollama/models', n: list.length, gb: gb(list.reduce((a, m) => a + m.size, 0)).toFixed(1) });
+  const stats = t('mdl.stats', { path: path || '~/.ollama/models', n: list.length, size: sizeBoth(list.reduce((a, m) => a + m.size, 0)) });
 
   return (
     <Dialog id="det" onClose={close}>
@@ -74,7 +75,7 @@ export function ModelsDialog() {
             <span className="ti">{family}</span>
             {rows.map((row) => row.task ? <DownloadCard key={row.task.id} task={row.task} /> : (
               <div className="card mc" key={row.model!.name}>
-                <div className="top" style={{ margin: 0 }}><span className="ti tag">{row.model!.name}</span><span className="sub">{gb(row.model!.size).toFixed(1)} GB</span></div>
+                <div className="top" style={{ margin: 0 }}><span className="ti tag">{row.model!.name}</span><span className="sub">{sizeBoth(row.model!.size)}</span></div>
                 <div className="sub mi"><span>{modelInfo(row.tag, t, row.model!.details)}</span></div>
                 <div className="btns" style={{ justifyContent: 'space-between' }}>
                   <a className="btn small" href={`https://ollama.com/library/${encodeURI(row.model!.name)}`} target="_blank" rel="noopener noreferrer" aria-label={t('mdl.library')} title={t('mdl.library')}><Icon name="open_in_new" /></a>
