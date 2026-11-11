@@ -5,6 +5,7 @@ import { t } from '@/locales/useT';
 import { useInstancesStore } from '@/stores/instancesStore';
 import { useMonitorStore } from '@/stores/monitorStore';
 import { useSettingsStore, type Cfg } from '@/stores/settingsStore';
+import { API_KEY_MIN } from '@/lib/random';
 import { ask, fail, notify } from './dialogs';
 import { loadModels } from './modelActions';
 import { log } from './log';
@@ -63,6 +64,38 @@ export async function commitPassword(password: string): Promise<boolean> {
   try { useMonitorStore.getState().setInfo(await api.get<Info>('/info')); } catch { /* keep the old info */ }
   void notify('info', t('ext.title'), t('ext.pwSaved'));
   return true;
+}
+
+/** Sets the metrics token. Resolves true when it was saved. */
+async function putMetricsToken(token: string): Promise<boolean> {
+  try {
+    await api.put<Settings>('/settings', { external_monitoring_metrics_token: token });
+  } catch (e) {
+    await fail(e);
+    return false;
+  }
+  try { useMonitorStore.getState().setInfo(await api.get<Info>('/info')); } catch { /* keep the old info */ }
+  return true;
+}
+
+/** `quiet`: a generated token is on the screen to be copied, so no popup over it. */
+export async function commitMetricsToken(token: string, quiet = false): Promise<boolean> {
+  if (token.length < API_KEY_MIN) { await notify('warn', t('ext.title'), t('key.short', { n: API_KEY_MIN })); return false; }
+  if (!(await putMetricsToken(token))) return false;
+  if (!quiet) void notify('info', t('ext.title'), t('ext.tokenSaved'));
+  return true;
+}
+
+/** Removes the metrics token (the user emptied the field). */
+export async function clearMetricsToken(): Promise<boolean> {
+  if (!(await putMetricsToken(''))) return false;
+  void notify('info', t('ext.title'), t('ext.tokenCleared'));
+  return true;
+}
+
+/** The saved metrics token ("" when there is none). */
+export async function readMetricsToken(): Promise<string> {
+  try { return (await api.get<Settings>('/settings')).external_monitoring_metrics_token ?? ''; } catch { return ''; }
 }
 
 export async function resetSettings(): Promise<void> {

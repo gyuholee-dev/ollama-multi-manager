@@ -12,7 +12,7 @@ input.sw {
   background: var(--field);
   position: relative;
   cursor: pointer;
-  transition: background-color .15s;
+  transition: background-color .15s,var(--ring-fade);
 
   &::after {
     content: "";
@@ -60,7 +60,10 @@ input.sw {
 
 .pr {
   display: flex;
-  gap: 6px;
+
+  > * + * {
+    margin-left: 8px;
+  }
 
   input {
     flex: 1;

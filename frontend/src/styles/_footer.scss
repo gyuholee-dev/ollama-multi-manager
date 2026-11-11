@@ -12,7 +12,6 @@ footer {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    gap: 16px;
     font-size: .75rem;
     color: var(--sub);
   }
@@ -21,10 +20,10 @@ footer {
     min-width: 0;
     display: flex;
     align-items: center;
-    gap: 6px;
 
     .material-icons {
       flex: none;
+      margin-right: 6px;
       font-size: .875rem;
     }
   }
@@ -41,10 +40,10 @@ footer {
   flex: none;
   display: inline-flex;
   align-items: center;
-  gap: 6px;
   color: inherit;
 
   svg {
     flex: none;
+    margin-right: 6px;
   }
 }

@@ -27,7 +27,10 @@
 
 .sc {
   display: flex;
-  gap: 8px;
+
+  > div + div {
+    margin-left: 8px;
+  }
 
   > div {
     flex: 1;

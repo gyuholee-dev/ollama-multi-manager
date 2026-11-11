@@ -8,11 +8,21 @@ a {
   text-decoration: none; // links are never underlined
 }
 
+::placeholder {
+  color: var(--placeholder);
+}
+
 // one focus ring everywhere, in the accent colour (the browser's own ring takes the system's accent, which is another colour)
 // (:where keeps it weightless, so a control that needs another offset or none just says so)
-:where(button, input, select, textarea, a):focus-visible {
-  outline: 2px solid var(--accent);
+// The ring is there all the time, transparent, so that it can fade in; a control with a transition of its own adds var(--ring-fade) to it.
+:where(button, input, select, textarea, a) {
+  outline: 2px solid transparent;
   outline-offset: 2px;
+  transition: var(--ring-fade);
+}
+
+:where(button, input, select, textarea, a):focus-visible {
+  outline-color: var(--accent);
 }
 
 body {

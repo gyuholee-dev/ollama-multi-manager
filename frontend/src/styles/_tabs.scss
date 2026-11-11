@@ -9,10 +9,13 @@
   margin: 0 8px 0 auto;
   min-width: 0;
   display: flex;
-  gap: 6px;
   overflow-x: auto;
   scrollbar-width: none;
   transition: opacity .25s ease,transform .25s ease,visibility 0s;
+
+  > * + * {
+    margin-left: 6px;
+  }
 }
 
 #ltabs button,

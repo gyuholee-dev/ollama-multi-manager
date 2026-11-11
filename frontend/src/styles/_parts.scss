@@ -18,13 +18,13 @@
 }
 
 .badge .material-icons {
+  margin-right: 4px;
   font-size: .75rem;
 }
 
 .badge {
   display: inline-flex;
   align-items: center;
-  gap: 4px;
   font-size: .75rem;
   padding: 2px 8px;
   border-radius: 8px;
@@ -52,7 +52,10 @@
 
 .btns {
   display: flex;
-  gap: 6px;
+
+  > * + * {
+    margin-left: 6px;
+  }
 }
 
 .model > span:first-child {

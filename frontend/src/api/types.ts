@@ -49,6 +49,8 @@ export interface Settings {
   external_monitoring_enabled: boolean; // "web access" in the UI
   external_monitoring_port: number;
   external_monitoring_password_set: boolean; // the password itself is never sent
+  external_monitoring_metrics_token_set: boolean;
+  external_monitoring_metrics_token?: string; // the metrics token itself, shown to be copied; left out for guests
   external_monitoring_session_hours: number; // how long a web sign-in lasts
   refresh_interval_seconds: number;
   monitor_default_ollama: boolean; // show the default Ollama (11434) when it runs
@@ -58,12 +60,13 @@ export interface Settings {
   default_models_path?: string | null;
 }
 /** `external_monitoring_password` is write-only: "" removes the password. */
-export type SettingsPatch = Partial<Omit<Settings, 'external_monitoring_password_set'>> & { external_monitoring_password?: string };
+export type SettingsPatch = Partial<Omit<Settings, 'external_monitoring_password_set' | 'external_monitoring_metrics_token_set'>> & { external_monitoring_password?: string };
 
 export interface WebAccessStatus {
   enabled: boolean;
   port: number;
   password_set: boolean;
+  metrics_token_set: boolean;
   active: boolean;
   error: string | null;
 }

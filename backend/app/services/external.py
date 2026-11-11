@@ -7,8 +7,9 @@ It is a second HTTP server, apart from the main API.
 - Password set: a visitor signs in once with it (POST /login); the answer is a cookie (HttpOnly, 12 hours by default)
   and, while the cookie is valid, the visitor reaches everything the app itself does, without the API token. Wrong
   passwords are rate-limited per address.
+- /metrics (Prometheus text) is served on the same port to whoever sends the metrics token as `Authorization: Bearer`, in
+  either mode, and to nobody else; no token set: it is not exported.
 Started/stopped/rebound whenever the external_monitoring_* settings change.
-(Exporting Prometheus metrics on this port is deferred; see the backlog doc.)
 """
 from __future__ import annotations
 
@@ -31,9 +32,9 @@ from starlette.staticfiles import StaticFiles
 from app.config import CSP
 from app.services.instances import InstanceManager, port_free
 from app.services.monitor.collector import Collector
-from app.services.settings import PASSWORD_KEY, SettingsService
+from app.services.settings import PASSWORD_KEY, TOKEN_KEY, SettingsService
 from app.services.webauth import (COOKIE_NAME, DEFAULT_SESSION_HOURS, LoginLimiter, login_page, make_session, session_valid,
-                                  verify_password)
+                                  verify_password, verify_token)
 
 log = logging.getLogger("omm.external")
 
@@ -69,7 +70,8 @@ class WebGate:
     def __init__(self, main_app: Any, settings: SettingsService, static_app: Any = None):
         self.main_app, self.settings, self.static_app = main_app, settings, static_app
         self.sockets = 0
-        self.limiter = LoginLimiter()
+        self.limiter = LoginLimiter()        # wrong passwords
+        self.token_limiter = LoginLimiter()  # wrong tokens
 
     def _lang(self) -> str | None:
         return self.settings.get("language")
@@ -86,6 +88,8 @@ class WebGate:
     async def __call__(self, scope: dict, receive: Any, send: Any) -> None:
         if scope["type"] not in ("http", "websocket"):
             return
+        if scope["type"] == "http" and scope["path"] == "/metrics":
+            return await self._metrics(scope, receive, send)  # the one path with a key of its own, whatever the mode
         stored = self.settings.get(PASSWORD_KEY)
         if not stored:  # no password: guest mode
             return await self._guest(scope, receive, send)
@@ -132,6 +136,23 @@ class WebGate:
             await send(message)
 
         await self.static_app(scope, receive, with_policy)  # the UI's own files, with the same content policy as the main server
+
+    async def _metrics(self, scope: dict, receive: Any, send: Any) -> None:
+        """/metrics is read with the metrics token (Authorization: Bearer) and with nothing else: not with the password's cookie,
+        not as a guest. No token set: it is not exported at all (404). A wrong or missing token is 401; guesses are limited."""
+        stored = self.settings.get(TOKEN_KEY)
+        if not stored or scope["method"] not in SAFE_METHODS:
+            return await PlainTextResponse("Not found", status_code=404)(scope, receive, send)
+        who = (scope.get("client") or ("?", 0))[0]
+        if self.token_limiter.locked(who):
+            return await PlainTextResponse("Too many failures", status_code=429)(scope, receive, send)
+        auth = _header(scope, b"authorization")
+        given = auth[7:] if auth.lower().startswith("bearer ") else ""
+        if not given or not verify_token(given, stored):
+            self.token_limiter.failed(who)
+            return await PlainTextResponse("Invalid or missing token", status_code=401, headers={"www-authenticate": "Bearer"})(scope, receive, send)
+        self.token_limiter.ok(who)
+        await self.main_app({**scope, "omm_metrics": True}, receive, send)
 
     @staticmethod
     def _same_origin(scope: dict) -> bool:
@@ -195,6 +216,7 @@ class ExternalMonitor:
             "enabled": bool(self.settings.get("external_monitoring_enabled")),
             "port": self.settings.get("external_monitoring_port"),
             "password_set": bool(self.settings.get(PASSWORD_KEY)),
+            "metrics_token_set": bool(self.settings.get(TOKEN_KEY)),
             "active": self.active, "error": self.error,
         }
 

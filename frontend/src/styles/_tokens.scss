@@ -14,7 +14,9 @@
   --err: light-dark(#c62828,#ff8a80);
   --errbg: light-dark(#fbe3e3,#401a1a);
   --off: light-dark(#e0e0e0,#333);
+  --placeholder: #757575; // the hint inside an empty field, and any plain text standing in for a field ('Not allowed')
   --accent: #5c8df6; // the same blue in both themes
+  --ring-fade: outline-color .15s; // the focus ring fades in and out (colour only: an animated offset would make the ring slide); add it to a control's own `transition`
   --btn: light-dark(#d9d9d9,#363636);
   --field: light-dark(#d0d0d0,#181818);
   --surf: var(--bg);

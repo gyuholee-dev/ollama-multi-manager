@@ -5,6 +5,8 @@ from typing import Annotated, Literal
 
 from pydantic import BaseModel, ConfigDict, Field
 
+from app.services.webauth import MIN_API_KEY_LENGTH
+
 Port = Annotated[int, Field(ge=1024, le=65535)]
 Name = Annotated[str, Field(min_length=1, max_length=40, pattern=r"^\S(.*\S)?$")]
 
@@ -28,7 +30,7 @@ class InstanceOptions(BaseModel):
     listen: Literal["local", "lan"] = "local"  # who can reach the instance's port: this PC only, or the whole network
     auto_start: bool = False  # start the instance when a request arrives while it is stopped
     idle_stop_min: Annotated[int, Field(ge=0, le=1440)] = 0  # with auto_start: stop after this many idle minutes (0 = never)
-    api_key: Annotated[str, Field(min_length=8, max_length=128, pattern=r"^\S+$")] | None = None  # clients must send it as a Bearer token
+    api_key: Annotated[str, Field(min_length=MIN_API_KEY_LENGTH, max_length=128, pattern=r"^\S+$")] | None = None  # clients must send it as a Bearer token
     save_requests: bool = False  # keep the content of requests and answers in the instance's request journal
     allowed_models: ModelNames = []  # the models this instance serves; empty = every installed model (enforced by the proxy)
 
@@ -67,6 +69,7 @@ class SettingsPatch(BaseModel):
     external_monitoring_enabled: bool | None = None
     external_monitoring_port: Port | None = None
     external_monitoring_password: Annotated[str, Field(max_length=200)] | None = None  # write-only; "" removes it
+    external_monitoring_metrics_token: Annotated[str, Field(max_length=200)] | None = None  # write-only; "" removes it
     external_monitoring_session_hours: Annotated[int, Field(ge=1, le=720)] | None = None
     refresh_interval_seconds: Annotated[int, Field(ge=1, le=60)] | None = None
     monitor_default_ollama: bool | None = None

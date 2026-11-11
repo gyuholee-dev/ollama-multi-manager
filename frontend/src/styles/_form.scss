@@ -36,18 +36,28 @@
 
 // ---- a field: the label left, the control right
 
+// (no gap between the items of a line, only margins: an inline button belongs to the input or text next to it, so the
+// controls take their distance from the label themselves)
 .fld {
   display: flex;
   align-items: center;
-  gap: 12px;
+  justify-content: space-between; // the label at the left end, the control at the right end (an input with a button after it goes in a .fld__group; one that fills the row is .fld__text--grow)
   min-height: var(--row-h);
 
   &:not(&--stack):not(:last-child) {
     border-bottom: 1px solid var(--row-line);
   }
 
+  // a control and the inline button after it, as one item of the row (so the row still has two: the label and this)
+  &__group {
+    display: flex;
+    align-items: center;
+  }
+
   &__label {
-    margin: 0 auto 0 0; // takes what the control leaves
+    flex-grow: 0; // as wide as its text, never wider
+    flex-shrink: 1;
+    margin: 0 15px 0 0; // the distance to the control is the label's (an inline button sticks to the control before it)
   }
 
   // a text/number/password input: no box, the text sits at the right edge of the row
@@ -60,11 +70,17 @@
     border-radius: 4px;
     background: none;
     text-align: right;
+    text-overflow: ellipsis;
     field-sizing: content;
+    box-shadow: 0 0 0 3px transparent; // the fill below reaches out to the ring: it sits 3px off the text, and the fill must not stop short of it
+    transition: background-color .2s,box-shadow .2s,var(--ring-fade);
+    outline-offset: 3px; // (set here, not only when focused: an offset that changes while the ring fades out makes it jump)
 
+    // while it is edited it looks like the other inputs (the boxed ones): their fill
     &:focus-visible {
-      outline: 2px solid var(--accent);
-      outline-offset: 3px;
+      outline-color: var(--accent);
+      background: var(--field);
+      box-shadow: 0 0 0 3px var(--field);
     }
 
     // the one that fills the row (the name of a new instance)
@@ -90,15 +106,15 @@
       text-align: right;
       text-align-last: right;
       cursor: pointer;
-      transition: background-color .2s;
+      outline-offset: 0; // hugs the select's own box
+      transition: background-color .2s,var(--ring-fade);
 
       &:hover {
         background: var(--fill-hover);
       }
 
       &:focus-visible {
-        outline: 2px solid var(--accent);
-        outline-offset: 0; // hugs the select's own box
+        outline-color: var(--accent);
       }
     }
 
@@ -115,11 +131,9 @@
   // a description under the label: it wraps onto a line of its own, right under the label and the control
   &--note {
     flex-wrap: wrap;
-    gap: 0 12px; // (no gap between the lines: the note sits right under the label)
-    padding: 4px 0 8px;
+    padding: 4px 0 8px; // (no gap between the lines: the note sits right under the label)
 
     .fld__label {
-      flex: 1;
       display: flex;
       align-items: center;
       min-height: 30px; // the label's centre stays where it is in a plain row (4 + 30/2 = 37/2)
@@ -148,15 +162,16 @@
     }
   }
 
+  // plain text where a control would be (nothing to edit now)
+  &__static {
+    color: var(--placeholder); // the same as the hint of an empty field
+  }
+
   // a boxed input (the controls of a stacked field)
   &__box {
     width: 100%;
     background: var(--field);
-
-    // the ring takes the place of the box's own border (a ring floating outside it would look like two)
-    &:focus-visible {
-      outline-offset: -1px;
-    }
+    outline-offset: -1px; // the ring takes the place of the box's own border (a ring floating outside it would look like two)
   }
 
   // a slider: its label and value on one line, the slider below
@@ -164,11 +179,53 @@
     display: flex;
     align-items: center;
     justify-content: space-between;
-    gap: 8px;
     margin-bottom: 5px;
   }
 
   &__value {
+    margin-left: 8px;
+    font-size: .875rem;
+  }
+}
+
+// a button on the line of a one-row field (copy, generate, delete, check for updates): an icon alone, no fill and no border,
+// a fill under the pointer. (A button joined to an input in a two-line field, like Browse, keeps the normal look.)
+.inline {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+  width: 24px;
+  height: 24px;
+  margin-left: 4px; // a little room from the item before it
+  padding: 0;
+  border: 0;
+  border-radius: 8px;
+  background: none;
+  transition: background-color .2s,var(--ring-fade);
+
+  &:hover,
+  &:active {
+    background: var(--fill-hover);
+  }
+
+  &:disabled:hover {
+    background: none;
+  }
+
+  &[hidden] {
+    display: none; // (display above would override the attribute)
+  }
+
+  // done (the address was copied): the accent colour
+  &--done,
+  &--done:hover,
+  &--done:active {
+    background: var(--accent);
+    color: #fff;
+  }
+
+  .material-icons {
     font-size: .875rem;
   }
 }

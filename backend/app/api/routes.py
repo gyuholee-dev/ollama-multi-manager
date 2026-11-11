@@ -33,7 +33,9 @@ def hide_secrets(inst: dict[str, Any]) -> dict[str, Any]:
 
 
 def require_token(request: Request) -> None:
-    if is_guest(request) or request.scope.get("omm_web"):  # the guest listener only lets read-only paths through; the web port has checked a password cookie
+    if is_guest(request) or request.scope.get("omm_web") or request.scope.get("omm_metrics"):
+        # the guest listener only lets read-only paths through; the web port has checked a password cookie, or the metrics token
+        # (which it lets reach /metrics and nothing else)
         return
     auth = request.headers.get("authorization", "")
     given = auth[7:] if auth.lower().startswith("bearer ") else ""
@@ -55,8 +57,8 @@ async def health() -> dict[str, str]:
 @api.get("/settings")
 async def get_settings(request: Request) -> dict[str, Any]:
     values = request.app.state.settings.all()
-    if is_guest(request):  # paths on this PC are of no use to a guest
-        values = {k: v for k, v in values.items() if k not in ("ollama_executable_path", "default_models_path")}
+    if is_guest(request):  # paths on this PC are of no use to a guest, and the metrics token is not theirs to read
+        values = {k: v for k, v in values.items() if k not in ("ollama_executable_path", "default_models_path", "external_monitoring_metrics_token")}
     return values
 
 

@@ -7,9 +7,11 @@ from typing import Any
 
 from app.db import Database
 from app.schemas import SettingsPatch
-from app.services.webauth import DEFAULT_SESSION_HOURS, MIN_PASSWORD_LENGTH, hash_password
+from app.services.webauth import DEFAULT_SESSION_HOURS, MIN_PASSWORD_LENGTH, MIN_API_KEY_LENGTH, hash_password
 
 PASSWORD_KEY = "external_monitoring_password_hash"  # stored, never returned: the settings show only whether one is set
+TOKEN_KEY = "external_monitoring_metrics_token"  # the token that opens /metrics: kept as it is, so the settings window can show it to be copied (not to guests)
+SECRET_KEYS = (PASSWORD_KEY,)
 
 
 class SettingsError(ValueError):
@@ -21,8 +23,9 @@ class SettingsService:
         self.db = db
 
     def all(self) -> dict[str, Any]:
-        values = {r["key"]: json.loads(r["value"]) for r in self.db.query("SELECT key, value FROM settings") if r["key"] != PASSWORD_KEY}
+        values = {r["key"]: json.loads(r["value"]) for r in self.db.query("SELECT key, value FROM settings") if r["key"] not in SECRET_KEYS}
         values["external_monitoring_password_set"] = bool(self.get(PASSWORD_KEY))
+        values["external_monitoring_metrics_token_set"] = bool(values.get(TOKEN_KEY))
         values.setdefault("external_monitoring_session_hours", DEFAULT_SESSION_HOURS)
         return values
 
@@ -37,6 +40,11 @@ class SettingsService:
             if password and len(password) < MIN_PASSWORD_LENGTH:
                 raise SettingsError(f"The web access password needs at least {MIN_PASSWORD_LENGTH} characters")
             values[PASSWORD_KEY] = hash_password(password) if password else None
+        if "external_monitoring_metrics_token" in values:  # "" removes it
+            token = values.pop("external_monitoring_metrics_token") or ""
+            if token and len(token) < MIN_API_KEY_LENGTH:
+                raise SettingsError(f"The metrics API key needs at least {MIN_API_KEY_LENGTH} characters")
+            values[TOKEN_KEY] = token or None
         exe = values.get("ollama_executable_path")
         if exe is not None and not (os.path.isfile(exe) and os.access(exe, os.X_OK)):
             raise SettingsError(f"ollama_executable_path is not an executable file: {exe}")

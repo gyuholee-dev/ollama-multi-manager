@@ -279,21 +279,21 @@ async def test_input_tokens_and_openai_compatible_speed(env, monkeypatch):
 
 
 async def test_api_key_is_required_when_set(env):
-    inst = await start(env, api_key="s3cret-key")
+    inst = await start(env, api_key="s3cret-key-0123456")
     url = f"http://127.0.0.1:{inst['port']}"
     async with httpx.AsyncClient() as c:
         assert (await c.get(f"{url}/api/version")).status_code == 401
         bad = await c.get(f"{url}/api/version", headers={"Authorization": "Bearer nope"})
         assert bad.status_code == 401 and bad.headers["www-authenticate"] == "Bearer"
-        assert (await c.get(f"{url}/api/version", headers={"Authorization": "Basic s3cret-key"})).status_code == 401
-        ok = await c.get(f"{url}/api/version", headers={"Authorization": "Bearer s3cret-key"})
+        assert (await c.get(f"{url}/api/version", headers={"Authorization": "Basic s3cret-key-0123456"})).status_code == 401
+        ok = await c.get(f"{url}/api/version", headers={"Authorization": "Bearer s3cret-key-0123456"})
         assert ok.status_code == 200
         pre = await c.options(f"{url}/api/chat")  # CORS preflights are not asked for credentials
         assert pre.status_code != 401
     r = await gen(inst["port"])
     assert r.status_code == 401 and perf(env, inst)["requests_total"] == 0
     async with httpx.AsyncClient(timeout=30) as c:
-        r = await c.post(f"{url}/api/generate", json={"model": "m", "prompt": "hi", "options": {"num_predict": 3}}, headers={"Authorization": "Bearer s3cret-key"})
+        r = await c.post(f"{url}/api/generate", json={"model": "m", "prompt": "hi", "options": {"num_predict": 3}}, headers={"Authorization": "Bearer s3cret-key-0123456"})
     assert r.status_code == 200 and perf(env, inst)["requests"] == 1
 
 
@@ -313,8 +313,8 @@ async def test_listening_on_the_network_is_opt_in(env):
                 raise AssertionError("a local-only instance answered on the network address")
             except httpx.ConnectError:
                 pass
-    r = await env.client.post("/instances", json={"name": "x", "port": free_port(), "options": {"api_key": "short"}})
-    assert r.status_code == 422  # keys must be at least 8 characters
+    r = await env.client.post("/instances", json={"name": "x", "port": free_port(), "options": {"api_key": "short-key-1234"}})
+    assert r.status_code == 422  # keys must be at least 16 characters
 
 
 # ---------------------------------------------------------------- on-demand start

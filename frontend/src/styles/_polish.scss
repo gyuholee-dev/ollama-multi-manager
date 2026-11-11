@@ -7,13 +7,13 @@
 
 button,
 a.btn {
-  transition: background-color .25s;
+  transition: background-color .25s,var(--ring-fade);
 }
 
 /* button tone: base/hover/active derived from the surface the button sits on (header buttons excluded) */
 
 :where(main,
-dialog) button:not(.primary):not(.tog),
+dialog) button:not(.primary):not(.tog):not(.inline),
 :where(main,
 dialog) a.btn {
   --b: light-dark(color-mix(in srgb,var(--surf) 94%,#000),color-mix(in srgb,var(--surf) 90%,#fff));
@@ -23,22 +23,22 @@ dialog) a.btn {
 }
 
 :where(main,
-dialog) button:not(.primary):not(.tog):hover,
+dialog) button:not(.primary):not(.tog):not(.inline):hover,
 :where(main,
 dialog) a.btn:hover {
   background: var(--bh);
 }
 
 :where(main,
-dialog) button:not(.primary):not(.tog):active,
+dialog) button:not(.primary):not(.tog):not(.inline):active,
 :where(main,
 dialog) a.btn:active {
   background: var(--ba);
 }
 
 :where(main,
-dialog) button:not(.primary):not(.tog):disabled:hover,
+dialog) button:not(.primary):not(.tog):not(.inline):disabled:hover,
 :where(main,
-dialog) button:not(.primary):not(.tog):disabled:active {
+dialog) button:not(.primary):not(.tog):not(.inline):disabled:active {
   background: var(--b);
 }

@@ -29,7 +29,9 @@
   --err: light-dark(#c62828,#ff8a80);
   --errbg: light-dark(#fbe3e3,#401a1a);
   --off: light-dark(#e0e0e0,#333);
+  --placeholder: #757575;
   --accent: #5c8df6;
+  --ring-fade: outline-color .15s;
   --btn: light-dark(#d9d9d9,#363636);
   --field: light-dark(#d0d0d0,#181818);
   --surf: var(--bg);
@@ -55,9 +57,18 @@ a {
   text-decoration: none;
 }
 
-:where(button, input, select, textarea, a):focus-visible {
-  outline: 2px solid var(--accent);
+::placeholder {
+  color: var(--placeholder);
+}
+
+:where(button, input, select, textarea, a) {
+  outline: 2px solid transparent;
   outline-offset: 2px;
+  transition: var(--ring-fade);
+}
+
+:where(button, input, select, textarea, a):focus-visible {
+  outline-color: var(--accent);
 }
 
 body {
@@ -103,7 +114,9 @@ header {
   padding: 10px 16px;
   display: flex;
   align-items: center;
-  gap: 12px;
+}
+header > * + * {
+  margin-left: 12px;
 }
 header h1 {
   flex: 0 1 auto;
@@ -125,7 +138,9 @@ header .btns {
 
 header:not(.mwh) .btns {
   display: flex;
-  gap: 4px;
+}
+header:not(.mwh) .btns > * + * {
+  margin-left: 4px;
 }
 header:not(.mwh) i.material-icons {
   display: inline-block;
@@ -137,9 +152,11 @@ header:not(.mwh) button {
   padding: 0 12px;
   display: inline-flex;
   align-items: center;
-  gap: 6px;
   border: 0;
   background: none;
+}
+header:not(.mwh) button > span {
+  margin-left: 6px;
 }
 header:not(.mwh) button:hover {
   background: light-dark(var(--ghost-hover), var(--card));
@@ -178,7 +195,6 @@ footer div {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 16px;
   font-size: 0.75rem;
   color: var(--sub);
 }
@@ -186,10 +202,10 @@ footer .l {
   min-width: 0;
   display: flex;
   align-items: center;
-  gap: 6px;
 }
 footer .l .material-icons {
   flex: none;
+  margin-right: 6px;
   font-size: 0.875rem;
 }
 
@@ -204,11 +220,11 @@ footer .l .material-icons {
   flex: none;
   display: inline-flex;
   align-items: center;
-  gap: 6px;
   color: inherit;
 }
 #ver svg {
   flex: none;
+  margin-right: 6px;
 }
 
 input.sw {
@@ -223,7 +239,7 @@ input.sw {
   background: var(--field);
   position: relative;
   cursor: pointer;
-  transition: background-color 0.15s;
+  transition: background-color 0.15s, var(--ring-fade);
 }
 input.sw::after {
   content: "";
@@ -263,7 +279,9 @@ dialog .box, .mwin .box {
 
 .pr {
   display: flex;
-  gap: 6px;
+}
+.pr > * + * {
+  margin-left: 8px;
 }
 .pr input {
   flex: 1;
@@ -488,7 +506,9 @@ section.off .body > div {
 
 .sc {
   display: flex;
-  gap: 8px;
+}
+.sc > div + div {
+  margin-left: 8px;
 }
 .sc > div {
   flex: 1;
@@ -531,7 +551,6 @@ section.off .body > div {
 
 .bar {
   display: flex;
-  gap: 1px;
   height: 6px;
   background: var(--bg);
   border-radius: 6px;
@@ -541,6 +560,9 @@ section.off .body > div {
 }
 .bar i {
   height: 100%;
+}
+.bar i + i {
+  margin-left: 1px;
 }
 .bar .mk {
   position: absolute;
@@ -554,9 +576,12 @@ section.off .body > div {
 .leg {
   display: flex;
   flex-wrap: wrap;
-  gap: 4px 14px;
+  margin-bottom: -4px;
   font-size: 0.75rem;
   color: var(--sub);
+}
+.leg > span {
+  margin: 0 14px 4px 0;
 }
 .leg s {
   display: inline-block;
@@ -602,7 +627,9 @@ section.off .body > div {
 .spread {
   display: flex;
   justify-content: space-between;
-  gap: 8px;
+}
+.spread > * + * {
+  margin-left: 8px;
 }
 
 .top > .ti.tag {
@@ -622,13 +649,15 @@ section.off .body > div {
 
 .addr {
   display: flex;
-  gap: 6px;
   width: fit-content;
   cursor: pointer;
   margin: -2px -6px;
   padding: 2px 6px;
   border-radius: 8px;
   transition: background-color 0.1s;
+}
+.addr > * + * {
+  margin-left: 6px;
 }
 .addr:hover {
   background: var(--ghost-hover);
@@ -706,7 +735,6 @@ section.off .body > div {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 8px;
   margin: 10px 0;
 }
 .kv:last-child {
@@ -717,6 +745,9 @@ section.off .body > div {
 }
 .kv > label {
   margin: 0;
+}
+.kv > * + * {
+  margin-left: 8px;
 }
 .kv > span {
   text-align: right;
@@ -849,13 +880,13 @@ section.off .body > div {
 }
 
 .badge .material-icons {
+  margin-right: 4px;
   font-size: 0.75rem;
 }
 
 .badge {
   display: inline-flex;
   align-items: center;
-  gap: 4px;
   font-size: 0.75rem;
   padding: 2px 8px;
   border-radius: 8px;
@@ -883,7 +914,9 @@ section.off .body > div {
 
 .btns {
   display: flex;
-  gap: 6px;
+}
+.btns > * + * {
+  margin-left: 6px;
 }
 
 .model > span:first-child {
@@ -980,12 +1013,12 @@ dialog:not(#pop) .dbody,
 
 button,
 a.btn {
-  transition: background-color 0.25s;
+  transition: background-color 0.25s, var(--ring-fade);
 }
 
 /* button tone: base/hover/active derived from the surface the button sits on (header buttons excluded) */
 :where(main,
-dialog) button:not(.primary):not(.tog),
+dialog) button:not(.primary):not(.tog):not(.inline),
 :where(main,
 dialog) a.btn {
   --b: light-dark(color-mix(in srgb,var(--surf) 94%,#000),color-mix(in srgb,var(--surf) 90%,#fff));
@@ -995,23 +1028,23 @@ dialog) a.btn {
 }
 
 :where(main,
-dialog) button:not(.primary):not(.tog):hover,
+dialog) button:not(.primary):not(.tog):not(.inline):hover,
 :where(main,
 dialog) a.btn:hover {
   background: var(--bh);
 }
 
 :where(main,
-dialog) button:not(.primary):not(.tog):active,
+dialog) button:not(.primary):not(.tog):not(.inline):active,
 :where(main,
 dialog) a.btn:active {
   background: var(--ba);
 }
 
 :where(main,
-dialog) button:not(.primary):not(.tog):disabled:hover,
+dialog) button:not(.primary):not(.tog):not(.inline):disabled:hover,
 :where(main,
-dialog) button:not(.primary):not(.tog):disabled:active {
+dialog) button:not(.primary):not(.tog):not(.inline):disabled:active {
   background: var(--b);
 }
 
@@ -1033,14 +1066,20 @@ dialog) button:not(.primary):not(.tog):disabled:active {
 .fld {
   display: flex;
   align-items: center;
-  gap: 12px;
+  justify-content: space-between;
   min-height: var(--row-h);
 }
 .fld:not(.fld--stack):not(:last-child) {
   border-bottom: 1px solid var(--row-line);
 }
+.fld__group {
+  display: flex;
+  align-items: center;
+}
 .fld__label {
-  margin: 0 auto 0 0;
+  flex-grow: 0;
+  flex-shrink: 1;
+  margin: 0 15px 0 0;
 }
 .fld__text {
   flex: none;
@@ -1051,11 +1090,16 @@ dialog) button:not(.primary):not(.tog):disabled:active {
   border-radius: 4px;
   background: none;
   text-align: right;
+  text-overflow: ellipsis;
   field-sizing: content;
+  box-shadow: 0 0 0 3px transparent;
+  transition: background-color 0.2s, box-shadow 0.2s, var(--ring-fade);
+  outline-offset: 3px;
 }
 .fld__text:focus-visible {
-  outline: 2px solid var(--accent);
-  outline-offset: 3px;
+  outline-color: var(--accent);
+  background: var(--field);
+  box-shadow: 0 0 0 3px var(--field);
 }
 .fld__text--grow {
   flex: 1;
@@ -1076,14 +1120,14 @@ dialog) button:not(.primary):not(.tog):disabled:active {
   text-align: right;
   text-align-last: right;
   cursor: pointer;
-  transition: background-color 0.2s;
+  outline-offset: 0;
+  transition: background-color 0.2s, var(--ring-fade);
 }
 .fld__select select:hover {
   background: var(--fill-hover);
 }
 .fld__select select:focus-visible {
-  outline: 2px solid var(--accent);
-  outline-offset: 0;
+  outline-color: var(--accent);
 }
 .fld__select .material-icons {
   position: absolute;
@@ -1095,11 +1139,9 @@ dialog) button:not(.primary):not(.tog):disabled:active {
 }
 .fld--note {
   flex-wrap: wrap;
-  gap: 0 12px;
   padding: 4px 0 8px;
 }
 .fld--note .fld__label {
-  flex: 1;
   display: flex;
   align-items: center;
   min-height: 30px;
@@ -1121,21 +1163,53 @@ dialog) button:not(.primary):not(.tog):disabled:active {
 .fld--stack:last-child {
   padding-bottom: 0;
 }
+.fld__static {
+  color: var(--placeholder);
+}
 .fld__box {
   width: 100%;
   background: var(--field);
-}
-.fld__box:focus-visible {
   outline-offset: -1px;
 }
 .fld__head {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 8px;
   margin-bottom: 5px;
 }
 .fld__value {
+  margin-left: 8px;
+  font-size: 0.875rem;
+}
+
+.inline {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+  width: 24px;
+  height: 24px;
+  margin-left: 4px;
+  padding: 0;
+  border: 0;
+  border-radius: 8px;
+  background: none;
+  transition: background-color 0.2s, var(--ring-fade);
+}
+.inline:hover, .inline:active {
+  background: var(--fill-hover);
+}
+.inline:disabled:hover {
+  background: none;
+}
+.inline[hidden] {
+  display: none;
+}
+.inline--done, .inline--done:hover, .inline--done:active {
+  background: var(--accent);
+  color: #fff;
+}
+.inline .material-icons {
   font-size: 0.875rem;
 }
 
@@ -1314,10 +1388,17 @@ input[type=number]::-webkit-inner-spin-button, input[type=number]::-webkit-outer
   margin: 0 8px 0 auto;
   min-width: 0;
   display: flex;
-  gap: 6px;
   overflow-x: auto;
   scrollbar-width: none;
   transition: opacity 0.25s ease, transform 0.25s ease, visibility 0s;
+}
+#ltabs > * + *,
+#stabs > * + *,
+#utabs > * + *,
+#ltabs > * + *,
+#stabs > * + *,
+#mtabs > * + * {
+  margin-left: 6px;
 }
 
 #ltabs button,
@@ -1413,8 +1494,10 @@ main #mtabs button.on:hover {
 }
 #pop .pb {
   display: flex;
-  gap: 14px;
   align-items: flex-start;
+}
+#pop .pb > * + * {
+  margin-left: 14px;
 }
 #pop .pi {
   flex: none;
@@ -1476,7 +1559,9 @@ main #mtabs button.on:hover {
   display: flex;
   justify-content: space-between;
   align-items: baseline;
-  gap: 8px;
+}
+.chart .chh > * + * {
+  margin-left: 8px;
 }
 .chart .chh .val {
   font-weight: 500;

@@ -8,6 +8,8 @@ import { Dialog, DialogBody, DialogTitle } from '@/components/common/Dialog';
 import { Fold } from '@/components/common/Fold';
 import { ModelPicker } from '@/components/common/ModelPicker';
 import { fmtCtx, fmtKeep, fmtN, gpuLabel, KEEP } from '@/lib/format';
+import { copyText } from '@/lib/clipboard';
+import { API_KEY_MIN, randomKey } from '@/lib/random';
 import { gb } from '@/lib/units';
 import { modelNeed, unifiedRoom } from '@/lib/memory';
 import { useMonitorStore } from '@/stores/monitorStore';
@@ -29,10 +31,6 @@ function Slider({ label, shown, min, max, value, onChange }: { label: string; sh
   );
 }
 
-const randomKey = (): string => { // 24 random bytes as URL-safe text
-  const bytes = crypto.getRandomValues(new Uint8Array(24));
-  return btoa(String.fromCharCode(...bytes)).replace(/[+/=]/g, (c) => ({ '+': '-', '/': '_', '=': '' })[c] ?? '');
-};
 
 function Form({ port: firstPort }: { port: number }) {
   const t = useT();
@@ -56,6 +54,14 @@ function Form({ port: firstPort }: { port: number }) {
   const [idle, setIdle] = useState('10');
   const [lan, setLan] = useState(false);
   const [key, setKey] = useState('');
+  const [keyDone, setKeyDone] = useState(false); // the key is on the clipboard (the check mark on the button)
+  const flashKeyDone = () => { setKeyDone(true); setTimeout(() => setKeyDone(false), 1500); };
+  const copyKey = async () => { if (key && (await copyText(key))) flashKeyDone(); };
+  const generateKey = async () => {
+    const fresh = randomKey();
+    setKey(fresh); // filled in, and copied right away
+    if (await copyText(fresh)) flashKeyDone();
+  };
   const [saveReq, setSaveReq] = useState(false);
   const [allowed, setAllowed] = useState<string[]>([]);
   const installed = useModelStore((s) => s.list);
@@ -71,6 +77,7 @@ function Form({ port: firstPort }: { port: number }) {
           : used.includes(p) || p === monPort ? [t('port.conflict'), t('v.used.m', { p })]
             : !allowed.length ? [t('v.models.t'), t('v.models.m')] : null;
     if (bad) { void notify('warn', ...bad); return; }
+    if (key.trim() && key.trim().length < API_KEY_MIN) { void notify('warn', t('f.key'), t('key.short', { n: API_KEY_MIN })); return; }
     const body: InstanceCreate = {
       name: nm, port: p,
       options: {
@@ -129,9 +136,12 @@ function Form({ port: firstPort }: { port: number }) {
               <input id="sr" className="sw" type="checkbox" role="switch" checked={saveReq} onChange={(e) => setSaveReq(e.target.checked)} />
               {saveReq && <span className="fld__note sub">{t('f.saveReqHint')}</span>}
             </div>
-            <div className="fld fld--stack"><label className="fld__label" htmlFor="ak">{t('f.key')}</label>
-              <span className="pr"><input id="ak" className="fld__box" autoComplete="off" spellCheck={false} placeholder={t('f.keyPh')} value={key} onChange={(e) => setKey(e.target.value)} />
-                <button type="button" onClick={() => setKey(randomKey())}>{t('btn.genKey')}</button></span></div>
+            <div className="fld"><label className="fld__label" htmlFor="ak">{t('f.key')}</label>
+              <input id="ak" className="fld__text fld__text--grow" autoComplete="off" spellCheck={false} placeholder={t('f.keyPh')} value={key} onChange={(e) => setKey(e.target.value)} />
+              {key
+                ? <button type="button" className={keyDone ? 'inline inline--done' : 'inline'} aria-label={t('btn.copy')} title={keyDone ? t('btn.copied') : t('btn.copy')} onClick={() => void copyKey()}><span className="material-icons">{keyDone ? 'check' : 'content_copy'}</span></button>
+                : <button type="button" className={keyDone ? 'inline inline--done' : 'inline'} aria-label={t('btn.genKey')} title={t('btn.genKey')} onClick={() => void generateKey()}><span className="material-icons">{keyDone ? 'check' : 'autorenew'}</span></button>}
+            </div>
           </Fold>
         </div>
         <div className="box fgroup"><div className="fgroup__head"><h4 className="fgroup__title">{t('new.models')}</h4><p className="fgroup__note sub">{t('new.modelsHint')}</p></div>

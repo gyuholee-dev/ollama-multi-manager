@@ -6,8 +6,11 @@
 
   .pb {
     display: flex;
-    gap: 14px;
     align-items: flex-start;
+
+    > * + * {
+      margin-left: 14px;
+    }
   }
 
   .pi {

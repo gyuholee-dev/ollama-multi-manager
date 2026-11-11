@@ -182,8 +182,9 @@ function openCfg(){monOk=cfg.monPort;monWas=cfg.extMon;pathWas={exe:cfg.exe,mode
 </div><div class="box fgroup"><div class="fgroup__head"><h4 class="fgroup__title">${t('set.web')}</h4></div>
  ${chk('em',t('set.ext'),v.extMon)}
  <div class="fld"><label class="fld__label">${t('set.extPort')}</label><input class="fld__text" id="mport" type="number" min="1024" max="65535" value="${v.monPort}"></div>
- <div class="fld"><label class="fld__label">${t('set.extPw')}</label><input class="fld__text" id="mpw" type="password" autocomplete="new-password" placeholder="${t('set.extPwUnset')}"></div>
- <div class="fld fld--note"><label class="fld__label">${t('set.mx')}</label><input id="mx" class="sw" type="checkbox" role="switch" disabled><span class="fld__note sub">${t('set.mxHint')}</span></div>
+ <div class="fld" id="maddrw">${addrInner()}</div>
+ <div class="fld fld--note"><label class="fld__label">${t('set.extPw')}</label><input class="fld__text" id="mpw" type="password" autocomplete="new-password" placeholder="${t('set.extPwUnset')}"><span class="fld__note sub">${t('set.extPwHint')}</span></div>
+  <div class="fld fld--note"><label class="fld__label" for="mxt">${t('set.mxToken')}</label><input id="mxt" class="fld__text fld__text--grow" type="text" autocomplete="off" spellcheck="false" value="${mxVal}" oninput="mxIn(this)" onchange="mxSave(this)" placeholder="${t('set.extPwUnset')}"><button type="button" class="inline" id="mxb" aria-label="${t(mxVal?'btn.copy':'btn.genKey')}" title="${t(mxVal?'btn.copy':'btn.genKey')}" onclick="mxClick(this)">${mi(mxVal?'content_copy':'autorenew')}</button><span class="fld__note sub">${t('set.mxTokenHint')}</span></div>
  </div><div class="box fgroup"><div class="fgroup__head"><h4 class="fgroup__title">${t('set.monitor')}</h4></div>
  <div class="fld fld--note"><label class="fld__label">${t('set.pm')}</label><input id="pm" class="sw" type="checkbox" role="switch" disabled><span class="fld__note sub">${t('set.pmHint')}</span></div>
  <div class="fld fld--note"><label class="fld__label">${t('set.defOllama')}</label><input id="dol" class="sw" type="checkbox" role="switch" ${v.defOllama?'checked':''}><span class="fld__note sub">${t('set.defOllamaHint')}</span></div>
@@ -194,7 +195,7 @@ function openCfg(){monOk=cfg.monPort;monWas=cfg.extMon;pathWas={exe:cfg.exe,mode
  <div class="fld fld--stack"><label class="fld__label">${t('set.exe')}</label><span class="pr"><input class="fld__box" id="ex" value="${v.exe}" placeholder="${t('set.exePh')}"><button type="button" onclick="browse('ex')">${t('set.browse')}</button></span></div>
  <div class="fld fld--stack"><label class="fld__label">${t('set.models')}</label><span class="pr"><input class="fld__box" id="mp" value="${v.modelsPath}"><button type="button" onclick="browse('mp')">${t('set.browse')}</button></span></div>
  </div><div class="box fgroup"><div class="fgroup__head"><h4 class="fgroup__title">${t('set.update')}</h4></div>
- <div class="fld fld--btn"><label class="fld__label" id="upd">${t('set.ver',{v:VERSION})}</label><button disabled>${t('set.check')}</button></div>
+ <div class="fld fld--btn"><label class="fld__label" id="upd">${t('set.ver',{v:VERSION})}</label><button class="inline" aria-label="${t('set.check')}" title="${t('set.check')}" disabled>${mi('sync')}</button></div>
  </div></div> <div class="btns" style="justify-content:flex-end;margin-top:12px"><button onclick="resetCfg()">${t('set.reset')}</button><button class="primary" onclick="save()">${t('set.save')}</button></div></div>`;if(!det.open)det.showModal()}
 const caret=mi('expand_more'),
  chk=(id,t,v)=>`<div class="fld"><label class="fld__label">${t}</label><input id="${id}" class="sw" type="checkbox" role="switch" ${v?'checked':''}></div>`,
@@ -214,9 +215,17 @@ function applyStatic(){document.title=t('app.title');document.documentElement.la
  document.querySelectorAll('[data-i-aria]').forEach(e=>e.setAttribute('aria-label',t(e.dataset.iAria)));
  document.querySelectorAll('main > section').forEach(secLbl)}
 function apply(){share();setGpuMode();document.documentElement.dataset.theme=cfg.theme;applyStatic();render();renderLogs()}
-function upd(){const lc=$('lang').value!=cfg.lang;Object.assign(cfg,{gpu:$('gpumode').value,lang:$('lang').value,theme:$('t').value,login:$('lg').checked,tray:$('tray').checked,interval:+$('iv').value,defOllama:$('dol').checked,vramWarn:+$('vw').value,keepDays:+$('kd').value,extMon:$('em').checked,monPort:+$('mport').value||defCfg.monPort,exe:$('ex').value,modelsPath:$('mp').value});apply();saved={...cfg};if(lc)openCfg()}
+function upd(){const lc=$('lang').value!=cfg.lang;Object.assign(cfg,{gpu:$('gpumode').value,lang:$('lang').value,theme:$('t').value,login:$('lg').checked,tray:$('tray').checked,interval:+$('iv').value,defOllama:$('dol').checked,vramWarn:+$('vw').value,keepDays:+$('kd').value,extMon:$('em').checked,monPort:+$('mport').value||defCfg.monPort,exe:$('ex').value,modelsPath:$('mp').value});apply();saved={...cfg};syncAddr();if(lc)openCfg()}
 async function resetCfg(){if(!await ask(t('rst.title'),t('rst.msg'),t('rst.ok'),true))return;Object.assign(cfg,defCfg);saved={...cfg};log('Settings reset to defaults');apply();openCfg()}
 let monOk=0,monWas=false,pathWas={};
+let mxVal='';
+const addrOf=()=>cfg.extMon?`http://${HOST}:${cfg.monPort}`:'';
+const addrInner=()=>`<label class="fld__label">${t('set.extAddr')}</label>`+(cfg.extMon?`<span class="fld__group"><input id="maddr" class="fld__text" readonly value="${addrOf()}"><button type="button" class="inline" aria-label="${t('btn.copy')}" title="${t('btn.copy')}" onclick="copyAddr(this)">${mi('content_copy')}</button></span>`:`<span class="fld__static">${t('set.extAddrOff')}</span>`);
+function syncAddr(){const r=$('maddrw');if(r)r.innerHTML=addrInner()}
+async function copyAddr(b){await copyText(addrOf(),b,'Address copied');const i=b.querySelector('.material-icons');i.textContent='check';b.classList.add('inline--done');b.title=t('btn.copied');setTimeout(()=>{i.textContent='content_copy';b.classList.remove('inline--done');b.title=t('btn.copy')},1500)}
+function mxIn(i){const b=$('mxb'),ic=b.querySelector('.material-icons'),has=!!i.value;ic.textContent=has?'content_copy':'autorenew';b.title=t(has?'btn.copy':'btn.genKey')}
+function mxSave(i){if(i.value===mxVal)return;if(i.value&&i.value.length<16){notify('warn',t('ext.title'),t('key.short',{n:16}));i.value=mxVal;mxIn(i);return}mxVal=i.value;notify('info',t('ext.title'),t(mxVal?'ext.tokenSaved':'ext.tokenCleared'))}
+async function mxClick(b){const i=$('mxt'),ic=b.querySelector('.material-icons');if(!$('mxt').value){mxVal=Array.from(crypto.getRandomValues(new Uint8Array(16)),x=>x.toString(36).padStart(2,'0')).join('').slice(0,32);i.value=mxVal;log('Metrics token generated')}await copyText(i.value,b,'Token copied');ic.textContent='check';b.classList.add('inline--done');b.title=t('btn.copied');setTimeout(()=>{ic.textContent='content_copy';b.classList.remove('inline--done');b.title=t('btn.copy')},1500)}
 function chg(e){const id=e.target.id,p=cfg.monPort,bad=!(p>=1024&&p<=65535)?[t('v.port.t'),t('v.port.m')]:(list.some(i=>i.port==p)||ext.port==p)?[t('port.conflict'),t('sv.portMsg',{p})]:null;
  if(id=='mport'||id=='em'){
   if(cfg.extMon&&bad){notify('warn',...bad);cfg.monPort=monOk;$('mport').value=monOk;apply();saved={...cfg};return}

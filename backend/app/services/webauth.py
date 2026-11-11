@@ -15,6 +15,7 @@ ITERATIONS = 200_000
 COOKIE_NAME = "omm_session"
 DEFAULT_SESSION_HOURS = 12
 MIN_PASSWORD_LENGTH = 4
+MIN_API_KEY_LENGTH = 16   # every API key (an instance's, the metrics one): the least a person may type; generated ones are 32
 MAX_FAILURES = 5          # wrong passwords in a row from one address ...
 LOCK_SECONDS = 60         # ... lock that address out for this long
 
@@ -34,6 +35,11 @@ def verify_password(password: str, stored: str) -> bool:
         return hmac.compare_digest(got.hex(), digest)
     except (ValueError, TypeError):
         return False
+
+
+def verify_token(token: str, stored: str) -> bool:
+    """The metrics token is kept as it is (the settings window shows it again to be copied), so this is a plain constant-time compare."""
+    return bool(stored) and hmac.compare_digest(token.encode(), stored.encode())
 
 
 def _mac(stored: str, expires: int) -> str:
@@ -83,9 +89,9 @@ class LoginLimiter:
 
 
 _TEXT = {
-    "ko": {"title": "웹 접속", "label": "비밀번호", "button": "로그인", "bad": "비밀번호가 맞지 않습니다.",
+    "ko": {"title": "웹 관리 로그인", "label": "패스워드", "button": "로그인", "bad": "패스워드가 맞지 않습니다.",
            "locked": "실패가 너무 많습니다. 잠시 후 다시 시도하세요."},
-    "en": {"title": "Web access", "label": "Password", "button": "Sign in", "bad": "Wrong password.",
+    "en": {"title": "Web admin sign-in", "label": "Password", "button": "Sign in", "bad": "Wrong password.",
            "locked": "Too many failures. Try again in a moment."},
 }
 

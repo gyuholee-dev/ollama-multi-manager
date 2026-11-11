@@ -80,7 +80,8 @@ export const useSettingsStore = create<SettingsState>((set, get) => ({
   reset: async () => {
     const patch: Record<string, unknown> = {};
     for (const k of Object.keys(KEYMAP) as (keyof Cfg)[]) patch[KEYMAP[k]] = k === 'lang' ? null : cfgToApi(k, DEFAULTS[k]);
-    patch.external_monitoring_password = ''; // the web access password goes too
+    patch.external_monitoring_password = ''; // the web admin password and the metrics token go too
+    patch.external_monitoring_metrics_token = '';
     const cfg = cfgFromApi(await api.put<Settings>('/settings', patch));
     set({ cfg, saved: { ...cfg } });
   },

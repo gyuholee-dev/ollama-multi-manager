@@ -28,7 +28,10 @@ header {
   padding: 10px 16px;
   display: flex;
   align-items: center;
-  gap: 12px;
+
+  > * + * {
+    margin-left: 12px;
+  }
 
   h1 {
     flex: 0 1 auto;
@@ -57,7 +60,10 @@ header {
 header:not(.mwh) {
   .btns {
     display: flex;
-    gap: 4px;
+
+    > * + * {
+      margin-left: 4px;
+    }
   }
 
   i.material-icons {
@@ -71,9 +77,12 @@ header:not(.mwh) {
     padding: 0 12px;
     display: inline-flex;
     align-items: center;
-    gap: 6px;
     border: 0;
     background: none;
+
+    > span {
+      margin-left: 6px;
+    }
 
     // dark mode: lighter than the page behind it (the card colour); light mode: darker than it; a little stronger while pressed
     &:hover {
