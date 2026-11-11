@@ -8,7 +8,7 @@
   "author": "gyuholee-dev",
   "license": "MIT",
   "scripts": {
-    "start": "yarn build:frontend && electron .",
+    "start": "node scripts/start.js",
     "start:dev": "node scripts/start-dev.js",
     "build:backend": "node scripts/build-backend.js",
     "dist:dir": "yarn build:frontend && yarn build:backend && electron-builder --dir",

@@ -39,7 +39,7 @@ describe('pullStore', () => {
 describe('settings', () => {
   const settings = {
     language: null, theme: 'dark' as const, launch_at_login: false, minimize_to_tray: true, external_monitoring_enabled: false,
-    external_monitoring_port: 9100, external_monitoring_password_set: false, external_monitoring_session_hours: 12, refresh_interval_seconds: 3, ollama_executable_path: null, default_models_path: '/models',
+    external_monitoring_port: 9100, external_monitoring_password_set: false, external_monitoring_session_hours: 12, refresh_interval_seconds: 3, monitor_default_ollama: true, history_keep_days: 7, vram_warn_percent: 85, ollama_executable_path: null, default_models_path: '/models',
   };
   it('turns the backend settings into the form and back', () => {
     const cfg = cfgFromApi(settings);

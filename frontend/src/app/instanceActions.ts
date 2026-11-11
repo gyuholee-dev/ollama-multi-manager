@@ -5,6 +5,7 @@ import { t } from '@/locales/useT';
 import { useInstancesStore } from '@/stores/instancesStore';
 import { useModelStore } from '@/stores/modelStore';
 import { isGuest, useMonitorStore } from '@/stores/monitorStore';
+import { useSettingsStore } from '@/stores/settingsStore';
 import { ask, fail, popup } from './dialogs';
 
 const currentViews = () => buildViews(useInstancesStore.getState().list, useMonitorStore.getState().snap);
@@ -16,7 +17,6 @@ export async function reloadInstances(): Promise<void> {
 
 /** Waits this long (seconds) for running requests when the user chooses "stop when done". */
 const DRAIN_SECONDS = 120;
-const VRAM_WARN_PERCENT = 85;
 
 /** Start or stop an instance, asking first when that could surprise: a nearly full GPU, running requests, loaded models. */
 export async function changeState(id: number, state: 'running' | 'stopped'): Promise<void> {
@@ -39,7 +39,7 @@ export async function changeState(id: number, state: 'running' | 'stopped'): Pro
     } else {
       const usage = vramByGpu(views, devices);
       const pct = usage.length ? Math.max(...usage.map((g) => g.pct)) : 0;
-      if (pct > VRAM_WARN_PERCENT && !(await popup({ kind: 'warn', title: t('w.vram.t'), msg: t('w.vram.m', { pct, n: instance.name }), ok: t('btn.start'), cancel: t('btn.cancel') }))) return;
+      if (pct > useSettingsStore.getState().cfg.vramWarn && !(await popup({ kind: 'warn', title: t('w.vram.t'), msg: t('w.vram.m', { pct, n: instance.name }), ok: t('btn.start'), cancel: t('btn.cancel') }))) return;
     }
   }
 

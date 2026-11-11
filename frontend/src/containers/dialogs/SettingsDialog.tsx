@@ -9,21 +9,22 @@ import { useDialogStore } from '@/stores/dialogStore';
 import { useMonitorStore } from '@/stores/monitorStore';
 import { useSettingsStore, type Cfg } from '@/stores/settingsStore';
 
-const Switch = ({ id, label, hint, checked, onChange }: { id: string; label: string; hint?: string; checked: boolean; onChange: (v: boolean) => void }) => (
+const Switch = ({ id, label, hint, checked, disabled, onChange }: { id: string; label: string; hint?: string; checked: boolean; disabled?: boolean; onChange: (v: boolean) => void }) => (
   <div className={hint ? 'fld fld--note' : 'fld'}>
     <label className="fld__label" htmlFor={id}>{label}</label>
-    <input id={id} className="sw" type="checkbox" role="switch" checked={checked} onChange={(e) => onChange(e.target.checked)} />
+    <input id={id} className="sw" type="checkbox" role="switch" checked={checked} disabled={disabled} onChange={(e) => onChange(e.target.checked)} />
     {hint && <span className="fld__note sub">{hint}</span>}
   </div>
 );
 
-const Select = ({ id, label, value, options, onChange }: { id: string; label: string; value: string | number; options: [string | number, string][]; onChange: (v: string) => void }) => (
-  <div className="fld">
+const Select = ({ id, label, hint, value, options, onChange }: { id: string; label: string; hint?: string; value: string | number; options: [string | number, string][]; onChange: (v: string) => void }) => (
+  <div className={hint ? 'fld fld--note' : 'fld'}>
     <label className="fld__label" htmlFor={id}>{label}</label>
     <span className="fld__select">
       <select id={id} value={value} onChange={(e) => onChange(e.target.value)}>{options.map(([k, text]) => <option key={k} value={k}>{text}</option>)}</select>
       <span className="material-icons">expand_more</span>
     </span>
+    {hint && <span className="fld__note sub">{hint}</span>}
   </div>
 );
 
@@ -38,6 +39,7 @@ export function SettingsDialog() {
   const cfg = useSettingsStore((s) => s.cfg);
   const edit = useSettingsStore((s) => s.edit);
   const version = useMonitorStore((s) => s.info?.version ?? '?');
+  const platform = useMonitorStore((s) => s.info?.platform);
   const pwSet = useMonitorStore((s) => s.info?.external_monitoring.password_set ?? false);
   const [pw, setPw] = useState('');
 
@@ -65,9 +67,6 @@ export function SettingsDialog() {
           <Switch id="lg" label={t('set.login')} checked={cfg.login} onChange={(v) => apply({ login: v }, 'login')} />
           <Switch id="tray" label={t('set.tray')} checked={cfg.tray} onChange={(v) => apply({ tray: v }, 'tray')} />
         </Box>
-        <Box title={t('set.monitor')}>
-          <Select id="iv" label={t('set.interval')} value={cfg.interval} options={[1, 3, 5, 10].map((n) => [n, t('sec.n', { n })])} onChange={(v) => apply({ interval: +v }, 'interval')} />
-        </Box>
         <Box title={t('set.web')}>
           <Switch id="em" label={t('set.ext')} hint={t('set.extHint')} checked={cfg.extMon} onChange={(v) => apply({ extMon: v }, 'extMon')} />
           <div className="fld"><label className="fld__label" htmlFor="mport">{t('set.extPort')}</label>
@@ -76,6 +75,14 @@ export function SettingsDialog() {
           <div className="fld"><label className="fld__label" htmlFor="mpw">{t('set.extPw')}</label>
             <input id="mpw" className="fld__text" type="password" autoComplete="new-password" value={pw} placeholder={pwSet ? t('set.extPwSet') : t('set.extPwUnset')}
               onChange={(e) => setPw(e.target.value)} onBlur={() => void savePw()} onKeyDown={(e) => { if (e.key === 'Enter') void savePw(); }} /></div>
+          <Switch id="mx" label={t('set.mx')} hint={t('set.mxHint')} checked={false} disabled onChange={() => undefined} />{/* not wired yet: the export is on hold */}
+        </Box>
+        <Box title={t('set.monitor')}>
+          {platform === 'darwin' && <Switch id="pm" label={t('set.pm')} hint={t('set.pmHint')} checked={false} disabled onChange={() => undefined} />}
+          <Switch id="dol" label={t('set.defOllama')} hint={t('set.defOllamaHint')} checked={cfg.defOllama} onChange={(v) => apply({ defOllama: v }, 'defOllama')} />
+          <Select id="vw" label={t('set.vramWarn')} hint={t('set.vramWarnHint')} value={cfg.vramWarn} options={[70, 75, 80, 85, 90, 95].map((n) => [n, `${n}%`])} onChange={(v) => apply({ vramWarn: +v }, 'vramWarn')} />
+          <Select id="iv" label={t('set.interval')} hint={t('set.intervalHint')} value={cfg.interval} options={[1, 3, 5, 10].map((n) => [n, t('sec.n', { n })])} onChange={(v) => apply({ interval: +v }, 'interval')} />
+          <Select id="kd" label={t('set.keep')} hint={t('set.keepHint')} value={cfg.keepDays} options={[1, 3, 7, 14, 30].map((n) => [n, t('day.n', { n })])} onChange={(v) => apply({ keepDays: +v }, 'keepDays')} />
         </Box>
         <Box title={t('new.server')}>
           <div className="fld fld--stack"><label className="fld__label" htmlFor="ex">{t('set.exe')}</label>

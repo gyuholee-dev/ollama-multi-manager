@@ -1027,7 +1027,7 @@ dialog) button:not(.primary):not(.tog):disabled:active {
 }
 .fgroup__note {
   display: block;
-  margin-top: 4px;
+  margin: 4px 0 0;
 }
 
 .fld {
@@ -1094,24 +1094,18 @@ dialog) button:not(.primary):not(.tog):disabled:active {
   pointer-events: none;
 }
 .fld--note {
-  display: grid;
-  grid-template-columns: 1fr auto;
-  align-items: center;
-  column-gap: 12px;
-  padding-bottom: 8px;
+  flex-wrap: wrap;
+  gap: 0 12px;
+  padding: 4px 0 8px;
 }
 .fld--note .fld__label {
-  grid-row: 1;
+  flex: 1;
   display: flex;
   align-items: center;
-  min-height: var(--row-h);
-}
-.fld--note > .sw {
-  grid-row: 1;
-  grid-column: 2;
+  min-height: 30px;
 }
 .fld__note {
-  grid-column: 1/-1;
+  flex: 0 0 100%;
   margin: 0;
 }
 .fld--stack {
@@ -1130,6 +1124,9 @@ dialog) button:not(.primary):not(.tog):disabled:active {
 .fld__box {
   width: 100%;
   background: var(--field);
+}
+.fld__box:focus-visible {
+  outline-offset: -1px;
 }
 .fld__head {
   display: flex;

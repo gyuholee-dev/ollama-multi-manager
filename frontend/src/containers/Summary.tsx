@@ -6,10 +6,10 @@ import { hms, memoryLabel } from '@/lib/format';
 import { useT } from '@/locales/useT';
 import { useLogStore } from '@/stores/logStore';
 import { useMonitorStore } from '@/stores/monitorStore';
+import { useSettingsStore } from '@/stores/settingsStore';
 import { useUiStore } from '@/stores/uiStore';
 
 const SUMS = ['ins', 'usage', 'perf', 'status'] as const;
-const VRAM_WARN_PERCENT = 85;
 
 interface CellProps {
   label: string;
@@ -36,6 +36,7 @@ function Box({ id, children }: { id: (typeof SUMS)[number]; children: ReactNode 
 
 export function Summary() {
   const t = useT();
+  const vramWarn = useSettingsStore((s) => s.cfg.vramWarn);
   const views = useViews();
   const external = useExternal();
   const devices = useDevices();
@@ -53,7 +54,7 @@ export function Summary() {
   const sys = snap?.system;
   const memPct = sys ? Math.round((sys.mem_used / sys.mem_total) * 100) : null;
   const models = views.reduce((n, i) => n + i.loaded.length, 0) + (external ? external.loaded.length : 0);
-  const warn = bad + (vramPct !== null && vramPct > VRAM_WARN_PERCENT ? 1 : 0);
+  const warn = bad + (vramPct !== null && vramPct > vramWarn ? 1 : 0);
   const perf = perfAll(snap);
   const anyBox = SUMS.some((k) => sumOn.includes(k));
 
@@ -73,7 +74,7 @@ export function Summary() {
           <Cell label={t('c.unreach')} value={bad} />
         </Box>
         <Box id="usage">
-          <Cell label={memoryLabel(devices, t)} value={vramPct ?? '-'} unit={vramPct === null ? undefined : '%'} tone={vramPct !== null && vramPct > VRAM_WARN_PERCENT ? '--warn' : undefined} />
+          <Cell label={memoryLabel(devices, t)} value={vramPct ?? '-'} unit={vramPct === null ? undefined : '%'} tone={vramPct !== null && vramPct > vramWarn ? '--warn' : undefined} />
           <Cell label={t('c.mem')} value={memPct ?? '-'} unit={memPct === null ? undefined : '%'} />
           <Cell label={t('c.models')} value={models} unit={t('u.cnt')} />
         </Box>

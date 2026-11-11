@@ -71,6 +71,8 @@ async def put_settings(patch: SettingsPatch, request: Request) -> dict[str, Any]
     except SettingsError as e:
         raise HTTPException(422, str(e)) from e
     await st.external.apply()
+    if "history_keep_days" in patch.model_fields_set:
+        st.manager.request_stats.prune()  # a shorter period takes effect now, not at the next start
     if {"ollama_executable_path", "default_models_path"} & patch.model_fields_set:
         # the model store server follows these two settings: restart it now rather than at the next use
         task = asyncio.create_task(st.models.store.warm())

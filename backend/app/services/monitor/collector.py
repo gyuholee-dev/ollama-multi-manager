@@ -100,7 +100,9 @@ class Collector:
         }
 
     async def _external(self) -> dict[str, Any] | None:
-        """Probe the default Ollama port, unless one of our instances is configured on it."""
+        """Probe the default Ollama port, unless one of our instances is configured on it or the setting turned this off."""
+        if self.settings.get("monitor_default_ollama") is False:
+            return None
         if self.manager.db.one("SELECT 1 FROM instances WHERE port=?", (self.external_port,)):
             return None
         models, responsive = await self._api_ps(self.external_port)

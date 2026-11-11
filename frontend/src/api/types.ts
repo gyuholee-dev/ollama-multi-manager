@@ -51,6 +51,9 @@ export interface Settings {
   external_monitoring_password_set: boolean; // the password itself is never sent
   external_monitoring_session_hours: number; // how long a web sign-in lasts
   refresh_interval_seconds: number;
+  monitor_default_ollama: boolean; // show the default Ollama (11434) when it runs
+  history_keep_days: number; // how long the per-minute request numbers are kept
+  vram_warn_percent: number; // GPU memory use above this is a warning
   ollama_executable_path?: string | null; // left out for guests
   default_models_path?: string | null;
 }

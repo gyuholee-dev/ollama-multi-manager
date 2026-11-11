@@ -30,7 +30,7 @@
 
   &__note {
     display: block;
-    margin-top: 4px;
+    margin: 4px 0 0; // (a <p>: no margin of its own below)
   }
 }
 
@@ -112,29 +112,22 @@
     }
   }
 
-  // a description under the label; the label and the control keep the usual row height
+  // a description under the label: it wraps onto a line of its own, right under the label and the control
   &--note {
-    display: grid;
-    grid-template-columns: 1fr auto;
-    align-items: center;
-    column-gap: 12px;
-    padding-bottom: 8px;
+    flex-wrap: wrap;
+    gap: 0 12px; // (no gap between the lines: the note sits right under the label)
+    padding: 4px 0 8px;
 
     .fld__label {
-      grid-row: 1;
+      flex: 1;
       display: flex;
       align-items: center;
-      min-height: var(--row-h);
-    }
-
-    > .sw {
-      grid-row: 1;
-      grid-column: 2;
+      min-height: 30px; // the label's centre stays where it is in a plain row (4 + 30/2 = 37/2)
     }
   }
 
   &__note {
-    grid-column: 1 / -1;
+    flex: 0 0 100%;
     margin: 0;
   }
 
@@ -159,6 +152,11 @@
   &__box {
     width: 100%;
     background: var(--field);
+
+    // the ring takes the place of the box's own border (a ring floating outside it would look like two)
+    &:focus-visible {
+      outline-offset: -1px;
+    }
   }
 
   // a slider: its label and value on one line, the slider below

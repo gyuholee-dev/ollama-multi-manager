@@ -7,9 +7,9 @@ import { memoryLabel } from '@/lib/format';
 import { gb } from '@/lib/units';
 import { useT } from '@/locales/useT';
 import { useMonitorStore } from '@/stores/monitorStore';
+import { useSettingsStore } from '@/stores/settingsStore';
 import { useUiStore } from '@/stores/uiStore';
 
-const VRAM_WARN_PERCENT = 85;
 const warnStyle = { color: 'var(--warn)' };
 
 interface BoxProps {
@@ -36,6 +36,7 @@ function DeviceHead({ n, name, figures, warn }: { n: number; name: string; figur
 }
 
 export function Monitor() {
+  const vramWarn = useSettingsStore((s) => s.cfg.vramWarn);
   const t = useT();
   const views = useViews();
   const devices = useDevices();
@@ -114,7 +115,7 @@ export function Monitor() {
       ];
       memory = (
         <>
-          <DeviceHead n={1} name={memLabel} warn={g.pct > VRAM_WARN_PERCENT}
+          <DeviceHead n={1} name={memLabel} warn={g.pct > vramWarn}
             figures={`${g.used > 0 && g.pct < 1 ? '<1' : g.pct}% · ${g.used.toFixed(1)} / ${g.total.toFixed(1)} GB${Math.abs(g.total - ramTotal) < 0.5 ? '' : ` · ALL ${ramTotal.toFixed(0)} GB`}`} />
           <Bar segments={segments} marker={pct(g.total)} /><Legend segments={segments} />
         </>
@@ -127,7 +128,7 @@ export function Monitor() {
       ];
       memory = (
         <>
-          <DeviceHead n={1} name={memLabel} figures={`${g.pct}% · ${g.used.toFixed(1)} / ${g.total.toFixed(1)} GB`} warn={g.pct > VRAM_WARN_PERCENT} />
+          <DeviceHead n={1} name={memLabel} figures={`${g.pct}% · ${g.used.toFixed(1)} / ${g.total.toFixed(1)} GB`} warn={g.pct > vramWarn} />
           <Bar segments={segments} /><Legend segments={segments} />
         </>
       );

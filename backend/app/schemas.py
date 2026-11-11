@@ -69,6 +69,9 @@ class SettingsPatch(BaseModel):
     external_monitoring_password: Annotated[str, Field(max_length=200)] | None = None  # write-only; "" removes it
     external_monitoring_session_hours: Annotated[int, Field(ge=1, le=720)] | None = None
     refresh_interval_seconds: Annotated[int, Field(ge=1, le=60)] | None = None
+    monitor_default_ollama: bool | None = None
+    history_keep_days: Annotated[int, Field(ge=1, le=365)] | None = None
+    vram_warn_percent: Annotated[int, Field(ge=50, le=99)] | None = None
     ollama_executable_path: str | None = None
     default_models_path: str | None = None
 

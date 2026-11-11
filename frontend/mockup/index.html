@@ -45,7 +45,7 @@ const GMODES={
 let GPUS=[],GVRAM=[],GDEV=[],GUNI=false,GSUP={};
 const setGpuMode=()=>{GDEV=GMODES[cfg.gpu]||GMODES.nv;GPUS=GDEV.map(d=>d.name);GVRAM=GDEV.map(d=>d.vram);GUNI=GDEV.length>0&&GDEV.every(d=>d.unified);GSUP={mem:GDEV.some(d=>d.sup.mem)}},
  uni=()=>GUNI,memN=()=>uni()?t('mon.unified'):'VRAM',memOk=()=>GPUS.length>0&&GSUP.mem;
-const defCfg={gpu:'nv',lang:detectLang(),theme:'system',login:false,tray:false,interval:3,extMon:true,monPort:9100,exe:'',modelsPath:'~/.ollama/models'},cfg={...defCfg};let saved={...defCfg};
+const defCfg={gpu:'nv',lang:detectLang(),theme:'system',login:false,tray:false,interval:3,defOllama:true,keepDays:7,vramWarn:85,extMon:true,monPort:9100,exe:'',modelsPath:'~/.ollama/models'},cfg={...defCfg};let saved={...defCfg};
 const shared=()=>{try{return JSON.parse(localStorage.getItem('omm-mock-cfg')||'{}')}catch(e){return {}}},share=()=>{try{localStorage.setItem('omm-mock-cfg',JSON.stringify({lang:cfg.lang,theme:cfg.theme,gpu:cfg.gpu}))}catch(e){}};
 {const sh=shared();if(window.LOCALES[sh.lang])cfg.lang=saved.lang=sh.lang;if(sh.theme)cfg.theme=saved.theme=sh.theme;if(GMODES[sh.gpu])cfg.gpu=saved.gpu=sh.gpu}
 let models=[{n:'llama3.1:8b-instruct-q4_K_M',gb:4.7},{n:'llama3.1:8b-instruct-q8_0',gb:8.5},{n:'mistral:7b-instruct-q4_K_M',gb:4.1},{n:'qwen2.5:3b-instruct-q4_K_M',gb:2.1},{n:'gemma2:9b-instruct-q4_K_M',gb:5.4}];
@@ -71,7 +71,7 @@ const logs=[],lf={v:'all'},hms=t=>new Date(t).toLocaleTimeString('en-GB'),
 const set=async(id,state,ms=900)=>{const n=by(id).name,run=state=='running';
  if(run){const r=roomOf(by(id).gpu||'auto'),need=(by(id).models||[]).map(m=>models.find(x=>x.n==m)?.gb||0).sort((a,b)=>b-a).slice(0,2).reduce((a,x)=>a+x,0);
   if(r&&need>0){if(need>r.cap&&!await umaWarn(need,r))return}
-  else{const pct=Math.max(...vramByGpu().map(g=>g.pct));if(pct>85&&!await popup({kind:'warn',title:t('w.vram.t'),msg:t('w.vram.m',{pct,n}),ok:t('btn.start'),cancel:t('btn.cancel')}))return}}
+  else{const pct=Math.max(...vramByGpu().map(g=>g.pct));if(pct>cfg.vramWarn&&!await popup({kind:'warn',title:t('w.vram.t'),msg:t('w.vram.m',{pct,n}),ok:t('btn.start'),cancel:t('btn.cancel')}))return}}
  else{const k=by(id).loaded.length;if(k&&!await ask(t('w.stop.t'),t('w.stop.m',{n,k}),t('btn.stop'),true))return}
  by(id).state='starting';log(`${run?'Starting':'Stopping'} ${n}…`,n);render();setTimeout(()=>{by(id).state=state;if(!run)by(id).loaded=[];log(`${n} ${run?'is running':'stopped'}`,n);render()},ms)};
 function btns(i){const st=i.state,busy=st=='running'||st=='starting';
@@ -97,10 +97,10 @@ GSYS=1.6,gOf=i=>{const g=i.gpu||'auto';return g=='cpu'?-1:g=='auto'?(i===ext?1:0
 function renderSum(){
  $('utabs').innerHTML=SUMS.map(k=>`<button class="small${sumOn.has(k)?' on':''}" onclick="togSum('${k}')">${t('sum.'+k)}</button>`).join('');
  const c=s=>list.filter(i=>i.state==s).length,all=[ext,...list],pct=Math.max(...vramByGpu().map(g=>g.pct)),
-  models=all.reduce((t,i)=>t+i.loaded.length,0),warn=c('unreachable')+(pct>85?1:0),errs=logs.filter(e=>/timed out|unreachable|error|failed/i.test(e.m)).length;
+  models=all.reduce((t,i)=>t+i.loaded.length,0),warn=c('unreachable')+(pct>cfg.vramWarn?1:0),errs=logs.filter(e=>/timed out|unreachable|error|failed/i.test(e.m)).length;
  $('sum').innerHTML=[
   sbox('ins',[cell(t('c.total'),list.length),cell(t('c.running'),c('running')),cell(t('c.stopped'),c('stopped')),cell(t('c.unreach'),c('unreachable'))]),
-  sbox('usage',[cell(memN(),memOk()?pct:'-',memOk()?'%':'',memOk()&&pct>85?'--warn':''),cell(t('c.mem'),34,'%'),cell(t('c.models'),models,t('u.cnt'))]),
+  sbox('usage',[cell(memN(),memOk()?pct:'-',memOk()?'%':'',memOk()&&pct>cfg.vramWarn?'--warn':''),cell(t('c.mem'),34,'%'),cell(t('c.models'),models,t('u.cnt'))]),
   sbox('perf',[cell(t('c.reqs'),2,t('u.case')),cell(t('c.latency'),1.4,' s'),cell(t('c.speed'),87,' tok/s')]),
   sbox('status',[cell(t('c.warn'),warn?warn:t('c.ok'),warn?t('u.case'):'',warn?'--warn':'--ok'),cell(t('c.errs'),errs,t('u.case')),cell(t('c.mon'),cfg.extMon?t('c.on'):t('c.off'),cfg.extMon?` :${cfg.monPort}`:''),cell(t('c.updated'),hms(Date.now()).slice(0,5)) ]) ].join('')||`<div class="sub" style="grid-column:1/-1">${t('sum.empty')}</div>`}
 function render(){
@@ -119,8 +119,8 @@ function render(){
     let mem;
     if(!D.sup.mem)mem=headRow(D.unified?t('mon.unified'):'VRAM','-',1)+bar([],true)+`<div class="sub off-note">${t('mon.unsupported')}</div>`;
     else if(D.unified){const other=Math.max(0,g.used-ps.reduce((a,p)=>a+p.v,0)),sys=Math.max(0,21.8-g.used),free=Math.max(0,64-21.8),pp=[...(other>0.05?[[t('mon.gpuOther'),other/64*100,'var(--sub)',other.toFixed(1)+' GB']]:[]),...ps.map(p=>[p.name,p.v/64*100,p.col,p.v.toFixed(1)+' GB']),[t('mon.gpuMax',{limit:g.total}),0,'var(--text)','','mark'],['',free/64*100,'transparent','','gap'],[S,sys/64*100,'var(--line)',sys.toFixed(1)+' GB']];
-      mem=headRow(D.unified?t('mon.unified'):'VRAM',`${g.used>0&&g.pct<1?'<1':g.pct}% · ${g.used.toFixed(1)} / ${g.total.toFixed(1)} GB`+(Math.abs(g.total-64)<0.5?'':' · ALL 64 GB'),1,g.pct>85)+bar(pp,false,g.total/64*100)+leg(pp)}
-    else{const pp=[[S,GSYS/g.total*100,'var(--sub)',GSYS.toFixed(1)+' GB'],...ps.map(p=>[p.name,p.v/g.total*100,p.col,p.v.toFixed(1)+' GB'])];mem=headRow(D.unified?t('mon.unified'):'VRAM',`${g.pct}% · ${g.used.toFixed(1)} / ${g.total} GB`,1,g.pct>85)+bar(pp)+leg(pp)}
+      mem=headRow(D.unified?t('mon.unified'):'VRAM',`${g.used>0&&g.pct<1?'<1':g.pct}% · ${g.used.toFixed(1)} / ${g.total.toFixed(1)} GB`+(Math.abs(g.total-64)<0.5?'':' · ALL 64 GB'),1,g.pct>cfg.vramWarn)+bar(pp,false,g.total/64*100)+leg(pp)}
+    else{const pp=[[S,GSYS/g.total*100,'var(--sub)',GSYS.toFixed(1)+' GB'],...ps.map(p=>[p.name,p.v/g.total*100,p.col,p.v.toFixed(1)+' GB'])];mem=headRow(D.unified?t('mon.unified'):'VRAM',`${g.pct}% · ${g.used.toFixed(1)} / ${g.total} GB`,1,g.pct>cfg.vramWarn)+bar(pp)+leg(pp)}
     return mb(`GPU-${n}`,GPUS[n],util+mem)});
  $('mon').innerHTML=[
   mb('CPU',t('mon.cpu',{pct:23,n:12}),bar([...runL.map(i=>[i.name,share(i,9),`hsl(${list.indexOf(i)*70+210} 60% 55%)`]),[O,14,'var(--sub)']])+leg([...runL.map(i=>[i.name,share(i,9),`hsl(${list.indexOf(i)*70+210} 60% 55%)`,Math.round(share(i,9))+'%']),[O,14,'var(--sub)','14%']])),
@@ -179,12 +179,17 @@ function openCfg(){monOk=cfg.monPort;monWas=cfg.extMon;pathWas={exe:cfg.exe,mode
  ${chk('lg',t('set.login'),v.login)}
  ${chk('tray',t('set.tray'),v.tray)}
  <div class="fld"><label class="fld__label">${t('mock.gpu')}</label><span class="fld__select"><select id="gpumode">${opt(Object.keys(GMODES).map(k=>[k,t('mock.gpu.'+k)]),v.gpu)}</select>${caret}</span></div>
- </div><div class="box fgroup"><div class="fgroup__head"><h4 class="fgroup__title">${t('set.monitor')}</h4></div>
- <div class="fld"><label class="fld__label">${t('set.interval')}</label><span class="fld__select"><select id="iv">${opt([1,3,5,10].map(n=>[n,t('sec.n',{n})]),v.interval)}</select>${caret}</span></div>
- </div><div class="box fgroup"><div class="fgroup__head"><h4 class="fgroup__title">${t('set.web')}</h4></div>
+</div><div class="box fgroup"><div class="fgroup__head"><h4 class="fgroup__title">${t('set.web')}</h4></div>
  ${chk('em',t('set.ext'),v.extMon)}
  <div class="fld"><label class="fld__label">${t('set.extPort')}</label><input class="fld__text" id="mport" type="number" min="1024" max="65535" value="${v.monPort}"></div>
  <div class="fld"><label class="fld__label">${t('set.extPw')}</label><input class="fld__text" id="mpw" type="password" autocomplete="new-password" placeholder="${t('set.extPwUnset')}"></div>
+ <div class="fld fld--note"><label class="fld__label">${t('set.mx')}</label><input id="mx" class="sw" type="checkbox" role="switch" disabled><span class="fld__note sub">${t('set.mxHint')}</span></div>
+ </div><div class="box fgroup"><div class="fgroup__head"><h4 class="fgroup__title">${t('set.monitor')}</h4></div>
+ <div class="fld fld--note"><label class="fld__label">${t('set.pm')}</label><input id="pm" class="sw" type="checkbox" role="switch" disabled><span class="fld__note sub">${t('set.pmHint')}</span></div>
+ <div class="fld fld--note"><label class="fld__label">${t('set.defOllama')}</label><input id="dol" class="sw" type="checkbox" role="switch" ${v.defOllama?'checked':''}><span class="fld__note sub">${t('set.defOllamaHint')}</span></div>
+ <div class="fld fld--note"><label class="fld__label">${t('set.vramWarn')}</label><span class="fld__select"><select id="vw">${opt([70,75,80,85,90,95].map(n=>[n,n+'%']),v.vramWarn)}</select>${caret}</span><span class="fld__note sub">${t('set.vramWarnHint')}</span></div>
+ <div class="fld fld--note"><label class="fld__label">${t('set.interval')}</label><span class="fld__select"><select id="iv">${opt([1,3,5,10].map(n=>[n,t('sec.n',{n})]),v.interval)}</select>${caret}</span><span class="fld__note sub">${t('set.intervalHint')}</span></div>
+ <div class="fld fld--note"><label class="fld__label">${t('set.keep')}</label><span class="fld__select"><select id="kd">${opt([1,3,7,14,30].map(n=>[n,t('day.n',{n})]),v.keepDays)}</select>${caret}</span><span class="fld__note sub">${t('set.keepHint')}</span></div>
  </div><div class="box fgroup"><div class="fgroup__head"><h4 class="fgroup__title">${t('new.server')}</h4></div>
  <div class="fld fld--stack"><label class="fld__label">${t('set.exe')}</label><span class="pr"><input class="fld__box" id="ex" value="${v.exe}" placeholder="${t('set.exePh')}"><button type="button" onclick="browse('ex')">${t('set.browse')}</button></span></div>
  <div class="fld fld--stack"><label class="fld__label">${t('set.models')}</label><span class="pr"><input class="fld__box" id="mp" value="${v.modelsPath}"><button type="button" onclick="browse('mp')">${t('set.browse')}</button></span></div>
@@ -209,7 +214,7 @@ function applyStatic(){document.title=t('app.title');document.documentElement.la
  document.querySelectorAll('[data-i-aria]').forEach(e=>e.setAttribute('aria-label',t(e.dataset.iAria)));
  document.querySelectorAll('main > section').forEach(secLbl)}
 function apply(){share();setGpuMode();document.documentElement.dataset.theme=cfg.theme;applyStatic();render();renderLogs()}
-function upd(){const lc=$('lang').value!=cfg.lang;Object.assign(cfg,{gpu:$('gpumode').value,lang:$('lang').value,theme:$('t').value,login:$('lg').checked,tray:$('tray').checked,interval:+$('iv').value,extMon:$('em').checked,monPort:+$('mport').value||defCfg.monPort,exe:$('ex').value,modelsPath:$('mp').value});apply();saved={...cfg};if(lc)openCfg()}
+function upd(){const lc=$('lang').value!=cfg.lang;Object.assign(cfg,{gpu:$('gpumode').value,lang:$('lang').value,theme:$('t').value,login:$('lg').checked,tray:$('tray').checked,interval:+$('iv').value,defOllama:$('dol').checked,vramWarn:+$('vw').value,keepDays:+$('kd').value,extMon:$('em').checked,monPort:+$('mport').value||defCfg.monPort,exe:$('ex').value,modelsPath:$('mp').value});apply();saved={...cfg};if(lc)openCfg()}
 async function resetCfg(){if(!await ask(t('rst.title'),t('rst.msg'),t('rst.ok'),true))return;Object.assign(cfg,defCfg);saved={...cfg};log('Settings reset to defaults');apply();openCfg()}
 let monOk=0,monWas=false,pathWas={};
 function chg(e){const id=e.target.id,p=cfg.monPort,bad=!(p>=1024&&p<=65535)?[t('v.port.t'),t('v.port.m')]:(list.some(i=>i.port==p)||ext.port==p)?[t('port.conflict'),t('sv.portMsg',{p})]:null;

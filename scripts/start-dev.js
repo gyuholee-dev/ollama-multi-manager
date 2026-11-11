@@ -10,6 +10,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 const { spawn } = require('node:child_process');
 const { parseEnv } = require('node:util');
+const { onInterrupt } = require('./lib/interrupt');
 
 const root = path.join(__dirname, '..');
 const envFile = path.join(root, '.env.dev');
@@ -51,10 +52,9 @@ vite.stdout.on('data', chunk => {
   process.stdout.write(chunk);
   if (started || !/built in/.test(chunk.toString())) return;
   started = true;
-  const electron = spawn(require('electron'), ['.'], { cwd: root, env, stdio: 'inherit' });
+  const electron = spawn(require('electron'), ['.'], { cwd: root, env, stdio: ['ignore', 'inherit', 'inherit'] }); // (stdin is ours: Ctrl+C)
   children.push(electron);
   electron.on('exit', code => stop(code ?? 0)); // closing the app ends the watcher too
 });
 
-process.on('SIGINT', () => stop(0));
-process.on('SIGTERM', () => stop(0));
+onInterrupt(() => stop(0)); // Ctrl+C: see lib/interrupt.js

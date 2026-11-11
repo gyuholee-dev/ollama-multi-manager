@@ -5,17 +5,18 @@ Only counts and sums are stored (requests, errors, tokens, time) -- never prompt
 from __future__ import annotations
 
 import time
-from typing import Any
+from typing import Any, Callable
 
 from app.db import Database
 from app.services.proxy import Record
 
-KEEP_DAYS = 7
+KEEP_DAYS = 7  # when no setting says otherwise
 
 
 class RequestStats:
-    def __init__(self, db: Database):
+    def __init__(self, db: Database, keep_days: Callable[[], int | None] | None = None):
         self.db = db
+        self._keep_days = keep_days or (lambda: KEEP_DAYS)
         self.prune()
 
     def record(self, iid: int, rec: Record) -> None:
@@ -59,4 +60,4 @@ class RequestStats:
         self.db.execute("DELETE FROM request_stats WHERE instance_id=?", (iid,))
 
     def prune(self) -> None:
-        self.db.execute("DELETE FROM request_stats WHERE minute<?", (int(time.time() // 60) - KEEP_DAYS * 1440,))
+        self.db.execute("DELETE FROM request_stats WHERE minute<?", (int(time.time() // 60) - (self._keep_days() or KEEP_DAYS) * 1440,))

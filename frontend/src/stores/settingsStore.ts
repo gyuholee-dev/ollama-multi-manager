@@ -10,6 +10,9 @@ export interface Cfg {
   login: boolean;
   tray: boolean;
   interval: number;
+  defOllama: boolean;
+  keepDays: number;
+  vramWarn: number;
   extMon: boolean; // "web access"
   monPort: number;
   exe: string;
@@ -18,18 +21,19 @@ export interface Cfg {
 
 /** form field -> key in the backend's settings */
 export const KEYMAP: Record<keyof Cfg, keyof Settings> = {
+  defOllama: 'monitor_default_ollama', keepDays: 'history_keep_days', vramWarn: 'vram_warn_percent',
   lang: 'language', theme: 'theme', login: 'launch_at_login', tray: 'minimize_to_tray', interval: 'refresh_interval_seconds',
   extMon: 'external_monitoring_enabled', monPort: 'external_monitoring_port', exe: 'ollama_executable_path', modelsPath: 'default_models_path',
 };
 
 export const DEFAULT_PORT = 9100;
-const DEFAULTS: Cfg = { lang: '', theme: 'system', login: false, tray: false, interval: 3, extMon: false, monPort: DEFAULT_PORT, exe: '', modelsPath: '' };
+const DEFAULTS: Cfg = { lang: '', theme: 'system', login: false, tray: false, interval: 3, defOllama: true, keepDays: 7, vramWarn: 85, extMon: false, monPort: DEFAULT_PORT, exe: '', modelsPath: '' };
 
 export const defaultCfg = (): Cfg => ({ ...DEFAULTS, lang: detectLang() });
 
 export const cfgFromApi = (s: Settings): Cfg => ({
   lang: s.language || detectLang(), theme: s.theme, login: s.launch_at_login, tray: s.minimize_to_tray,
-  interval: s.refresh_interval_seconds, extMon: s.external_monitoring_enabled, monPort: s.external_monitoring_port,
+  interval: s.refresh_interval_seconds, defOllama: s.monitor_default_ollama, keepDays: s.history_keep_days, vramWarn: s.vram_warn_percent, extMon: s.external_monitoring_enabled, monPort: s.external_monitoring_port,
   exe: s.ollama_executable_path || '', modelsPath: s.default_models_path || '',
 });
 

@@ -183,7 +183,7 @@ class InstanceManager:
         self._locks: dict[int, asyncio.Lock] = {}
         self._proxy_closers: set[asyncio.Task] = set()
         self.proxies: dict[int, InstanceProxy] = {}  # every live proxy: attached to a process, or standing by for an on-demand instance
-        self.request_stats = RequestStats(db)
+        self.request_stats = RequestStats(db, lambda: settings.get("history_keep_days"))
         self._client = httpx.AsyncClient(timeout=1.5)
 
     # ------------------------------------------------------------- records

@@ -1,3 +1,5 @@
+import asyncio
+
 import psutil
 
 from app.services.monitor.collector import Collector
@@ -93,3 +95,50 @@ async def test_gpu_use_is_summed_over_the_process_tree_and_missing_when_the_prov
     assert (await env.app.state.collector.collect())["instances"][str(inst["id"])]["gpu_util_by_gpu"] == {}
     env.provider.util = None  # it cannot tell (macOS, AMD): the screen shows the GPU's use as a whole
     assert (await env.app.state.collector.collect())["instances"][str(inst["id"])]["gpu_util_by_gpu"] is None
+
+
+async def test_the_default_ollama_can_be_hidden(env):
+    import subprocess
+    import sys
+    from tests.conftest import free_port
+    from tests.test_external import FAKE
+    port = free_port()
+    proc = subprocess.Popen([sys.executable, FAKE, "serve"], env={"OLLAMA_HOST": f"127.0.0.1:{port}", "FAKE_CHILD": "0"})
+    try:
+        c = env.app.state.collector
+        c.external_port = port
+        for _ in range(50):
+            if (await c.collect())["external"]:
+                break
+            await asyncio.sleep(0.1)
+        assert (await c.collect())["external"]
+        await env.client.put("/settings", json={"monitor_default_ollama": False})
+        assert (await c.collect())["external"] is None
+        await env.client.put("/settings", json={"monitor_default_ollama": True})
+        assert (await c.collect())["external"]
+    finally:
+        proc.terminate(); proc.wait()
+
+
+async def test_request_history_is_kept_for_the_chosen_number_of_days(env):
+    import time
+    stats = env.app.state.manager.request_stats
+    db = env.app.state.db
+    now = int(time.time() // 60)
+    for age_days in (0, 2, 10):
+        db.execute("INSERT INTO request_stats(instance_id, minute, requests) VALUES(1, ?, 1)", (now - age_days * 1440,))
+    def count():
+        return db.one("SELECT COUNT(*) AS n FROM request_stats")["n"]
+    assert count() == 3
+    assert (await env.client.put("/settings", json={"history_keep_days": 3})).json()["history_keep_days"] == 3
+    assert count() == 2                                                            # the 10-day-old row went at once
+    await env.client.put("/settings", json={"history_keep_days": 1})
+    assert count() == 1
+    assert (await env.client.put("/settings", json={"history_keep_days": 0})).status_code == 422
+
+
+async def test_the_vram_warning_level_is_a_setting(env):
+    s = (await env.client.get("/settings")).json()
+    assert s["vram_warn_percent"] == 85 and s["monitor_default_ollama"] is True and s["history_keep_days"] == 7
+    assert (await env.client.put("/settings", json={"vram_warn_percent": 90})).json()["vram_warn_percent"] == 90
+    assert (await env.client.put("/settings", json={"vram_warn_percent": 30})).status_code == 422

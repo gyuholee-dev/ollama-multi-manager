@@ -15,6 +15,9 @@ INSERT OR IGNORE INTO settings (key, value) VALUES
     ('external_monitoring_enabled','false'),  -- 웹 접속 = 같은 앱 화면을 LAN에 제공. 비밀번호를 정하면 로그인한 방문자만 전체 사용, 비밀번호가 없으면 읽기 전용(게스트)
     ('external_monitoring_port',   '9100'),
     ('refresh_interval_seconds',   '3'),
+    ('monitor_default_ollama',     'true'),       -- 기본 Ollama(11434)가 돌고 있으면 카드로 보여 준다
+    ('history_keep_days',          '7'),          -- 분 단위 요청 집계를 보관하는 기간
+    ('vram_warn_percent',          '85'),         -- GPU 메모리 사용률이 이 값을 넘으면 경고
     ('ollama_executable_path',     'null'),
     ('default_models_path',        'null');       -- OLLAMA_MODELS 기본값
 
