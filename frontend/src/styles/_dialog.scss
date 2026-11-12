@@ -10,6 +10,23 @@ dialog h3 button {
   font-size: .75rem;
 }
 
+// the buttons of a title (close, back) look like the page header's: an icon, no border or fill, a hover shade (the same while pressed)
+dialog h3 .inline,
+.page h3 .inline {
+  width: 26px;
+  height: 26px;
+  margin-left: 0;
+
+  &:hover,
+  &:active {
+    background: light-dark(var(--ghost-hover),var(--card));
+  }
+
+  .material-icons {
+    font-size: 1rem;
+  }
+}
+
 dialog h3 {
   position: sticky;
   top: 0;
@@ -17,7 +34,7 @@ dialog h3 {
   margin: 0 0 8px;
   padding: 16px 0 8px;
   line-height: 26px;
-  background: var(--card);
+  background: var(--bg);
 }
 
 code {
@@ -28,7 +45,7 @@ code {
 dialog {
   border: 1px solid var(--line);
   border-radius: 12px;
-  background: var(--card);
+  background: var(--bg);
   color: var(--text);
   width: 520px;
   max-width: calc(100vw - 32px);

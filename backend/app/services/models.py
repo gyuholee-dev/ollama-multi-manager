@@ -31,6 +31,33 @@ FINISHED_KEEP = 50
 PROGRESS_INTERVAL = 0.2  # seconds between progress events per task
 
 
+def parse_parameters(text: str) -> list[dict[str, str]]:
+    """`ollama show` prints the settings as lines of "key   value"; a key may repeat (stop). Quotes around a value are dropped."""
+    out = []
+    for line in text.splitlines():
+        parts = line.strip().split(None, 1)
+        if len(parts) == 2:
+            value = parts[1].strip()
+            if len(value) >= 2 and value[0] == value[-1] == '"':
+                value = value[1:-1]
+            out.append({"key": parts[0], "value": value})
+    return out
+
+
+def manifest_model_name(parts: tuple[str, ...]) -> str | None:
+    """The model a manifest file belongs to, from its path under manifests/ (host/namespace/model/tag): the way Ollama names it,
+    without the default host and the "library" namespace."""
+    if len(parts) < 4:
+        return None
+    host, namespace, tag = parts[0], parts[1], parts[-1]
+    path = list(parts[2:-1])
+    if namespace != "library" or host != "registry.ollama.ai":
+        path.insert(0, namespace)
+        if host != "registry.ollama.ai":
+            path.insert(0, host)
+    return "/".join(path) + ":" + tag
+
+
 def check_model_name(name: str) -> str:
     if not MODEL_NAME.match(name):
         raise InstanceError("invalid_model_name", f"Invalid model name: {name!r}", 422)
@@ -116,6 +143,96 @@ class ModelService:
         if r.status_code >= 400:
             raise InstanceError("delete_failed", r.text[:200], 502)
         self.manager._log(0, "info", f"Deleted model {name}")
+
+    # ---- details / derived models / storage
+
+    async def show(self, name: str) -> dict[str, Any]:
+        """What Ollama knows about one model: its settings, template, system prompt, license, abilities."""
+        check_model_name(name)
+        base = await self.store.base()
+        try:
+            r = await self._client.post(f"{base}/api/show", json={"model": name}, timeout=30.0)
+        except httpx.HTTPError as e:
+            raise self._unreachable(e) from e
+        if r.status_code == 404:
+            raise InstanceError("model_not_found", f"Model not found: {name}", 404)
+        if r.status_code >= 400:
+            raise InstanceError("show_failed", self._error_text(r.text), 502)
+        d = r.json()
+        info = d.get("model_info") or {}
+        ctx = [v for k, v in info.items() if k.endswith(".context_length") and isinstance(v, int)]
+        return {
+            "name": name, "details": d.get("details") or {}, "parameters": parse_parameters(d.get("parameters") or ""),
+            "system": d.get("system") or None, "template": d.get("template") or "", "license": d.get("license") or "",
+            "modelfile": d.get("modelfile") or "", "capabilities": d.get("capabilities") or [], "context_length": ctx[0] if ctx else None,
+        }
+
+    async def create(self, name: str, source: str, parameters: dict[str, Any], system: str | None) -> None:
+        """Makes `name` from the installed model `source`: the same weight files, other settings. An existing `name` is replaced."""
+        check_model_name(name)
+        check_model_name(source)
+        base = await self.store.base()
+        body: dict[str, Any] = {"model": name, "from": source, "stream": False}
+        if parameters:
+            body["parameters"] = parameters
+        if system:
+            body["system"] = system
+        try:
+            r = await self._client.post(f"{base}/api/create", json=body, timeout=httpx.Timeout(15.0, read=300.0))
+        except httpx.HTTPError as e:
+            raise self._unreachable(e) from e
+        if r.status_code >= 400:
+            msg = self._error_text(r.text)
+            code, status = ("model_not_found", 404) if r.status_code == 404 else ("create_failed", 502)
+            raise InstanceError(code, msg or f"Could not create {name}", status)
+        self.manager._log(0, "info", f"Created model {name} from {source}")
+
+    def storage(self) -> dict[str, Any]:
+        """What the models really take on disk: the files the manifests point to, each counted once however many models share it."""
+        root = self.store.models_dir()
+        users: dict[str, set[str]] = {}  # digest -> the models that use the file
+        sizes: dict[str, int] = {}
+        manifests = root / "manifests"
+        for f in manifests.rglob("*") if manifests.is_dir() else []:
+            name = manifest_model_name(f.relative_to(manifests).parts) if f.is_file() else None
+            if not name:
+                continue
+            try:
+                m = json.loads(f.read_text("utf-8"))
+            except (OSError, ValueError):
+                continue
+            for layer in [m.get("config")] + list(m.get("layers") or []):
+                digest = (layer or {}).get("digest", "")
+                if not digest:
+                    continue
+                users.setdefault(digest, set()).add(name)
+                sizes[digest] = int((layer or {}).get("size", 0))
+        blobs = root / "blobs"
+        used: set[str] = set()
+        for digest in users:
+            blob = blobs / digest.replace(":", "-")
+            try:
+                sizes[digest] = blob.stat().st_size  # the real file; the manifest's number only when it is missing
+            except OSError:
+                pass
+            used.add(blob.name)
+        unused = 0
+        for f in blobs.iterdir() if blobs.is_dir() else []:
+            if f.name not in used:
+                try:
+                    unused += f.stat().st_size
+                except OSError:
+                    pass
+        own: dict[str, int] = {}
+        for digest, names in users.items():
+            if len(names) == 1:
+                (only,) = names
+                own[only] = own.get(only, 0) + sizes[digest]
+        names_all = {n for s in users.values() for n in s}
+        return {
+            "path": str(root), "bytes": sum(sizes[d] for d in users), "unused": unused,
+            "models": {n: {"own": own.get(n, 0)} for n in sorted(names_all)},
+        }
 
     # ---- pull
 

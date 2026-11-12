@@ -6,7 +6,7 @@ import { useT } from '@/locales/useT';
 import { useModelStore } from '@/stores/modelStore';
 import { Fold } from './Fold';
 
-/** The installed models, grouped by family, to tick the ones an instance may serve. Nothing ticked = all of them. */
+/** The installed models, grouped by family (every family open at first), to tick the ones an instance may serve. Nothing ticked = all of them. */
 export function ModelPicker({ value, onChange }: { value: string[]; onChange: (models: string[]) => void }) {
   const t = useT();
   const list = useModelStore((s) => s.list);
@@ -25,7 +25,7 @@ export function ModelPicker({ value, onChange }: { value: string[]; onChange: (m
       {[...families].map(([family, models]) => {
         const count = models.filter((m) => picked.has(normModel(m.name))).length;
         return (
-          <Fold key={family} title={count ? `${family} (${count})` : family} hint={t('new.toggle', { n: family })}>
+          <Fold key={family} title={count ? `${family} (${count})` : family} hint={t('new.toggle', { n: family })} defaultOpen>
             {models.map((m) => {
               const id = `pick-${m.name}`;
               return (

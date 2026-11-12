@@ -1,7 +1,7 @@
 import { useEffect, useState, type ReactNode } from 'react';
 import { log } from '@/app/log';
 import { clearMetricsToken, commitMetricsToken, commitPassword, commitSetting, readMetricsToken, resetSettings } from '@/app/settingsActions';
-import { Dialog, DialogBody, DialogTitle } from '@/components/common/Dialog';
+import { DialogBody, PageTitle } from '@/components/common/Dialog';
 import { pickPath } from '@/desktop';
 import { copyText } from '@/lib/clipboard';
 import { randomKey } from '@/lib/random';
@@ -35,7 +35,7 @@ const Box = ({ title, children }: { title: string; children: ReactNode }) => (
 );
 
 /** Every change is stored the moment it is made (switches and lists at once, text and numbers when the field is left). */
-export function SettingsDialog() {
+export function SettingsPage() {
   const t = useT();
   const close = useDialogStore((s) => s.close);
   const cfg = useSettingsStore((s) => s.cfg);
@@ -90,8 +90,8 @@ export function SettingsDialog() {
   const save = () => { log('Settings saved'); close(); }; // every change is already stored; this just closes the window
 
   return (
-    <Dialog id="det" onClose={close}>
-      <DialogTitle onClose={close}>{t('set.title')}</DialogTitle>
+    <>
+      <PageTitle onClose={close}>{t('set.title')}</PageTitle>
       <DialogBody>
       <div>
         <Box title={t('set.general')}>
@@ -160,6 +160,6 @@ export function SettingsDialog() {
         <button type="button" className="primary" onClick={save}>{t('set.save')}</button>
       </div>
       </DialogBody>
-    </Dialog>
+    </>
   );
 }

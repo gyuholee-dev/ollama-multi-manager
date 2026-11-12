@@ -9,7 +9,7 @@ from typing import Any
 from fastapi import APIRouter, Depends, HTTPException, Request, Response, WebSocket, WebSocketDisconnect
 from fastapi.responses import PlainTextResponse
 
-from app.schemas import AllowedModels, InstanceCreate, InstanceUpdate, PullRequest, SettingsPatch, StopRequest
+from app.schemas import AllowedModels, InstanceCreate, ModelCreate, InstanceUpdate, PullRequest, SettingsPatch, StopRequest
 from app.services.external import lan_ip
 from app.services.monitor import prometheus
 from app.services.settings import SettingsError
@@ -181,6 +181,23 @@ async def restart_instance(iid: int, request: Request, body: StopRequest | None 
 @api.get("/models")
 async def list_models(request: Request) -> list[dict[str, Any]]:
     return await request.app.state.models.list()
+
+
+@api.get("/models/storage")
+async def models_storage(request: Request) -> dict[str, Any]:
+    """The disk the models really take (shared files counted once) and what only one model uses."""
+    return await asyncio.to_thread(request.app.state.models.storage)
+
+
+@api.get("/models/show")
+async def show_model(name: str, request: Request) -> dict[str, Any]:
+    return await request.app.state.models.show(name)
+
+
+@api.post("/models/create", status_code=201)
+async def create_model(body: ModelCreate, request: Request) -> dict[str, Any]:
+    await request.app.state.models.create(body.name, body.base, body.parameters.model_dump(exclude_none=True), body.system)
+    return {"name": body.name}
 
 
 @api.post("/models/pull", status_code=202)

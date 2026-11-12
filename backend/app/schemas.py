@@ -87,6 +87,30 @@ class StopRequest(BaseModel):
     drain_seconds: Annotated[int, Field(ge=0, le=600)] = 0
 
 
+class ModelParameters(BaseModel):
+    """The settings a derived model may set (what the form offers); anything else goes through a Modelfile (not offered yet)."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    num_ctx: Annotated[int, Field(ge=128, le=1_048_576)] | None = None
+    num_gpu: Annotated[int, Field(ge=0, le=999)] | None = None  # layers on the GPU (999 = all)
+    temperature: Annotated[float, Field(ge=0, le=5)] | None = None
+    top_p: Annotated[float, Field(ge=0, le=1)] | None = None
+    top_k: Annotated[int, Field(ge=0, le=1000)] | None = None
+    repeat_penalty: Annotated[float, Field(ge=0, le=5)] | None = None
+
+
+class ModelCreate(BaseModel):
+    """A new model tag made from an installed one: the same weights, with other settings."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    name: Annotated[str, Field(min_length=1, max_length=200)]
+    base: Annotated[str, Field(min_length=1, max_length=200)]
+    parameters: ModelParameters = ModelParameters()
+    system: Annotated[str, Field(max_length=20_000)] | None = None
+
+
 class PullRequest(BaseModel):
     model_config = ConfigDict(extra="forbid")
 

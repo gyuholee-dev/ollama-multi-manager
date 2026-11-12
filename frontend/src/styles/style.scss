@@ -9,6 +9,7 @@
 @use 'summary';
 @use 'monitor';
 @use 'cards';
+@use 'models';
 @use 'details';
 @use 'parts';
 @use 'dialog';
@@ -16,6 +17,7 @@
 @use 'form';
 @use 'fold';
 @use 'logs';
+@use 'views';
 @use 'tabs';
 @use 'popup';
 @use 'chart';

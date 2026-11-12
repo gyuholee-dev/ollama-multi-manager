@@ -1,0 +1,144 @@
+// views: the main view and a page (settings, models) side by side in a track; the track slides between them.
+// The header and the footer stay where they are. Nothing slides unless the page is being opened or closed (.views--slide, a moment
+// after the change): a window resized across the width of the media query below shows no page flying about.
+// On a wide window (desktop) the main view does not slide away: the page comes in from the right as a panel over it,
+// under the header, with a scrim over the main view (see the media query at the end).
+
+.views {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.views__scrim {
+  display: none; // (only on a wide window)
+}
+
+.views__track {
+  display: flex;
+  width: 200%;
+  height: 100%;
+
+  .views--page > & {
+    transform: translateX(-50%);
+  }
+
+  .views--slide > & {
+    transition: transform .3s ease;
+  }
+}
+
+.view {
+  display: flex;
+  flex: 0 0 50%;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+}
+
+// the surface of a page is --bg, like a dialog's (the rule has two classes: .mwin, which comes later, sets the card colour)
+.mwin.page {
+  background: var(--bg);
+  --surf: var(--bg);
+}
+
+// A page has the look of a dialog (.mwin) over the whole view: the title bar with the back button, a body that scrolls.
+// Its content is as wide as a form needs, centred.
+.page {
+  --page-pad: max(16px,calc((100% - 720px)/2));
+
+  > h3,
+  .mpane > h3 {
+    padding-inline: var(--page-pad);
+  }
+
+  .dbody {
+    padding-inline: var(--page-pad);
+  }
+
+  h3 button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 26px;
+    height: 26px;
+    padding: 0;
+    font-size: .75rem;
+  }
+
+  // the title is the one thing a page has at its top: the buttons of the page header belong to its own line
+  h3 {
+    background: var(--bg);
+    line-height: 26px;
+  }
+}
+
+// the inputs of a page fill their row, as those of a dialog do (without weight, so that a control's own width wins: the switches, .fld__text)
+:where(.page) input,
+:where(.page) select {
+  width: 100%;
+}
+
+// a wide window: the page is a panel at the right edge, between the header and the footer
+@media (min-width: 768px) {
+  .views__track {
+    width: 100%;
+
+    .views--page > & {
+      transform: none; // the main view stays
+    }
+  }
+
+  .view:first-child {
+    flex: 0 0 100%;
+  }
+
+  .view:nth-child(2) {
+    position: absolute;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 2;
+    width: 520px;
+    max-width: 100%;
+    background: var(--bg);
+    border-left: 1px solid var(--line);
+    transform: translateX(100%);
+    visibility: hidden;
+
+    .views--page & {
+      transform: none;
+      visibility: visible;
+    }
+
+    // it slides only while the page is being opened or closed, not when the window is resized across this width
+    .views--slide & {
+      transition: transform .3s ease,visibility 0s .3s;
+    }
+
+    .views--slide.views--page & {
+      transition: transform .3s ease,visibility 0s;
+    }
+  }
+
+  // the dimmed main view behind the panel: a click on it closes the panel
+  .views__scrim {
+    display: block;
+    position: absolute;
+    inset: 0;
+    z-index: 1;
+    background: rgba(0,0,0,.25);
+    opacity: 0;
+    pointer-events: none;
+
+    .views--page & {
+      opacity: 1;
+      pointer-events: auto;
+    }
+
+    .views--slide & {
+      transition: opacity .3s;
+    }
+  }
+}

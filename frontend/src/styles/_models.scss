@@ -1,0 +1,202 @@
+// the models window: a list of models by family, and the screen that edits one model slides in over it
+
+// the list and the edit screen side by side in a track that slides
+.mtrack {
+  display: flex;
+  flex: 1 1 auto;
+  width: 200%;
+  min-height: 0;
+  transition: transform .3s ease;
+
+  &--edit {
+    transform: translateX(-50%);
+  }
+}
+
+.mpane {
+  display: flex;
+  flex: 0 0 50%;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+
+  // the title stays put, the body below it scrolls (the rule of the other big windows, which holds for their direct children only)
+  > h3 {
+    flex: none;
+    position: static;
+    margin: 0;
+    padding: 16px 16px 8px;
+  }
+}
+
+// a model or a download in the list of a family
+.mrow {
+  flex-wrap: wrap; // what opens under a row (the name of a copy) takes a line of its own
+
+  // name, size, mark
+  &__title {
+    display: flex;
+    flex: 0 1 auto;
+    align-items: center;
+    min-width: 0;
+    min-height: 30px;
+  }
+
+  // the mark before a name: the library link of a model of the library, the branch mark of a derived one (the same room, so the names line up)
+  &__icon {
+    flex: none;
+  }
+
+  &__branch {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 24px;
+    height: 24px;
+    color: var(--sub);
+
+    .material-icons {
+      font-size: .875rem;
+    }
+  }
+
+  &__name {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  &__size {
+    flex: none;
+    margin-left: 6px;
+    white-space: nowrap;
+  }
+
+  // a small label after the size
+  &__chip {
+    flex: none;
+    margin-left: 8px;
+    padding: 0 8px;
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    font-size: .6875rem;
+    line-height: 16px;
+    white-space: nowrap;
+  }
+
+  // copy, edit, delete: icons at the right end
+  &__acts {
+    display: flex;
+    flex: none;
+    align-items: center;
+    min-height: 30px;
+    margin-left: 12px;
+    margin-right: -5px; // the icons' own room at the right: they line up with the values of the rows above
+  }
+
+  // the progress of a download
+  &__bar {
+    padding-top: 6px;
+
+    > .dl {
+      display: block;
+      margin: 0;
+    }
+  }
+
+  // the name of a copy
+  &__clone {
+    display: flex;
+    align-items: center;
+    padding: 2px 0 8px;
+
+    > input {
+      flex: 1 1 0;
+      min-width: 0;
+    }
+
+    > button {
+      flex: none;
+      margin-left: 8px;
+    }
+  }
+}
+
+// (two classes: the margin of .inline, which comes later, must not win)
+.mrow__title > .mrow__icon {
+  margin-left: -5px; // its icon lines up with the left edge of the rows above
+  margin-right: 4px;
+}
+
+// what opens under a row takes the whole width of it
+.fld > .slide {
+  flex: 0 0 100%;
+}
+
+// a text block (Modelfile, template ...) is a row like the others: the arrow and the title at the left, the copy button at the right
+.raw {
+  &__title {
+    display: flex;
+    align-items: center;
+    min-width: 0;
+
+    > .inline {
+      margin-left: -5px; // the arrow is the first thing of the row: its icon lines up with the left edge of the rows above
+      margin-right: 2px;
+    }
+
+    > label {
+      cursor: pointer;
+    }
+  }
+
+  &__text {
+    max-height: 180px;
+    margin: 0 0 10px;
+    padding: 8px 10px;
+    overflow: auto;
+    border-radius: 8px;
+    background: var(--field);
+    font-family: ui-monospace, Menlo, Consolas, monospace;
+    font-size: .75rem;
+    white-space: pre-wrap;
+    word-break: break-word;
+  }
+}
+
+// the arrow of a row that opens: right when shut, down when open
+.chev {
+  transform: rotate(-90deg);
+  transition: transform .25s ease;
+
+  &--open {
+    transform: none;
+  }
+}
+
+// content that slides open and shut (see Slide)
+.slide {
+  display: grid;
+  grid-template-rows: 0fr;
+  opacity: 0;
+  transition: grid-template-rows .25s ease,opacity .25s ease;
+
+  &--open {
+    grid-template-rows: 1fr;
+    opacity: 1;
+  }
+
+  &__inner {
+    min-height: 0;
+    margin: 0 -6px; // room for the focus ring of what is inside, which the clipping would cut off
+    padding: 0 6px;
+    overflow: hidden;
+  }
+}
+
+// the buttons under the settings of a model
+.mf__btns {
+  justify-content: flex-end;
+  margin-top: 10px;
+}

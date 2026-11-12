@@ -61,3 +61,32 @@ export const normModel = (name: string): string => {
   const n = name.trim();
   return (n.split('/').pop() ?? n).includes(':') ? n : `${n}:latest`;
 };
+
+/**
+ * The model a tag was derived from (Ollama's `details.parent_model`), or "" for a model that has none or was imported from a file
+ * (its parent is then a path or a .gguf name). A model edited in place has itself as its parent.
+ */
+export const derivedFrom = (details: Record<string, unknown> | undefined): string => {
+  const p = typeof details?.parent_model === 'string' ? details.parent_model.trim() : '';
+  return p && !/\.gguf$|^[\\/.~]|^[A-Za-z]:[\\/]/.test(p) ? p : '';
+};
+
+/** The quantization of a model: what Ollama reports (`details.quantization_level`), else what its tag says ("q4_K_M"); "" when neither does. */
+export const quantOf = (name: string, details?: Record<string, unknown>): string => {
+  const given = typeof details?.quantization_level === 'string' ? details.quantization_level.trim() : '';
+  return (given || name.match(/(q\d+(?:_[a-z0-9]+)*|nvfp\d+|fp\d+|bf\d+)/i)?.[1] || '').toUpperCase();
+};
+
+/**
+ * The order of the models of one family: by quantization (the fewer bits first: Q4, Q8, F16 ...; a model without one last),
+ * and within one quantization the original model first, then the ones derived from it, each by name.
+ */
+export const compareModels = (a: { name: string; details?: Record<string, unknown> }, b: { name: string; details?: Record<string, unknown> }): number => {
+  const qa = quantOf(a.name, a.details);
+  const qb = quantOf(b.name, b.details);
+  const bits = (q: string): number => { const n = q.match(/\d+/)?.[0]; return n ? Number(n) : Infinity; };
+  return (bits(qa) - bits(qb) || 0) // (Infinity - Infinity is NaN: both without one are equal)
+    || qa.localeCompare(qb)
+    || Number(!!derivedFrom(a.details)) - Number(!!derivedFrom(b.details))
+    || a.name.localeCompare(b.name);
+};

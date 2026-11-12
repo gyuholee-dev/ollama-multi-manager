@@ -201,6 +201,44 @@ export interface InstalledModel {
   details?: Record<string, unknown>;
 }
 
+/** What Ollama says about one model (`/models/show`). */
+export interface ModelDetail {
+  name: string;
+  details: Record<string, unknown>;
+  parameters: { key: string; value: string }[]; // the settings the model sets itself (a key such as stop may repeat)
+  system: string | null;
+  template: string;
+  license: string;
+  modelfile: string;
+  capabilities: string[];
+  context_length: number | null;
+}
+
+/** The disk the models take, with shared files counted once (`/models/storage`); `own` is what only that model uses. */
+export interface ModelStorage {
+  path: string;
+  bytes: number;
+  unused: number;
+  models: Record<string, { own: number }>;
+}
+
+/** The settings a derived model may set; left out = the base model's value stays. */
+export interface ModelParameters {
+  num_ctx?: number;
+  num_gpu?: number;
+  temperature?: number;
+  top_p?: number;
+  top_k?: number;
+  repeat_penalty?: number;
+}
+
+export interface ModelCreateBody {
+  name: string;
+  base: string;
+  parameters: ModelParameters;
+  system?: string;
+}
+
 export interface RequestEntry {
   id: string;
   saved: boolean; // the journal holds what was asked and answered (the instance's "save request content" option was on)

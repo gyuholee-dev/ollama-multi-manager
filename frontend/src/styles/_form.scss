@@ -202,6 +202,7 @@
   border: 0;
   border-radius: 8px;
   background: none;
+  color: inherit; // (a link used as an icon button is not link-coloured)
   transition: background-color .2s,var(--ring-fade);
 
   &:hover,
@@ -223,6 +224,12 @@
   &--done:active {
     background: var(--accent);
     color: #fff;
+  }
+
+  // switched on (the form it opens is open): the icon in the accent colour on a fill
+  &--on {
+    background: var(--fill-hover);
+    color: var(--accent);
   }
 
   .material-icons {

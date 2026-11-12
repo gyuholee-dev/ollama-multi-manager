@@ -58,6 +58,9 @@ header {
 // the page header's buttons: an icon before the label, no border or fill, just a hover and press shade
 // (the monitor window's category buttons keep their look)
 header:not(.mwh) {
+  height: 51px; // the 50px of the row and the line under it
+  border-bottom: 1px solid var(--line);
+
   .btns {
     display: flex;
 

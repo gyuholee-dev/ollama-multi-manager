@@ -1,4 +1,5 @@
 import { useEffect, useRef, type ReactNode } from 'react';
+import { useT } from '@/locales/useT';
 
 interface Props {
   id: string;
@@ -41,7 +42,7 @@ export function Dialog({ id, onClose, children, ...rest }: Props) {
  */
 export function DialogTitle({ children, id, onClose, actions }: { children: ReactNode; id?: string; onClose: () => void; actions?: ReactNode }) {
   const title = (
-    <h3 id={id}>{children} <button type="button" style={{ float: 'right' }} onClick={onClose}><span className="material-icons">close</span></button></h3>
+    <h3 id={id}>{children} <button type="button" className="inline" style={{ float: 'right' }} onClick={onClose}><span className="material-icons">close</span></button></h3>
   );
   return actions ? <div className="dh">{title}<div className="btns">{actions}</div></div> : title;
 }
@@ -49,4 +50,19 @@ export function DialogTitle({ children, id, onClose, actions }: { children: Reac
 /** What sits below the title of a big dialog: the part that scrolls. */
 export function DialogBody({ children }: { children: ReactNode }) {
   return <div className="dbody">{children}</div>;
+}
+
+/**
+ * The title of a page (settings, models): the heading and the close button at the right, like a dialog's. A screen under the page
+ * (the edit screen of a model) also has a back button before the heading, which goes back to the page.
+ */
+export function PageTitle({ children, onClose, onBack }: { children: ReactNode; onClose: () => void; onBack?: () => void }) {
+  const t = useT();
+  return (
+    <h3>
+      {onBack && <button type="button" className="inline" aria-label={t('mdl.back')} title={t('mdl.back')} onClick={onBack}><span className="material-icons">chevron_left</span></button>}
+      {onBack && ' '}{children}
+      {' '}<button type="button" className="inline" style={{ float: 'right' }} aria-label={t('btn.close')} title={t('btn.close')} onClick={onClose}><span className="material-icons">close</span></button>
+    </h3>
+  );
 }

@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { PullTask } from '@/api/types';
 import { useDialogStore } from './dialogStore';
 import { MAX_LOG_LINES, useLogStore } from './logStore';
@@ -104,9 +104,40 @@ describe('dialogStore', () => {
   });
   it('opens one big dialog at a time', () => {
     useDialogStore.getState().open({ kind: 'details', id: 3 });
-    useDialogStore.getState().open({ kind: 'settings' });
-    expect(useDialogStore.getState().active).toEqual({ kind: 'settings' });
+    useDialogStore.getState().open({ kind: 'new' });
+    expect(useDialogStore.getState().active).toEqual({ kind: 'new' });
     useDialogStore.getState().close();
     expect(useDialogStore.getState().active).toBeNull();
+  });
+  it('lets a page slide only for a moment after it was opened or closed', () => {
+    vi.useFakeTimers();
+    try {
+      expect(useDialogStore.getState().slide).toBe(false);
+      useDialogStore.getState().open({ kind: 'models' });
+      expect(useDialogStore.getState().slide).toBe(true);
+      vi.advanceTimersByTime(400);
+      expect(useDialogStore.getState().slide).toBe(false);
+      useDialogStore.getState().close();
+      expect(useDialogStore.getState().page).toBeNull();
+      expect(useDialogStore.getState().slide).toBe(true);
+      vi.advanceTimersByTime(400);
+      expect(useDialogStore.getState().slide).toBe(false);
+      useDialogStore.getState().open({ kind: 'new' }); // a dialog does not slide
+      expect(useDialogStore.getState().slide).toBe(false);
+      useDialogStore.getState().close();
+    } finally { vi.useRealTimers(); }
+  });
+  it('slides to a page, apart from the dialogs, and back', () => {
+    useDialogStore.getState().open({ kind: 'settings' });
+    expect(useDialogStore.getState().page).toBe('settings');
+    expect(useDialogStore.getState().active).toBeNull();
+    useDialogStore.getState().open({ kind: 'models' });
+    expect(useDialogStore.getState().page).toBe('models');
+    useDialogStore.getState().open({ kind: 'new' }); // a dialog over the page: closing it leaves the page in view
+    useDialogStore.getState().close();
+    expect(useDialogStore.getState().active).toBeNull();
+    expect(useDialogStore.getState().page).toBe('models');
+    useDialogStore.getState().close();
+    expect(useDialogStore.getState().page).toBeNull();
   });
 });

@@ -19,6 +19,8 @@
   color-scheme: light dark;
   --bg: light-dark(#ebebeb,#1c1c1c);
   --card: light-dark(#fff,#262626);
+  --box: light-dark(#fff,#262626);
+  --fold: light-dark(#ebebeb,#1c1c1c);
   --line: light-dark(#c8c8c8,#393939);
   --text: light-dark(#222,#eee);
   --sub: light-dark(#5a5a5a,#a1a1a1);
@@ -136,6 +138,10 @@ header .btns {
   flex: none;
 }
 
+header:not(.mwh) {
+  height: 51px;
+  border-bottom: 1px solid var(--line);
+}
 header:not(.mwh) .btns {
   display: flex;
 }
@@ -270,7 +276,10 @@ input.sw:focus-visible {
   padding: 14px;
   border-radius: 12px;
 }
-dialog .box, .mwin .box {
+dialog .box, .page .box {
+  background: var(--box);
+}
+.mwin:not(.page) .box {
   background: var(--bg);
 }
 .box:last-child {
@@ -337,7 +346,8 @@ h1 {
 
 button,
 input,
-select {
+select,
+textarea {
   font: inherit;
   color: inherit;
   background: var(--card);
@@ -401,13 +411,30 @@ button:active {
   background: light-dark(#bcbcbc, color-mix(in srgb, var(--btn) 25%, var(--surf)));
 }
 
-.card,
-dialog {
+.card {
   --surf: var(--card);
+}
+
+dialog,
+.page {
+  --surf: var(--bg);
 }
 
 .box {
   --surf: var(--bg);
+}
+
+dialog .box,
+.page .box {
+  --surf: var(--box);
+  --fill-hover: light-dark(var(--ghost-hover),color-mix(in srgb,var(--box) 86%,var(--text)));
+}
+dialog .box .card,
+.page .box .card {
+  --surf: var(--fold);
+  --fill-hover: light-dark(var(--ghost-hover),color-mix(in srgb,var(--fold) 86%,var(--text)));
+  background: var(--fold);
+  border: 0;
 }
 
 .primary {
@@ -494,7 +521,7 @@ section.off .body > div {
 }
 .sb {
   background: var(--card);
-  border-radius: 8px;
+  border-radius: 12px;
   padding: 14px;
 }
 .sb > .ti {
@@ -731,6 +758,169 @@ section.off .body > div {
   background: light-dark(#9a9a9a, #6a6a6a);
 }
 
+.mtrack {
+  display: flex;
+  flex: 1 1 auto;
+  width: 200%;
+  min-height: 0;
+  transition: transform 0.3s ease;
+}
+.mtrack--edit {
+  transform: translateX(-50%);
+}
+
+.mpane {
+  display: flex;
+  flex: 0 0 50%;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+}
+.mpane > h3 {
+  flex: none;
+  position: static;
+  margin: 0;
+  padding: 16px 16px 8px;
+}
+
+.mrow {
+  flex-wrap: wrap;
+}
+.mrow__title {
+  display: flex;
+  flex: 0 1 auto;
+  align-items: center;
+  min-width: 0;
+  min-height: 30px;
+}
+.mrow__icon {
+  flex: none;
+}
+.mrow__branch {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  color: var(--sub);
+}
+.mrow__branch .material-icons {
+  font-size: 0.875rem;
+}
+.mrow__name {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.mrow__size {
+  flex: none;
+  margin-left: 6px;
+  white-space: nowrap;
+}
+.mrow__chip {
+  flex: none;
+  margin-left: 8px;
+  padding: 0 8px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  font-size: 0.6875rem;
+  line-height: 16px;
+  white-space: nowrap;
+}
+.mrow__acts {
+  display: flex;
+  flex: none;
+  align-items: center;
+  min-height: 30px;
+  margin-left: 12px;
+  margin-right: -5px;
+}
+.mrow__bar {
+  padding-top: 6px;
+}
+.mrow__bar > .dl {
+  display: block;
+  margin: 0;
+}
+.mrow__clone {
+  display: flex;
+  align-items: center;
+  padding: 2px 0 8px;
+}
+.mrow__clone > input {
+  flex: 1 1 0;
+  min-width: 0;
+}
+.mrow__clone > button {
+  flex: none;
+  margin-left: 8px;
+}
+
+.mrow__title > .mrow__icon {
+  margin-left: -5px;
+  margin-right: 4px;
+}
+
+.fld > .slide {
+  flex: 0 0 100%;
+}
+
+.raw__title {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+}
+.raw__title > .inline {
+  margin-left: -5px;
+  margin-right: 2px;
+}
+.raw__title > label {
+  cursor: pointer;
+}
+.raw__text {
+  max-height: 180px;
+  margin: 0 0 10px;
+  padding: 8px 10px;
+  overflow: auto;
+  border-radius: 8px;
+  background: var(--field);
+  font-family: ui-monospace, Menlo, Consolas, monospace;
+  font-size: 0.75rem;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.chev {
+  transform: rotate(-90deg);
+  transition: transform 0.25s ease;
+}
+.chev--open {
+  transform: none;
+}
+
+.slide {
+  display: grid;
+  grid-template-rows: 0fr;
+  opacity: 0;
+  transition: grid-template-rows 0.25s ease, opacity 0.25s ease;
+}
+.slide--open {
+  grid-template-rows: 1fr;
+  opacity: 1;
+}
+.slide__inner {
+  min-height: 0;
+  margin: 0 -6px;
+  padding: 0 6px;
+  overflow: hidden;
+}
+
+.mf__btns {
+  justify-content: flex-end;
+  margin-top: 10px;
+}
+
 .kv {
   display: flex;
   align-items: center;
@@ -945,6 +1135,22 @@ dialog h3 button {
   font-size: 0.75rem;
 }
 
+dialog h3 .inline,
+.page h3 .inline {
+  width: 26px;
+  height: 26px;
+  margin-left: 0;
+}
+dialog h3 .inline:hover, dialog h3 .inline:active,
+.page h3 .inline:hover,
+.page h3 .inline:active {
+  background: light-dark(var(--ghost-hover), var(--card));
+}
+dialog h3 .inline .material-icons,
+.page h3 .inline .material-icons {
+  font-size: 1rem;
+}
+
 dialog h3 {
   position: sticky;
   top: 0;
@@ -952,7 +1158,7 @@ dialog h3 {
   margin: 0 0 8px;
   padding: 16px 0 8px;
   line-height: 26px;
-  background: var(--card);
+  background: var(--bg);
 }
 
 code {
@@ -963,7 +1169,7 @@ code {
 dialog {
   border: 1px solid var(--line);
   border-radius: 12px;
-  background: var(--card);
+  background: var(--bg);
   color: var(--text);
   width: 520px;
   max-width: calc(100vw - 32px);
@@ -1194,6 +1400,7 @@ dialog) button:not(.primary):not(.tog):not(.inline):disabled:active {
   border: 0;
   border-radius: 8px;
   background: none;
+  color: inherit;
   transition: background-color 0.2s, var(--ring-fade);
 }
 .inline:hover, .inline:active {
@@ -1208,6 +1415,10 @@ dialog) button:not(.primary):not(.tog):not(.inline):disabled:active {
 .inline--done, .inline--done:hover, .inline--done:active {
   background: var(--accent);
   color: #fff;
+}
+.inline--on {
+  background: var(--fill-hover);
+  color: var(--accent);
 }
 .inline .material-icons {
   font-size: 0.875rem;
@@ -1321,7 +1532,7 @@ input[type=number]::-webkit-inner-spin-button, input[type=number]::-webkit-outer
   transition: opacity 0.25s ease, visibility 0s;
 }
 .fold__card {
-  margin-top: 8px;
+  margin-top: 2px;
 }
 .fold:has(> .fold__head > .fold__check:not(:checked)) > .fold__head .fold__icon {
   transform: none;
@@ -1365,7 +1576,7 @@ input[type=number]::-webkit-inner-spin-button, input[type=number]::-webkit-outer
 #lbox {
   --surf: var(--card);
   background: var(--card);
-  border-radius: 8px;
+  border-radius: 12px;
   padding: 14px;
 }
 
@@ -1379,6 +1590,121 @@ input[type=number]::-webkit-inner-spin-button, input[type=number]::-webkit-outer
   color: var(--sub);
 }
 
+.views {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.views__scrim {
+  display: none;
+}
+
+.views__track {
+  display: flex;
+  width: 200%;
+  height: 100%;
+}
+.views--page > .views__track {
+  transform: translateX(-50%);
+}
+.views--slide > .views__track {
+  transition: transform 0.3s ease;
+}
+
+.view {
+  display: flex;
+  flex: 0 0 50%;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+}
+
+.mwin.page {
+  background: var(--bg);
+  --surf: var(--bg);
+}
+
+.page {
+  --page-pad: max(16px,calc((100% - 720px)/2));
+}
+.page > h3,
+.page .mpane > h3 {
+  padding-inline: var(--page-pad);
+}
+.page .dbody {
+  padding-inline: var(--page-pad);
+}
+.page h3 button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  padding: 0;
+  font-size: 0.75rem;
+}
+.page h3 {
+  background: var(--bg);
+  line-height: 26px;
+}
+
+:where(.page) input,
+:where(.page) select {
+  width: 100%;
+}
+
+@media (min-width: 768px) {
+  .views__track {
+    width: 100%;
+  }
+  .views--page > .views__track {
+    transform: none;
+  }
+  .view:first-child {
+    flex: 0 0 100%;
+  }
+  .view:nth-child(2) {
+    position: absolute;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 2;
+    width: 520px;
+    max-width: 100%;
+    background: var(--bg);
+    border-left: 1px solid var(--line);
+    transform: translateX(100%);
+    visibility: hidden;
+  }
+  .views--page .view:nth-child(2) {
+    transform: none;
+    visibility: visible;
+  }
+  .views--slide .view:nth-child(2) {
+    transition: transform 0.3s ease, visibility 0s 0.3s;
+  }
+  .views--slide.views--page .view:nth-child(2) {
+    transition: transform 0.3s ease, visibility 0s;
+  }
+  .views__scrim {
+    display: block;
+    position: absolute;
+    inset: 0;
+    z-index: 1;
+    background: rgba(0, 0, 0, 0.25);
+    opacity: 0;
+    pointer-events: none;
+  }
+  .views--page .views__scrim {
+    opacity: 1;
+    pointer-events: auto;
+  }
+  .views--slide .views__scrim {
+    transition: opacity 0.3s;
+  }
+}
 #ltabs,
 #stabs,
 #utabs,
@@ -1616,7 +1942,7 @@ main #mtabs button.on:hover {
 
 dialog:not(#pop) > .dh {
   flex: none;
-  background: var(--card);
+  background: var(--bg);
 }
 dialog:not(#pop) > .dh > h3 {
   position: static;

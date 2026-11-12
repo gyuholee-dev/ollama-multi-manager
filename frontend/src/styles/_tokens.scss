@@ -4,6 +4,8 @@
   color-scheme: light dark;
   --bg: light-dark(#ebebeb,#1c1c1c);
   --card: light-dark(#fff,#262626);
+  --box: light-dark(#fff,#262626); // the boxes on the surface of a dialog or of a page (the surface itself is --bg)
+  --fold: light-dark(#ebebeb,#1c1c1c); // the fold panels inside a box (the shade of the surface, but a colour of its own)
   --line: light-dark(#c8c8c8,#393939);
   --text: light-dark(#222,#eee);
   --sub: light-dark(#5a5a5a,#a1a1a1);

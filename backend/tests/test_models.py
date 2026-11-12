@@ -1,3 +1,5 @@
+import json
+
 import pytest
 
 from tests.conftest import wait_for
@@ -161,3 +163,74 @@ async def test_delete_model(env):
 async def test_invalid_model_names(env, name):
     r = await env.client.post("/models/pull", json={"model": name})
     assert r.status_code == 422
+
+
+# ---- details, derived models, storage
+
+async def test_show_returns_the_settings_of_a_model(env):
+    d = (await env.client.get("/models/show", params={"name": "fake:1b"})).json()
+    assert d["details"]["parameter_size"] == "1B" and d["context_length"] == 8192 and d["capabilities"] == ["completion"]
+    assert {"key": "num_ctx", "value": "4096"} in d["parameters"] and {"key": "stop", "value": "<|end|>"} in d["parameters"]  # quotes dropped
+    assert (await env.client.get("/models/show", params={"name": "nope:1"})).status_code == 404
+
+
+async def test_create_makes_a_derived_model_with_the_given_settings(env):
+    r = await env.client.post("/models/create", json={"name": "fake:1b-gpu", "base": "fake:1b", "parameters": {"num_gpu": 99, "temperature": 0.1}, "system": "Be brief."})
+    assert r.status_code == 201 and r.json() == {"name": "fake:1b-gpu"}
+    models = {m["name"]: m for m in (await env.client.get("/models")).json()}
+    assert models["fake:1b-gpu"]["details"]["parent_model"] == "fake:1b"
+    d = (await env.client.get("/models/show", params={"name": "fake:1b-gpu"})).json()
+    assert {"key": "num_gpu", "value": "99"} in d["parameters"] and d["system"] == "Be brief."
+    # the same name again replaces it
+    assert (await env.client.post("/models/create", json={"name": "fake:1b-gpu", "base": "fake:1b"})).status_code == 201
+    assert sum(1 for m in (await env.client.get("/models")).json() if m["name"] == "fake:1b-gpu") == 1
+
+
+async def test_a_model_is_changed_by_making_it_again_from_itself(env):
+    await env.client.post("/models/create", json={"name": "fake:1b-gpu", "base": "fake:1b", "parameters": {"num_gpu": 99}, "system": "first"})
+    r = await env.client.post("/models/create", json={"name": "fake:1b-gpu", "base": "fake:1b-gpu", "parameters": {"temperature": 0.2}, "system": "second"})
+    assert r.status_code == 201
+    models = [m["name"] for m in (await env.client.get("/models")).json()]
+    assert models.count("fake:1b-gpu") == 1
+    d = (await env.client.get("/models/show", params={"name": "fake:1b-gpu"})).json()
+    keys = {p["key"]: p["value"] for p in d["parameters"]}
+    assert keys["num_gpu"] == "99" and keys["temperature"] == "0.2" and d["system"] == "second"  # the old setting stays, the new one is added
+
+
+async def test_create_checks_the_input(env):
+    assert (await env.client.post("/models/create", json={"name": "x:1", "base": "missing:1"})).status_code == 404
+    assert (await env.client.post("/models/create", json={"name": "bad name", "base": "fake:1b"})).status_code == 422
+    assert (await env.client.post("/models/create", json={"name": "x:1", "base": "fake:1b", "parameters": {"temperature": 9}})).status_code == 422
+    assert (await env.client.post("/models/create", json={"name": "x:1", "base": "fake:1b", "parameters": {"unknown": 1}})).status_code == 422
+
+
+def write_manifest(root, parts, layers):
+    f = root.joinpath("manifests", *parts)
+    f.parent.mkdir(parents=True, exist_ok=True)
+    f.write_text(json.dumps({"config": layers[0], "layers": layers[1:]}))
+
+
+async def test_storage_counts_shared_files_once(env, monkeypatch, tmp_path):
+    root = tmp_path / "models"
+    (root / "blobs").mkdir(parents=True)
+    files = {"w": 1000, "x": 200, "c": 10, "h": 700}  # w = weights shared by two tags
+    for k, size in files.items():
+        (root / "blobs" / f"sha256-{k * 64}").write_bytes(b"0" * size)
+    (root / "blobs" / "sha256-stray").write_bytes(b"0" * 50)  # no manifest points to it
+
+    def layer(k, size=0):
+        return {"digest": "sha256:" + (k * 64)[:64], "size": size}
+
+    write_manifest(root, ("registry.ollama.ai", "library", "qwen", "1b-base"), [layer("c"), layer("w")])
+    write_manifest(root, ("registry.ollama.ai", "library", "qwen", "1b-gpu"), [layer("x"), layer("w")])
+    write_manifest(root, ("hf.co", "unsloth", "gemma", "UD-Q4"), [layer("h")])
+    monkeypatch.setattr(env.app.state.models.store, "models_dir", lambda: root)
+    s = (await env.client.get("/models/storage")).json()
+    assert s["bytes"] == 1000 + 200 + 10 + 700 and s["unused"] == 50  # not 1000 twice
+    assert s["models"]["qwen:1b-gpu"]["own"] == 200 and s["models"]["qwen:1b-base"]["own"] == 10  # what deleting it would free
+    assert s["models"]["hf.co/unsloth/gemma:UD-Q4"]["own"] == 700
+
+
+async def test_storage_without_a_models_folder(env, monkeypatch, tmp_path):
+    monkeypatch.setattr(env.app.state.models.store, "models_dir", lambda: tmp_path / "none")
+    assert (await env.client.get("/models/storage")).json() == {"path": str(tmp_path / "none"), "bytes": 0, "unused": 0, "models": {}}

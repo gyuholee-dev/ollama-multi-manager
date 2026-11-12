@@ -1,4 +1,4 @@
-"""Stand-in for `ollama serve`: /api/version, /api/ps, /api/tags, /api/pull, /api/delete,
+"""Stand-in for `ollama serve`: /api/version, /api/ps, /api/tags, /api/pull, /api/delete, /api/show, /api/create,
 plus an optional runner-like child process.
 
 Env knobs: FAKE_CHILD=0 (no child), FAKE_PULL_DELAY=<seconds between pull progress lines, default 0.05>,
@@ -17,6 +17,9 @@ LOCK = threading.Lock()
 LAYER1, LAYER2 = "sha256:" + "1" * 64, "sha256:" + "2" * 64
 MODELS = [{"name": "fake:1b", "model": "fake:1b", "size": 1_000_000, "digest": "sha256:aaa",
            "modified_at": "2026-01-01T00:00:00Z", "details": {"family": "fake", "parameter_size": "1B"}}]
+
+
+CREATED = {}  # name -> the body of the /api/create that made it
 
 
 class Handler(BaseHTTPRequestHandler):
@@ -57,6 +60,10 @@ class Handler(BaseHTTPRequestHandler):
             return self._generate()
         if self.path == "/v1/chat/completions":
             return self._openai()
+        if self.path == "/api/show":
+            return self._show()
+        if self.path == "/api/create":
+            return self._create()
         if self.path != "/api/pull":
             return self.send_error(404)
         name = self._body().get("model", "")
@@ -81,6 +88,33 @@ class Handler(BaseHTTPRequestHandler):
             send({"status": "success"})
         except (BrokenPipeError, ConnectionResetError):
             pass
+
+    def _show(self):
+        name = self._body().get("model", "")
+        with LOCK:
+            model = next((m for m in MODELS if m["name"] == name), None)
+            made = CREATED.get(name, {})
+        if model is None:
+            return self._json({"error": f"model '{name}' not found"}, 404)
+        params = {"num_ctx": 4096, **(made.get("parameters") or {})}
+        text = "".join(f"{k:<30} {v}\n" for k, v in params.items()) + 'stop                           "<|end|>"'
+        self._json({"modelfile": f"FROM {name}", "parameters": text, "template": "{{ .Prompt }}", "system": made.get("system"),
+                    "details": model["details"], "model_info": {"fake.context_length": 8192}, "capabilities": ["completion"]})
+
+    def _create(self):
+        body = self._body()
+        with LOCK:
+            base = next((m for m in MODELS if m["name"] == body.get("from")), None)
+            if base is None:
+                return self._json({"error": f"model '{body.get('from')}' not found"}, 404)
+            MODELS[:] = [m for m in MODELS if m["name"] != body["model"]]
+            MODELS.append({"name": body["model"], "model": body["model"], "size": base["size"] + 8, "digest": "sha256:" + body["model"],
+                           "modified_at": "2026-01-03T00:00:00Z", "details": {**base["details"], "parent_model": base["name"]}})
+            if body["from"] == body["model"]:  # like Ollama: making a model again from itself keeps its settings and adds the new ones
+                before = CREATED.get(body["model"], {})
+                body = {**body, "parameters": {**(before.get("parameters") or {}), **(body.get("parameters") or {})}, "system": body.get("system") or before.get("system")}
+            CREATED[body["model"]] = body
+        self._json({"status": "success"})
 
     def _openai(self):
         """OpenAI-style answer: only token counts in `usage` (no timings). Streams SSE when asked to."""

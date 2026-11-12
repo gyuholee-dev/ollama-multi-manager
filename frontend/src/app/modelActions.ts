@@ -1,5 +1,7 @@
 import { api } from '@/api/client';
-import type { PullTask } from '@/api/types';
+import type { ModelCreateBody, PullTask } from '@/api/types';
+import { derivedFrom as parentOf, normModel } from '@/lib/format';
+import { sizeBoth } from '@/lib/units';
 import { t } from '@/locales/useT';
 import { useModelStore } from '@/stores/modelStore';
 import { usePullStore } from '@/stores/pullStore';
@@ -43,11 +45,43 @@ export async function removePull(id: string): Promise<void> {
   } catch (e) { await fail(e); }
 }
 
+/** The installed models made from `name` (their `details.parent_model` is it). */
+export const derivedFrom = (name: string): string[] =>
+  useModelStore.getState().list.filter((m) => normModel(m.name) !== normModel(name) && parentOf(m.details) && normModel(parentOf(m.details)) === normModel(name)).map((m) => m.name);
+
 export async function removeModel(name: string): Promise<void> {
-  if (!(await ask(t('mdl.del.title'), t('mdl.del.msg', { n: name }), t('btn.delete'), true))) return;
+  const { storage } = useModelStore.getState();
+  const derived = derivedFrom(name);
+  const own = storage?.models[name]?.own;
+  const msg = [
+    t('mdl.del.msg', { n: name }),
+    derived.length ? t('mdl.del.derived', { k: derived.length }) : '',
+    own != null ? t('mdl.del.frees', { size: sizeBoth(own) }) : '',
+  ].filter(Boolean).join('\n');
+  if (!(await ask(t('mdl.del.title'), msg, t('btn.delete'), true))) return;
   try {
     await api.del(`/models/${encodeURI(name)}`);
+    useModelStore.getState().forgetDetails(name);
     log(`Deleted model ${name}`);
   } catch (e) { await fail(e); }
   await loadModels();
+}
+
+/** Reads the details of a model for its open card; a failure is the caller's to show. */
+export const loadModelDetail = (name: string): Promise<void> => useModelStore.getState().loadDetail(name);
+
+/** Makes a derived model (with `base` = its own name, changes the settings of that model). An existing name is replaced after the user agreed, unless `askBeforeReplacing` is off. Returns true when it was made. */
+export async function createModel(body: ModelCreateBody, askBeforeReplacing = true): Promise<boolean> {
+  const exists = useModelStore.getState().list.some((m) => normModel(m.name) === normModel(body.name));
+  if (askBeforeReplacing && exists && !(await ask(t('mdl.derive.exists.title'), t('mdl.derive.exists.msg', { n: body.name }), t('mdl.derive.replace'), true))) return false;
+  try {
+    await api.post('/models/create', body);
+    useModelStore.getState().forgetDetails(body.name);
+    log(`Created model ${body.name} from ${body.base}`);
+  } catch (e) {
+    await fail(e);
+    return false;
+  }
+  await loadModels();
+  return true;
 }

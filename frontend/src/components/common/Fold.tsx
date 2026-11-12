@@ -1,8 +1,8 @@
 import { useState, type ReactNode } from 'react';
 
-/** A section of a form that opens and closes (closed at first). */
-export function Fold({ title, hint, children }: { title: string; hint: string; children: ReactNode }) {
-  const [open, setOpen] = useState(false);
+/** A section of a form that opens and closes (closed at first, unless `defaultOpen`). */
+export function Fold({ title, hint, defaultOpen = false, children }: { title: string; hint: string; defaultOpen?: boolean; children: ReactNode }) {
+  const [open, setOpen] = useState(defaultOpen);
   return (
     <div className="fold">
       <label className="fold__head"><span className="fold__title">{title}</span>
