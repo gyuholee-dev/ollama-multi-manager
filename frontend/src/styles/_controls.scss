@@ -215,11 +215,11 @@ dialog,
 dialog .box,
 .page .box {
   --surf: var(--box);
-  --fill-hover: light-dark(var(--ghost-hover),color-mix(in srgb,var(--box) 86%,var(--text)));
+  --fill-hover: light-dark(var(--ghost-hover),color-mix(in srgb,var(--box) 92%,var(--text)));
 
   .card {
     --surf: var(--fold);
-    --fill-hover: light-dark(var(--ghost-hover),color-mix(in srgb,var(--fold) 86%,var(--text)));
+    --fill-hover: inherit; // the fold's panel takes the box's hover fill: no rule of its own
     background: var(--fold);
     border: 0;
   }

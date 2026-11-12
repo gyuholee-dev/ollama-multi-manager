@@ -427,12 +427,12 @@ dialog,
 dialog .box,
 .page .box {
   --surf: var(--box);
-  --fill-hover: light-dark(var(--ghost-hover),color-mix(in srgb,var(--box) 86%,var(--text)));
+  --fill-hover: light-dark(var(--ghost-hover),color-mix(in srgb,var(--box) 92%,var(--text)));
 }
 dialog .box .card,
 .page .box .card {
   --surf: var(--fold);
-  --fill-hover: light-dark(var(--ghost-hover),color-mix(in srgb,var(--fold) 86%,var(--text)));
+  --fill-hover: inherit;
   background: var(--fold);
   border: 0;
 }
@@ -1310,7 +1310,7 @@ dialog) button:not(.primary):not(.tog):not(.inline):disabled:active {
 .fld__text {
   flex: none;
   width: auto;
-  min-width: 120px;
+  min-width: 140px;
   padding: 0;
   border: 0;
   border-radius: 4px;
@@ -1354,6 +1354,7 @@ dialog) button:not(.primary):not(.tog):not(.inline):disabled:active {
 }
 .fld__select select:focus-visible {
   outline-color: var(--accent);
+  background: var(--field);
 }
 .fld__select .material-icons {
   position: absolute;

@@ -12,7 +12,7 @@
 <dialog id="dlg"><h3><span data-i="new.title"></span> <button type="button" class="inline" style="float:right" onclick="dlg.close()"><span class="material-icons">close</span></button></h3>
 <div class="dbody"><form method="dialog" onsubmit="return create(event)">
 <div class="box fgroup"><div class="fgroup__head"><h4 class="fgroup__title" data-i="new.server"></h4></div>
-<div class="fld"><label class="fld__label" data-i="f.name"></label><input class="fld__text fld__text--grow" id="n" required placeholder="worker-4"></div>
+<div class="fld"><label class="fld__label" data-i="f.name"></label><input class="fld__text" id="n" required placeholder="worker-4"></div>
 <div class="fld"><label class="fld__label" data-i="f.port"></label><input class="fld__text" id="p" type="number" required placeholder="11438"></div>
 <div class="fold"><label class="fold__head"><span class="fold__title" data-i="new.general"></span><input type="checkbox" class="fold__check" data-i-aria="new.generalT"><span class="material-icons fold__icon">expand_more</span></label><div class="fold__panel"><div class="fold__inner"><div class="card fold__card">
 <div class="fld fld--stack"><div class="fld__head"><label class="fld__label" data-i="f.ctx"></label><span class="fld__value" id="cv">8K</span></div><input id="cx" class="rg" type="range" min="1" max="7" step="1" value="3" oninput="$('cv').textContent=fmtCtx(2048*2**(this.value-1))"></div>

@@ -110,7 +110,7 @@ function Form({ port: firstPort }: { port: number }) {
       <DialogTitle onClose={close}>{t('new.title')}</DialogTitle>
       <DialogBody><form onSubmit={(e) => void submit(e)}>
         <div className="box fgroup"><div className="fgroup__head"><h4 className="fgroup__title">{t('new.server')}</h4></div>
-          <div className="fld"><label className="fld__label" htmlFor="n">{t('f.name')}</label><input id="n" className="fld__text fld__text--grow" required placeholder="worker-4" value={name} onChange={(e) => setName(e.target.value)} /></div>
+          <div className="fld"><label className="fld__label" htmlFor="n">{t('f.name')}</label><input id="n" className="fld__text" required placeholder="worker-4" value={name} onChange={(e) => setName(e.target.value)} /></div>
           <div className="fld"><label className="fld__label" htmlFor="p">{t('f.port')}</label><input id="p" className="fld__text" type="number" required placeholder="11438" value={port} onChange={(e) => setPort(e.target.value)} /></div>
           <Fold title={t('new.general')} hint={t('new.generalT')}>
             <Slider label={t('f.ctx')} shown={fmtCtx(2048 * 2 ** (ctx - 1))} min={1} max={7} value={ctx} onChange={setCtx} />

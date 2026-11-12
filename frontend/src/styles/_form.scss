@@ -64,7 +64,7 @@
   &__text {
     flex: none;
     width: auto;
-    min-width: 120px;
+    min-width: 140px;
     padding: 0;
     border: 0;
     border-radius: 4px;
@@ -113,8 +113,10 @@
         background: var(--fill-hover);
       }
 
+      // focused it has the fill of an input being edited
       &:focus-visible {
         outline-color: var(--accent);
+        background: var(--field);
       }
     }
 
