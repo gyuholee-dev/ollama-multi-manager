@@ -16,7 +16,7 @@ import { unfinished, usePullStore } from '@/stores/pullStore';
 import { useSettingsStore } from '@/stores/settingsStore';
 import { usePageBack } from '../pageBack';
 
-/** A download in the list: its name and progress, and pause/resume and delete. */
+/** A download in the list under the input: one line of 30px (the library link, its name and progress, and pause/resume and delete), and under it a thin progress bar that takes the place of a border. */
 function DownloadRow({ task }: { task: PullTask }) {
   const t = useT();
   const off = task.status !== 'pulling';
@@ -25,13 +25,16 @@ function DownloadRow({ task }: { task: PullTask }) {
   const sizeHint = task.total ? `${sizeTitle(task.completed) ?? sizeText(task.completed)} / ${sizeTitle(task.total) ?? sizeText(task.total)}` : undefined; // the same in GiB
   const text = task.status === 'paused' ? `${t('mdl.paused')} · ${pct}${size}` : task.status === 'error' ? `${t('mdl.failed')} · ${pct}${size}` : pct + size;
   return (
-    <div className="fld fld--note mrow" id={`dl-${task.id}`} data-s={task.status}>
-      <span className="mrow__title"><span className="mrow__name">{task.model}</span><span className="sub mrow__size" title={sizeHint}>{text}</span></span>
+    <div className="mrow mrow--dl" id={`dl-${task.id}`} data-s={task.status}>
+      <span className="mrow__title">
+        <a className="inline mrow__icon" href={`https://ollama.com/library/${encodeURI(task.model)}`} target="_blank" rel="noopener noreferrer" aria-label={t('mdl.library')} title={t('mdl.library')}><Icon name="open_in_new" /></a>
+        <span className="mrow__name">{task.model}</span><span className="sub mrow__size" title={sizeHint}>{text}</span>
+      </span>
       <span className="mrow__acts">
         <button type="button" className="inline" aria-label={t(off ? 'btn.resume' : 'btn.pause')} title={t(off ? 'btn.resume' : 'btn.pause')} onClick={() => void pullAction(task.id, off ? 'resume' : 'pause')}><Icon name={off ? 'play_arrow' : 'pause'} /></button>
         <button type="button" className="inline" aria-label={t('btn.delete')} title={t('btn.delete')} onClick={() => void removePull(task.id)}><Icon name="delete" /></button>
       </span>
-      <span className="fld__note mrow__bar"><span className={`dl${off ? ' off' : ''}`}><i style={{ width: `${task.percent ?? 0}%` }} /></span></span>
+      <span className="mrow__bar"><span className={`dl${off ? ' off' : ''}`}><i style={{ width: `${task.percent ?? 0}%` }} /></span></span>
     </div>
   );
 }
@@ -231,13 +234,11 @@ export function ModelsPage() {
   // Escape goes back from the edit screen to the list first; only from the list it leaves the page (see PageHost)
   usePageBack(() => { if (!shown) return false; back(); return true; });
 
-  type Row = { task?: PullTask; model?: InstalledModel };
-  const groups = new Map<string, Row[]>();
-  const add = (family: string, row: Row) => groups.set(family, [...(groups.get(family) ?? []), row]);
-  unfinished(tasks).forEach((task) => add(splitModel(task.model).family, { task }));
-  list.forEach((model) => add(splitModel(model.name).family, { model }));
-  // the models of a family by quantization, the original before its derived ones (the downloads stay on top)
-  groups.forEach((rows, family) => groups.set(family, [...rows.filter((r) => r.task), ...rows.filter((r) => r.model).sort((a, b) => compareModels(a.model!, b.model!))]));
+  const downloads = unfinished(tasks); // in the order they were started
+  const groups = new Map<string, InstalledModel[]>();
+  list.forEach((model) => { const family = splitModel(model.name).family; groups.set(family, [...(groups.get(family) ?? []), model]); });
+  // the models of a family by quantization, the original before its derived ones
+  groups.forEach((models, family) => groups.set(family, [...models].sort(compareModels)));
 
   const submit = async () => { if (await startPull(name)) setName(''); };
   const stats = t('mdl.stats', { path: path || '~/.ollama/models', n: list.length, size: sizeBoth(storage ? storage.bytes : list.reduce((a, m) => a + m.size, 0)) });
@@ -256,12 +257,13 @@ export function ModelsPage() {
                   <button type="button" onClick={() => void submit()}>{t('mdl.download')}</button>
                 </div>
               </div>
+              {downloads.length > 0 && <div className="card fold__card mdl-dls">{downloads.map((task) => <DownloadRow key={task.id} task={task} />)}</div>}
             </div>
             <div className="box fgroup"><div className="fgroup__head"><h4 className="fgroup__title">{t('mdl.installed')}</h4><p className="fgroup__note sub" id="pg">{loaded ? stats : ''}</p></div>
               {groups.size === 0 && loaded && <div className="sub">{t('mdl.none')}</div>}
-              {[...groups].map(([family, rows]) => (
+              {[...groups].map(([family, models]) => (
                 <Fold key={family} title={family} hint={t('new.toggle', { n: family })} defaultOpen>
-                  {rows.map((row) => row.task ? <DownloadRow key={row.task.id} task={row.task} /> : <ModelRow key={row.model!.name} model={row.model!} onEdit={() => edit(row.model!.name)} />)}
+                  {models.map((model) => <ModelRow key={model.name} model={model} onEdit={() => edit(model.name)} />)}
                 </Fold>
               ))}
             </div>

@@ -9,6 +9,7 @@
   flex: 1;
   min-height: 0;
   overflow: hidden;
+  overflow: clip; // not a scroll container at all: a focus inside the panel must not scroll the main view out of place
 }
 
 .views__scrim {

@@ -836,12 +836,25 @@ section.off .body > div {
   margin-left: 12px;
   margin-right: -5px;
 }
+.mrow--dl {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+}
 .mrow__bar {
-  padding-top: 6px;
+  flex: 0 0 100%;
 }
 .mrow__bar > .dl {
   display: block;
-  margin: 0;
+  width: calc(100% - 4px);
+  height: 2px;
+  margin: 0 2px;
+  border-radius: 1px;
+  background: var(--row-line);
+}
+.mrow__bar > .dl i {
+  border-radius: 1px;
 }
 .mrow__clone {
   display: flex;
@@ -855,6 +868,13 @@ section.off .body > div {
 .mrow__clone > button {
   flex: none;
   margin-left: 8px;
+}
+
+.fold__card.mdl-dls {
+  margin-top: 8px;
+}
+.fold__card.mdl-dls > .mrow--dl:first-child {
+  margin-top: calc(var(--row-trim) * -1 + (var(--row-h) - 1px - 30px) / 2);
 }
 
 .mrow__title > .mrow__icon {
@@ -1595,6 +1615,7 @@ input[type=number]::-webkit-inner-spin-button, input[type=number]::-webkit-outer
   flex: 1;
   min-height: 0;
   overflow: hidden;
+  overflow: clip;
 }
 
 .views__scrim {

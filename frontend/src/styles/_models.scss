@@ -95,13 +95,28 @@
     margin-right: -5px; // the icons' own room at the right: they line up with the values of the rows above
   }
 
-  // the progress of a download
+  // a download: a line of 30px (the title and the icons), and the progress bar under it, in the place of a border
+  &--dl {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+  }
+
   &__bar {
-    padding-top: 6px;
+    flex: 0 0 100%;
 
     > .dl {
       display: block;
-      margin: 0;
+      width: calc(100% - 4px);
+      height: 2px;
+      margin: 0 2px;
+      border-radius: 1px;
+      background: var(--row-line);
+
+      i {
+        border-radius: 1px;
+      }
     }
   }
 
@@ -120,6 +135,17 @@
       flex: none;
       margin-left: 8px;
     }
+  }
+}
+
+// the downloads, one under the other, in a panel of their own (the same as the one of a family below; two classes, as .fold__card, which comes later, has a top margin too)
+.fold__card.mdl-dls {
+  margin-top: 8px; // under the input row (whose own bottom padding is 4px): 12px between them. Only for the list: the stacked inputs of the settings page keep their spacing
+
+  // the text of the first line sits where the text of the first row of a family does: those rows (37px, 1px of it the border at the
+  // bottom, so the text is centred in 36px) pull their empty half (--row-trim) in, and a line here is 30px, so it is pulled in less
+  > .mrow--dl:first-child {
+    margin-top: calc(var(--row-trim) * -1 + (var(--row-h) - 1px - 30px) / 2);
   }
 }
 
