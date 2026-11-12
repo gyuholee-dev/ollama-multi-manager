@@ -78,10 +78,10 @@
     flex: none;
     margin-left: 8px;
     padding: 0 8px;
-    border: 1px solid var(--line);
     border-radius: 10px;
+    background: var(--box); // the colour of the boxes: white in the light theme
     font-size: .6875rem;
-    line-height: 16px;
+    line-height: 18px; // as high as it was with its border
     white-space: nowrap;
   }
 
