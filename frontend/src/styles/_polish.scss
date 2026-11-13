@@ -6,17 +6,19 @@
 }
 
 // Windows and Linux (macOS draws its own thin bars that hide when idle): the same, made by hand. A thin bar with no arrows, the thumb
-// shown only while the area is scrolled (lib/scrollbars.ts sets data-scrolling) or under the pointer. (scrollbar-width and
-// scrollbar-color would take over from these rules, so they are turned off here.)
+// shown only while the area is scrolled (lib/scrollbars.ts sets data-scrolling) or when the pointer is on the thumb itself, so that it
+// can be grabbed. The room of the bar is kept on both edges of a scrolling area, so that the padding on its two sides stays alike.
+// (scrollbar-width and scrollbar-color would take over from these rules, so they are turned off here.)
 html:is([data-platform=win],[data-platform=linux]) {
   * {
     scrollbar-width: auto;
     scrollbar-color: auto;
+    scrollbar-gutter: stable both-edges;
   }
 
   ::-webkit-scrollbar {
-    width: 10px;
-    height: 10px;
+    width: 8px;
+    height: 8px;
   }
 
   ::-webkit-scrollbar-button {
@@ -29,13 +31,12 @@ html:is([data-platform=win],[data-platform=linux]) {
   }
 
   ::-webkit-scrollbar-thumb {
-    border: 3px solid transparent;
+    border: 2px solid transparent;
     border-radius: 6px;
     background: transparent;
     background-clip: content-box;
   }
 
-  :hover::-webkit-scrollbar-thumb,
   [data-scrolling]::-webkit-scrollbar-thumb {
     background: light-dark(#b0b0b0,#4a4a4a);
     background-clip: content-box;
@@ -45,42 +46,4 @@ html:is([data-platform=win],[data-platform=linux]) {
     background: light-dark(#8f8f8f,#6a6a6a);
     background-clip: content-box;
   }
-}
-
-button,
-a.btn {
-  transition: background-color .25s,var(--ring-fade);
-}
-
-/* button tone: base/hover/active derived from the surface the button sits on (header buttons excluded) */
-
-:where(main,
-dialog) button:not(.primary):not(.tog):not(.inline),
-:where(main,
-dialog) a.btn {
-  --b: light-dark(color-mix(in srgb,var(--surf) 94%,#000),color-mix(in srgb,var(--surf) 90%,#fff));
-  --bh: light-dark(color-mix(in srgb,var(--surf) 86%,#000),color-mix(in srgb,var(--surf) 78%,#000));
-  --ba: light-dark(color-mix(in srgb,var(--surf) 78%,#000),color-mix(in srgb,var(--surf) 62%,#000));
-  background: var(--b);
-}
-
-:where(main,
-dialog) button:not(.primary):not(.tog):not(.inline):hover,
-:where(main,
-dialog) a.btn:hover {
-  background: var(--bh);
-}
-
-:where(main,
-dialog) button:not(.primary):not(.tog):not(.inline):active,
-:where(main,
-dialog) a.btn:active {
-  background: var(--ba);
-}
-
-:where(main,
-dialog) button:not(.primary):not(.tog):not(.inline):disabled:hover,
-:where(main,
-dialog) button:not(.primary):not(.tog):not(.inline):disabled:active {
-  background: var(--b);
 }
