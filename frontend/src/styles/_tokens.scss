@@ -28,7 +28,7 @@
   // the rows of a form
   --header-h: 44px; // the height of the page header's row and of the title row of a dialog or page (the desktop shell sets it too: electron/main.js)
   --row-h: 37px;
-  --row-line: color-mix(in srgb,var(--line) 50%,transparent);
+  --row-line: color-mix(in srgb,var(--line) 75%,transparent);
   --row-trim: 9px; // the empty half of a row: its height minus a line of text, halved
   --fill-hover: light-dark(var(--ghost-hover),var(--card)); // a fill under the pointer on a form's surface (set again by .card)
 

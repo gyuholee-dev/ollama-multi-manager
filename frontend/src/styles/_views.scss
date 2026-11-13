@@ -38,12 +38,6 @@
   min-height: 0;
 }
 
-// the surface of a page is --bg, like a dialog's (the rule has two classes: .mwin, which comes later, sets the card colour)
-.mwin.page {
-  background: var(--bg);
-  --surf: var(--bg);
-}
-
 // A page has the look of a dialog (.mwin) over the whole view: the title bar with the back button, a body that scrolls.
 // Its content is as wide as a form needs, centred.
 .page {

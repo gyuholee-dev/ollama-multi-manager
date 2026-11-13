@@ -114,7 +114,7 @@ dialog:not(#pop) > .dh {
   color: var(--sub);
 }
 
-// the monitor in a window of its own (#monitor=<id>): the same look as the dialogs
+// the monitor in a window of its own (#monitor=<id>): the same look and colours as the dialogs and the main view (the surface is --bg)
 .mwm {
   display: contents; // only there so that the page's button styles (which look for <main>) apply
 }
@@ -124,7 +124,14 @@ dialog:not(#pop) > .dh {
   flex-direction: column;
   flex: 1;
   min-height: 0;
-  background: var(--card);
+  background: var(--bg);
   color: var(--text);
-  --surf: var(--card);
+  --surf: var(--bg);
+}
+
+// no panel under what a fold opens in this window: its content sits on the box itself, in line with the fold's title (except where .fold--boxed)
+.mwin .box .fold:not(.fold--boxed) .fold__card {
+  --surf: var(--box);
+  padding: 0;
+  background: none;
 }

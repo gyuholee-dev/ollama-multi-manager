@@ -40,7 +40,7 @@ export function MonitorWindow({ id }: { id: number }) {
         <h1>{view.name}</h1>
         <div className="btns"><CategoryButtons /></div>
       </header>
-      <div className="dbody"><MonitorBody id={id} view={view} /></div>
+      <div className="dbody"><MonitorBody id={id} view={view} folds={false} /></div>
     </div>
   );
 }

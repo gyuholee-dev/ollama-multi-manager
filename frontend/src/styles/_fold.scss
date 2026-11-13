@@ -1,11 +1,10 @@
-// fold: a section that opens and closes (the form windows' "General"/"Advanced"/model families, the monitor window's sections)
+// fold: a section that opens and closes (the form windows' "General"/"Advanced"/model families, the monitor's sections)
 //
 //   .fold                    the whole section; the checkbox decides whether it is open
 //     .fold__head (label)      the header: .fold__title, the hidden .fold__check, .fold__icon
 //     .fold__panel             what opens (animated by the grid trick: 1fr <-> 0fr)
 //       .fold__inner > .fold__card
-//   .fold--pill              the monitor window's look: a rounded fill under the pointer, spaced apart
-//   without .fold--pill      a row like the form fields: one row high, closed by a hairline
+//   a row like the form fields: one row high, closed by a hairline (the last one has none)
 
 .fold {
   &__head {
@@ -70,42 +69,21 @@
     }
   }
 
-  // the form look: a row, closed by a hairline (the last one has none)
-  &:not(&--pill) {
-    &:not(:last-child) {
-      border-bottom: 1px solid var(--row-line);
-    }
-
-    > .fold__head {
-      height: var(--row-h);
-    }
-
-    > .fold__panel .fold__card {
-      margin-bottom: 8px;
-    }
+  // a part that does not fold: the title only, nothing to click
+  &--fixed > .fold__head {
+    cursor: default;
   }
 
-  // the monitor window's look
-  &--pill {
-    margin-bottom: 12px;
+  // a row, closed by a hairline (the last one has none)
+  &:not(:last-child) {
+    border-bottom: 1px solid var(--row-line);
+  }
 
-    &:last-child {
-      margin-bottom: 0;
-    }
+  > .fold__head {
+    height: var(--row-h);
+  }
 
-    > .fold__head {
-      margin: 0 -5px;
-      padding: 2px 2px 2px 10px;
-      border-radius: 8px;
-      transition: background-color .25s;
-
-      &:hover {
-        background: var(--ghost-hover);
-      }
-
-      &:active {
-        background: var(--ghost-active);
-      }
-    }
+  > .fold__panel .fold__card {
+    margin-bottom: 8px;
   }
 }

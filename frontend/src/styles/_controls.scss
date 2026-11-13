@@ -47,14 +47,11 @@ input.sw {
   padding: 14px;
   border-radius: 12px;
 
-  // on the surface of a dialog or of a page (--bg), a box is the lighter shade (--box); on the monitor window's surface (--card) it is the darker one
+  // on the surface of a dialog, a page or the monitor window (--bg), a box is the lighter shade (--box)
   dialog &,
-  .page & {
+  .page &,
+  .mwin & {
     background: var(--box);
-  }
-
-  .mwin:not(.page) & {
-    background: var(--bg);
   }
 
   &:last-child {
@@ -203,7 +200,8 @@ button:active {
 }
 
 dialog,
-.page {
+.page,
+.mwin {
   --surf: var(--bg);
 }
 
@@ -211,9 +209,10 @@ dialog,
   --surf: var(--bg);
 }
 
-// the surface of a dialog or of a page is --bg: what is on it (a box) is --box, and what is in a box (a fold's panel) is --fold, without a border
+// the surface of a dialog, a page or the monitor window is --bg: what is on it (a box) is --box, and what is in a box (a fold's panel) is --fold, without a border
 dialog .box,
-.page .box {
+.page .box,
+.mwin .box {
   --surf: var(--box);
   --fill-hover: light-dark(var(--ghost-hover),color-mix(in srgb,var(--box) 92%,var(--text)));
 

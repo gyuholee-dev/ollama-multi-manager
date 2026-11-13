@@ -51,7 +51,7 @@ function Details({ view: i }: { view: InstanceView }) {
     <Dialog id="det" onClose={close}>
       <DialogTitle onClose={close}>{i.name}</DialogTitle>
       <DialogBody><div id="dt">
-        <div className="box"><span className="ti">{t('new.server')}</span>
+        <div className="box fgroup"><div className="fgroup__head"><h4 className="fgroup__title">{t('new.server')}</h4></div>
           <Row k={t('f.state')}><StateBadge state={i.state} /></Row>
           <Row k={t('f.port')}>{i.port}</Row>
           <Row k={t('d.addr')}>{i.listen === 'lan' ? `http://${lanIp ?? '?'}:${i.port}` : `http://127.0.0.1:${i.port}`}</Row>
@@ -63,11 +63,11 @@ function Details({ view: i }: { view: InstanceView }) {
           <Row k={t('f.maxLoaded')}>{fmtN(i.maxLoaded, t)}</Row>
           <Row k={t('f.parallel')}>{fmtN(i.parallel, t)}</Row>
         </div>
-        <div className="box"><span className="ti">{t('d.models')}</span>
+        <div className="box fgroup"><div className="fgroup__head"><h4 className="fgroup__title">{t('d.models')}</h4></div>
           <div className="kv"><label>{t('d.loaded')}</label><Models empty={t('d.none')} items={i.loaded.map((x) => ({ key: x.name, text: `${x.name} · ${x.gb.toFixed(1)} GB` }))} /></div>
           <div className="kv"><label>{t('d.avail')}</label><Models empty={t('d.none')} items={availableItems} /></div>
         </div>
-        <div className="box"><span className="ti">{t('d.res')}</span>
+        <div className="box fgroup"><div className="fgroup__head"><h4 className="fgroup__title">{t('d.res')}</h4></div>
           <Row k={t('d.vram', { mem: memoryLabel(devices, t) })}>{vram}</Row>
           <Row k={t('f.ctx')}>{fmtCtx(i.ctx)}</Row>
           <Row k={t('f.keep')}>{fmtKeep(i.keep, t) + (i.keep >= 0 && i.loaded.length ? ` · ${expAt(i.loaded[0]?.exp ?? null, i.keep, t)}` : '')}</Row>

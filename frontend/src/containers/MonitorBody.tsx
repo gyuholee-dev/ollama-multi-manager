@@ -111,14 +111,16 @@ export function CategoryButtons() {
 }
 
 /** Live numbers and graphs of one running instance: what it is doing now, the last hour, and its resources. */
-export function MonitorBody({ id, view }: { id: number; view: InstanceView }) {
+/** `folds` false: the parts of each section are always open and cannot be folded (the monitor window). */
+export function MonitorBody({ id, view, folds = true }: { id: number; view: InstanceView; folds?: boolean }) {
   const t = useT();
   const snap = useMonitorStore((s) => s.snap);
   const samples = useHistoryStore((s) => s.series[String(id)] ?? NONE);
   const imFold = useUiStore((s) => s.imFold);
   const imHide = useUiStore((s) => s.imHide);
   const shown = (cat: string) => !imHide.includes(cat);
-  const open = (key: string) => !imFold.includes(key);
+  const open = (key: string) => !folds || !imFold.includes(key);
+  const plain = !folds; // (not `fixed`: that is the number formatter above)
   const [hour, setHour] = useState<SeriesPoint[] | null>(null);
   const [recent, setRecent] = useState<RequestsResponse['requests']>([]);
 
@@ -176,13 +178,13 @@ export function MonitorBody({ id, view }: { id: number; view: InstanceView }) {
   return (
         <div id="dt">
           {shown('models') && (
-          <div className="box"><span className="ti">{t('d.models')}</span>
-            <Collapse id="loaded" title={t('d.loaded')}>
+          <div className="box fgroup"><div className="fgroup__head"><h4 className="fgroup__title">{t('d.models')}</h4></div>
+            <Collapse fixed={plain} id="loaded" title={t('d.loaded')}>
               {view.loaded.length ? view.loaded.map((x) => (
                 <div className="kv" key={x.name}><label>{x.name} · {x.gb.toFixed(1)} GB</label><span className="sub">{expAt(x.exp, view.keep, t)}</span></div>
               )) : <div className="sub">{t('d.none')}</div>}
             </Collapse>
-            <Collapse id="bymodel" title={t('rq.byModel')}>
+            <Collapse fixed={plain} id="bymodel" title={t('rq.byModel')}>
               {p && Object.keys(p.models).length > 0 ? (
                 <div className="rqw"><table className="rq"><tbody>
                   <tr><th>{t('rq.model')}</th><th className="r">{t('rq.count')}</th><th className="r">{t('rq.speed')}</th><th className="r">{t('rq.avg')}</th></tr>
@@ -199,8 +201,8 @@ export function MonitorBody({ id, view }: { id: number; view: InstanceView }) {
           )}
 
           {shown('state') && (
-          <div className="box"><span className="ti">{t('f.state')}</span>
-            <Collapse id="now" title={t('im.now')}>
+          <div className="box fgroup"><div className="fgroup__head"><h4 className="fgroup__title">{t('f.state')}</h4></div>
+            <Collapse fixed={plain} id="now" title={t('im.now')}>
               <div className="sc">
                 <Cell label={t('c.reqs')} value={p ? p.processing : '-'} unit={p ? ` ${t('u.case')}` : undefined} />
                 <Cell label={t('c.queued')} value={p ? p.queued : '-'} unit={p ? ` ${t('u.case')}` : undefined} />
@@ -215,7 +217,7 @@ export function MonitorBody({ id, view }: { id: number; view: InstanceView }) {
                 {t('im.window', { m: p ? Math.round(p.window_seconds / 60) : 5 })} · {t('d.uptime')} {running ? fmtUp(Date.now() - view.startedAt, t) : '-'}
               </div>
             </Collapse>
-            <Collapse id="hour" title={t('im.hour')}>
+            <Collapse fixed={plain} id="hour" title={t('im.hour')}>
               <div className="sc" style={{ marginBottom: 12 }}>
                 <Cell label={t('im.total')} value={<>{total} / <span style={errors ? { color: 'var(--err)' } : undefined}>{errors}</span></>} unit={` ${t('u.case')}`} />
                 <Cell label={t('im.tokIn')} value={tokIn} />
@@ -231,27 +233,27 @@ export function MonitorBody({ id, view }: { id: number; view: InstanceView }) {
           )}
 
           {shown('res') && (
-          <div className="box"><span className="ti">{t('d.res')}</span>
-            <Collapse id="cpu" title="CPU">
+          <div className="box fgroup"><div className="fgroup__head"><h4 className="fgroup__title">{t('d.res')}</h4></div>
+            <Collapse fixed={plain} id="cpu" title="CPU">
               {live ? <LineChart title="CPU" value={last ? `${last.cpu.toFixed(1)} %` : undefined} points={slots.map((x) => x?.cpu ?? null)} max={100}
                 left={liveLeft} right={liveRight} format={(v) => `${Math.round(v)} %`} /> : collecting}
             </Collapse>
-            <Collapse id="mem" title={t('c.mem')}>
+            <Collapse fixed={plain} id="mem" title={t('c.mem')}>
               {live ? <LineChart title={t('c.mem')} value={last ? `${last.rss.toFixed(1)} GB` : undefined} points={slots.map((x) => x?.rss ?? null)} max={memTotal}
                 left={liveLeft} right={liveRight} format={(v) => `${v.toFixed(1)} GB`} /> : collecting}
             </Collapse>
             {!memReadable && (
-              <Collapse id="vram" title={memName}>
+              <Collapse fixed={plain} id="vram" title={memName}>
                 <div className="chart off"><div className="chh"><span className="sub">{memName}</span><span className="val">-</span></div><div className="plot" /><div className="sub off-note">{t('mon.unsupported')}</div></div>
               </Collapse>
             )}
             {memReadable && hasVram && (
-              <Collapse id="vram" title={memName}>
+              <Collapse fixed={plain} id="vram" title={memName}>
                 <LineChart title={memName} value={last?.vram != null ? `${last.vram.toFixed(1)} GB${m?.vram_source === 'estimated' ? ' ~' : ''}` : undefined}
                   points={slots.map((x) => x?.vram ?? null)} max={vramTotal || undefined} left={liveLeft} right={liveRight} floor={1} format={(v) => `${v.toFixed(1)} GB`} />
               </Collapse>
             )}
-            <Collapse id="conc" title={t('im.conc')}>
+            <Collapse fixed={plain} id="conc" title={t('im.conc')}>
               {live ? <LineChart title={t('im.conc')} value={last ? `${last.processing} + ${last.queued}` : undefined}
                 points={slots.map((x) => (x ? x.processing + x.queued : null))} max={view.parallel} left={liveLeft} right={liveRight} floor={1} format={(v) => v.toFixed(1)} /> : collecting}
             </Collapse>
@@ -259,8 +261,8 @@ export function MonitorBody({ id, view }: { id: number; view: InstanceView }) {
           )}
 
           {shown('log') && (
-          <div className="box"><span className="ti">{t('im.history')}</span>
-            <Collapse id="recent" title={t('rq.recent')}>
+          <div className="box fgroup"><div className="fgroup__head"><h4 className="fgroup__title">{t('im.history')}</h4></div>
+            <Collapse fixed={plain} boxed id="recent" title={t('rq.recent')}>
               {recent.length ? (
                 <div className="rqw"><table className="rq"><tbody>
                   <tr><th>{t('rq.time')}</th><th>{t('rq.path')}</th><th className="r">{t('rq.status')}</th><th className="r">{t('rq.dur')}</th><th className="r">{t('rq.tok')}</th></tr>
@@ -268,7 +270,7 @@ export function MonitorBody({ id, view }: { id: number; view: InstanceView }) {
                 </tbody></table></div>
               ) : <div className="sub">{t('rq.none')}</div>}
             </Collapse>
-            <Collapse id="ilog" title={t('im.log')}>
+            <Collapse fixed={plain} boxed id="ilog" title={t('im.log')}>
               <InstanceLog name={view.name} />
             </Collapse>
           </div>

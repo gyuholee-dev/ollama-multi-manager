@@ -52,7 +52,7 @@ html:is([data-platform=win], [data-platform=linux]) body {
   --ghost-active: light-dark(#cdcdcd,#0d0d0d);
   --header-h: 44px;
   --row-h: 37px;
-  --row-line: color-mix(in srgb,var(--line) 50%,transparent);
+  --row-line: color-mix(in srgb,var(--line) 75%,transparent);
   --row-trim: 9px;
   --fill-hover: light-dark(var(--ghost-hover),var(--card));
 }
@@ -288,11 +288,8 @@ input.sw:focus-visible {
   padding: 14px;
   border-radius: 12px;
 }
-dialog .box, .page .box {
+dialog .box, .page .box, .mwin .box {
   background: var(--box);
-}
-.mwin:not(.page) .box {
-  background: var(--bg);
 }
 .box:last-child {
   margin-bottom: 0;
@@ -428,7 +425,8 @@ button:active {
 }
 
 dialog,
-.page {
+.page,
+.mwin {
   --surf: var(--bg);
 }
 
@@ -437,12 +435,14 @@ dialog,
 }
 
 dialog .box,
-.page .box {
+.page .box,
+.mwin .box {
   --surf: var(--box);
   --fill-hover: light-dark(var(--ghost-hover),color-mix(in srgb,var(--box) 92%,var(--text)));
 }
 dialog .box .card,
-.page .box .card {
+.page .box .card,
+.mwin .box .card {
   --surf: var(--fold);
   --fill-hover: inherit;
   background: var(--fold);
@@ -1593,32 +1593,17 @@ input[type=number]::-webkit-inner-spin-button, input[type=number]::-webkit-outer
   visibility: hidden;
   transition: opacity 0.25s ease, visibility 0s 0.25s;
 }
-.fold:not(.fold--pill):not(:last-child) {
+.fold--fixed > .fold__head {
+  cursor: default;
+}
+.fold:not(:last-child) {
   border-bottom: 1px solid var(--row-line);
 }
-.fold:not(.fold--pill) > .fold__head {
+.fold > .fold__head {
   height: var(--row-h);
 }
-.fold:not(.fold--pill) > .fold__panel .fold__card {
+.fold > .fold__panel .fold__card {
   margin-bottom: 8px;
-}
-.fold--pill {
-  margin-bottom: 12px;
-}
-.fold--pill:last-child {
-  margin-bottom: 0;
-}
-.fold--pill > .fold__head {
-  margin: 0 -5px;
-  padding: 2px 2px 2px 10px;
-  border-radius: 8px;
-  transition: background-color 0.25s;
-}
-.fold--pill > .fold__head:hover {
-  background: var(--ghost-hover);
-}
-.fold--pill > .fold__head:active {
-  background: var(--ghost-active);
 }
 
 #lbox {
@@ -1668,11 +1653,6 @@ input[type=number]::-webkit-inner-spin-button, input[type=number]::-webkit-outer
   flex-direction: column;
   min-width: 0;
   min-height: 0;
-}
-
-.mwin.page {
-  background: var(--bg);
-  --surf: var(--bg);
 }
 
 .page {
@@ -2030,9 +2010,15 @@ dialog:not(#pop) > .dh > .btns {
   flex-direction: column;
   flex: 1;
   min-height: 0;
-  background: var(--card);
+  background: var(--bg);
   color: var(--text);
-  --surf: var(--card);
+  --surf: var(--bg);
+}
+
+.mwin .box .fold:not(.fold--boxed) .fold__card {
+  --surf: var(--box);
+  padding: 0;
+  background: none;
 }
 
 html[data-titlebar=custom] header {
