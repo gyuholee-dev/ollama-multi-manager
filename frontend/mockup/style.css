@@ -1642,6 +1642,8 @@ input[type=number]::-webkit-inner-spin-button, input[type=number]::-webkit-outer
 }
 .page .dbody {
   padding-inline: var(--page-pad);
+  scrollbar-gutter: stable;
+  padding-right: calc(var(--page-pad) - var(--sbw, 0px));
 }
 .page h3 button {
   display: inline-flex;

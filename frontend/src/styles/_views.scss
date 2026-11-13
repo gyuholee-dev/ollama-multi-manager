@@ -56,6 +56,9 @@
 
   .dbody {
     padding-inline: var(--page-pad);
+    // the bar of a scrolling body sits in its right padding (see _polish.scss)
+    scrollbar-gutter: stable;
+    padding-right: calc(var(--page-pad) - var(--sbw,0px));
   }
 
   h3 button {
