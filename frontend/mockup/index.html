@@ -31,12 +31,12 @@
 </div>
 <div class="btns" style="justify-content:flex-end;margin-top:4px"><button type="button" onclick="dlg.close()" data-i="btn.cancel"></button><button class="primary" id="mk" data-i="btn.create" disabled></button></div>
 </form></div></dialog>
+<script type="module">import {overlayScrollbars} from './scrollbars.js'; if(document.documentElement.dataset.platform!=='mac') overlayScrollbars()</script>
 <script src="locales/en.js"></script>
 <script src="locales/ko.js"></script>
 <script>
 // the look that differs by system (styles/_select.scss); ?platform=win|linux|mac tries another one
 document.documentElement.dataset.platform=new URLSearchParams(location.search).get('platform')||(/Mac|iPhone|iPad/i.test(navigator.userAgent)?'mac':/Win/i.test(navigator.userAgent)?'win':'linux');
-if(document.documentElement.dataset.platform!=='mac'){const t=new WeakMap();document.addEventListener('scroll',e=>{const el=e.target instanceof Element?e.target:document.documentElement;el.setAttribute('data-scrolling','');clearTimeout(t.get(el));t.set(el,setTimeout(()=>el.removeAttribute('data-scrolling'),900))},{capture:true,passive:true})} // as lib/scrollbars.ts
 const VERSION='v0.1.0';let checking=false;
 const detectLang=()=>{for(const l of navigator.languages||[navigator.language]){const b=String(l||'').toLowerCase().split('-')[0];if(window.LOCALES[b])return b}return 'en'};
 const FULL={mem:true,util:true,temp:true,process:true,process_util:true},NOPROC={mem:true,util:true,temp:true,process:false,process_util:false},PMETRICS={mem:true,util:true,temp:true,process:false,process_util:true},NONE={mem:false,util:false,temp:false,process:false,process_util:false};

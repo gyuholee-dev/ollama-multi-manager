@@ -5,45 +5,45 @@
   scrollbar-color: light-dark(#b0b0b0,#4a4a4a) transparent;
 }
 
-// Windows and Linux (macOS draws its own thin bars that hide when idle): the same, made by hand. A thin bar with no arrows, the thumb
-// shown only while the area is scrolled (lib/scrollbars.ts sets data-scrolling) or when the pointer is on the thumb itself, so that it
-// can be grabbed. The room of the bar is kept on both edges of a scrolling area, so that the padding on its two sides stays alike.
-// (scrollbar-width and scrollbar-color would take over from these rules, so they are turned off here.)
+// Windows and Linux (macOS draws its own thin bars that hide when idle): the system's bars are off, and the page draws one thumb that
+// fades in at the edge of the area being scrolled (lib/scrollbars.ts). Off bars take no room, so the padding of an area is the same on
+// both sides.
 html:is([data-platform=win],[data-platform=linux]) {
   * {
-    scrollbar-width: auto;
-    scrollbar-color: auto;
-    scrollbar-gutter: stable both-edges;
+    scrollbar-width: none;
   }
 
-  ::-webkit-scrollbar {
-    width: 8px;
-    height: 8px;
-  }
-
-  ::-webkit-scrollbar-button {
-    display: none;
-  }
-
-  ::-webkit-scrollbar-track,
-  ::-webkit-scrollbar-corner {
-    background: transparent;
-  }
-
-  ::-webkit-scrollbar-thumb {
-    border: 2px solid transparent;
-    border-radius: 6px;
-    background: transparent;
-    background-clip: content-box;
-  }
-
-  [data-scrolling]::-webkit-scrollbar-thumb {
+  .sbthumb {
+    // (a popover: in the top layer, over a dialog too; its default box is taken off)
+    position: fixed;
+    inset: auto;
+    margin: 0;
+    padding: 0;
+    border: 0;
+    width: 4px;
+    border-radius: 2px;
+    overflow: visible;
     background: light-dark(#b0b0b0,#4a4a4a);
-    background-clip: content-box;
-  }
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity .35s,width .15s;
 
-  ::-webkit-scrollbar-thumb:hover {
-    background: light-dark(#8f8f8f,#6a6a6a);
-    background-clip: content-box;
+    &::after {
+      // the room to grab it by: wider than what is drawn
+      content: '';
+      position: absolute;
+      inset: 0 -4px;
+    }
+
+    &.on {
+      opacity: 1;
+      pointer-events: auto;
+    }
+
+    &:hover,
+    &.drag {
+      width: 6px;
+      background: light-dark(#8f8f8f,#6a6a6a);
+    }
   }
 }
