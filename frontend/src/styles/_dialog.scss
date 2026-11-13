@@ -1,5 +1,10 @@
 // dialog
 
+// the heading of a title row: two px in from the edge, as its first letter would sit
+h3 > .ttl {
+  margin-left: 2px;
+}
+
 dialog h3 button {
   width: 26px;
   height: 26px;
@@ -80,8 +85,7 @@ dialog:not(#pop),
     flex: none;
     position: static;
     margin: 0;
-    height: var(--header-h); // as high as the page header, the heading and the buttons in the middle of it
-    padding: 0 16px;
+    padding: 14px 16px 10px; // 14 + the 26px line + 10: a title row of 50px
     display: flex;
     align-items: center;
 

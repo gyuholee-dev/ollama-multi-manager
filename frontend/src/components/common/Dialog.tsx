@@ -42,7 +42,7 @@ export function Dialog({ id, onClose, children, ...rest }: Props) {
  */
 export function DialogTitle({ children, id, onClose, actions }: { children: ReactNode; id?: string; onClose: () => void; actions?: ReactNode }) {
   const title = (
-    <h3 id={id}>{children} <button type="button" className="inline" style={{ float: 'right' }} onClick={onClose}><span className="material-icons">close</span></button></h3>
+    <h3 id={id}><span className="ttl">{children}</span> <button type="button" className="inline" style={{ float: 'right' }} onClick={onClose}><span className="material-icons">close</span></button></h3>
   );
   return actions ? <div className="dh">{title}<div className="btns">{actions}</div></div> : title;
 }
@@ -61,7 +61,7 @@ export function PageTitle({ children, onClose, onBack }: { children: ReactNode; 
   return (
     <h3>
       {onBack && <button type="button" className="inline" aria-label={t('mdl.back')} title={t('mdl.back')} onClick={onBack}><span className="material-icons">chevron_left</span></button>}
-      {onBack && ' '}{children}
+      {onBack && ' '}<span className="ttl">{children}</span>
       {' '}<button type="button" className="inline" style={{ float: 'right' }} aria-label={t('btn.close')} title={t('btn.close')} onClick={onClose}><span className="material-icons">close</span></button>
     </h3>
   );

@@ -792,8 +792,7 @@ section.off .body > div {
   flex: none;
   position: static;
   margin: 0;
-  height: var(--header-h);
-  padding: 0 16px;
+  padding: 14px 16px 10px;
   display: flex;
   align-items: center;
 }
@@ -1163,6 +1162,10 @@ section.off .body > div {
   padding: 16px 0 10px;
 }
 
+h3 > .ttl {
+  margin-left: 2px;
+}
+
 dialog h3 button {
   width: 26px;
   height: 26px;
@@ -1240,8 +1243,7 @@ dialog:not(#pop) > h3,
   flex: none;
   position: static;
   margin: 0;
-  height: var(--header-h);
-  padding: 0 16px;
+  padding: 14px 16px 10px;
   display: flex;
   align-items: center;
 }
@@ -1996,8 +1998,7 @@ dialog:not(#pop) > .dh {
 dialog:not(#pop) > .dh > h3 {
   position: static;
   margin: 0;
-  height: var(--header-h);
-  padding: 0 16px;
+  padding: 14px 16px 10px;
   display: flex;
   align-items: center;
 }
