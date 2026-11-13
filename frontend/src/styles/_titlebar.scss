@@ -18,3 +18,19 @@ html[data-titlebar=custom] {
     -webkit-app-region: no-drag;
   }
 }
+
+// Windows: the system draws its three buttons over the right end of the header (titleBarOverlay in electron/main.js). The header is the drag
+// region again and keeps clear of the buttons: the room is what the area for the page (env(titlebar-area-*)) leaves at the right, 138px when
+// the browser does not say.
+html[data-titlebar=overlay] {
+  header {
+    -webkit-app-region: drag;
+    user-select: none;
+    padding-right: calc(100vw - env(titlebar-area-x, 0px) - env(titlebar-area-width, calc(100vw - 138px)) + 10px);
+  }
+
+  header button,
+  header .btns {
+    -webkit-app-region: no-drag;
+  }
+}

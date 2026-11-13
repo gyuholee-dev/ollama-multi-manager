@@ -4,6 +4,7 @@
 interface OmmBridge {
   desktop: true;
   customTitleBar?: boolean;
+  overlayTitleBar?: boolean;
   pickPath(kind: 'file' | 'dir', current: string): Promise<string | null>;
   settingsChanged(): void;
   openMonitor(id: number): void;
@@ -40,3 +41,6 @@ export function openMonitorWindow(id: number): void {
 
 /** The desktop shell on macOS hides the system title bar: the page's header is the drag region (see styles/_titlebar.scss). */
 export const hasCustomTitleBar = (): boolean => !!window.omm?.customTitleBar;
+
+/** Windows: the shell draws only the window buttons over the right end of the header, which leaves room for them. */
+export const hasOverlayTitleBar = (): boolean => !!window.omm?.overlayTitleBar;

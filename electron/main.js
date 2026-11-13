@@ -37,12 +37,29 @@ if (!app.requestSingleInstanceLock()) {
   // is repositioned wrongly (the system loses the start of the move, "Window move completed without beginning"),
   // while a window dragged by a drag region of the page moves correctly. The page draws the header, which is the
   // drag region, and leaves room for the traffic-light buttons. OMM_NATIVE_TITLEBAR=1 brings the system one back.
-  const CUSTOM_TITLEBAR = process.platform === 'darwin' && !/^(1|true|yes|on)$/i.test(process.env.OMM_NATIVE_TITLEBAR || '');
-  const titleBar = lightsY => (CUSTOM_TITLEBAR ? { titleBarStyle: 'hidden', trafficLightPosition: { x: 18, y: lightsY } } : {});
+  const NATIVE_TITLEBAR = /^(1|true|yes|on)$/i.test(process.env.OMM_NATIVE_TITLEBAR || '');
+  const CUSTOM_TITLEBAR = process.platform === 'darwin' && !NATIVE_TITLEBAR;
+  // Windows: the same look. The page's header is the title bar and the system draws only its three buttons (minimize, maximize, close)
+  // over the right end of it; their colours follow the theme (setTitleBarOverlay below). The menu bar is dropped.
+  const OVERLAY_TITLEBAR = process.platform === 'win32' && !NATIVE_TITLEBAR;
+  const overlayColors = () => {
+    const dark = nativeTheme.shouldUseDarkColors;
+    return { color: dark ? '#1c1c1c' : '#ebebeb', symbolColor: dark ? '#eeeeee' : '#222222', height: 50 }; // (the header's colours and its 50px row; the line under it stays)
+  };
+  const titleBar = lightsY => {
+    if (CUSTOM_TITLEBAR) return { titleBarStyle: 'hidden', trafficLightPosition: { x: 18, y: lightsY } };
+    if (OVERLAY_TITLEBAR) return { titleBarStyle: 'hidden', titleBarOverlay: overlayColors() };
+    return {};
+  };
   const webPrefs = () => ({
     preload: path.join(__dirname, 'preload.js'), contextIsolation: true, nodeIntegration: false, sandbox: true, spellcheck: false,
-    additionalArguments: CUSTOM_TITLEBAR ? ['--omm-custom-titlebar'] : [],
+    additionalArguments: [...(CUSTOM_TITLEBAR ? ['--omm-custom-titlebar'] : []), ...(OVERLAY_TITLEBAR ? ['--omm-titlebar-overlay'] : [])],
   });
+  if (OVERLAY_TITLEBAR) {
+    nativeTheme.on('updated', () => {
+      for (const w of [win, ...monitors.values()]) if (w && !w.isDestroyed()) w.setTitleBarOverlay(overlayColors());
+    });
+  }
   const stateFile = () => path.join(app.getPath('userData'), 'window-state.json');
 
   // ---- window state
@@ -273,6 +290,7 @@ if (!app.requestSingleInstanceLock()) {
   });
 
   app.whenReady().then(async () => {
+    if (OVERLAY_TITLEBAR) Menu.setApplicationMenu(null);
     backend = new Backend({ dataDir: app.getPath('userData'), isPackaged: app.isPackaged, log });
     backend.onCrash = (code, sig) => {
       if (quitting) return;

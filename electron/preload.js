@@ -6,6 +6,8 @@ contextBridge.exposeInMainWorld('omm', {
   desktop: true,
   // the shell hides the system title bar (macOS); the page's header is then the drag region and leaves room for the buttons
   customTitleBar: process.argv.includes('--omm-custom-titlebar'),
+  // Windows: the shell draws only the three window buttons over the right end of the page's header
+  overlayTitleBar: process.argv.includes('--omm-titlebar-overlay'),
   // 'file' | 'dir' (+ the path now in the field, where the dialog opens) -> chosen path, or null when cancelled
   pickPath: (kind, current) => ipcRenderer.invoke('pick-path', kind === 'dir' ? 'dir' : 'file', typeof current === 'string' ? current : ''),
   // tell the shell that settings changed so it can apply tray / login / theme
