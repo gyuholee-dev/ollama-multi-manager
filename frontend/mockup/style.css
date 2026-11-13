@@ -2013,3 +2013,36 @@ html[data-titlebar=custom] header button,
 html[data-titlebar=custom] header .btns {
   -webkit-app-region: no-drag;
 }
+
+html:is([data-platform=win], [data-platform=linux]) .fld__select select, html:is([data-platform=win], [data-platform=linux]) .fld__select select::picker(select) {
+  appearance: base-select;
+}
+html:is([data-platform=win], [data-platform=linux]) .fld__select select::picker-icon {
+  display: none;
+}
+html:is([data-platform=win], [data-platform=linux]) .fld__select select::picker(select) {
+  position-area: block-end span-inline-start;
+  margin: 4px 0 0;
+  padding: 4px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--card);
+  color: var(--text);
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.25);
+}
+html:is([data-platform=win], [data-platform=linux]) .fld__select select option {
+  padding: 6px 12px;
+  border-radius: 6px;
+  text-align: left;
+  text-align-last: left;
+  cursor: pointer;
+}
+html:is([data-platform=win], [data-platform=linux]) .fld__select select option:hover, html:is([data-platform=win], [data-platform=linux]) .fld__select select option:focus-visible {
+  background: var(--fill-hover);
+}
+html:is([data-platform=win], [data-platform=linux]) .fld__select select option:checked {
+  color: var(--accent);
+}
+html:is([data-platform=win], [data-platform=linux]) .fld__select select option::checkmark {
+  display: none;
+}

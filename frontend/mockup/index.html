@@ -34,6 +34,8 @@
 <script src="locales/en.js"></script>
 <script src="locales/ko.js"></script>
 <script>
+// the look that differs by system (styles/_select.scss); ?platform=win|linux|mac tries another one
+document.documentElement.dataset.platform=new URLSearchParams(location.search).get('platform')||(/Mac|iPhone|iPad/i.test(navigator.userAgent)?'mac':/Win/i.test(navigator.userAgent)?'win':'linux');
 const VERSION='v0.1.0';let checking=false;
 const detectLang=()=>{for(const l of navigator.languages||[navigator.language]){const b=String(l||'').toLowerCase().split('-')[0];if(window.LOCALES[b])return b}return 'en'};
 const FULL={mem:true,util:true,temp:true,process:true,process_util:true},NOPROC={mem:true,util:true,temp:true,process:false,process_util:false},PMETRICS={mem:true,util:true,temp:true,process:false,process_util:true},NONE={mem:false,util:false,temp:false,process:false,process_util:false};
