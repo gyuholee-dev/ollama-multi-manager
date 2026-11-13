@@ -1248,35 +1248,15 @@ dialog:not(#pop) .dbody,
   scrollbar-color: light-dark(#b0b0b0, #4a4a4a) transparent;
 }
 
-html:is([data-platform=win], [data-platform=linux]) * {
-  scrollbar-width: none;
+main {
+  scrollbar-gutter: stable;
+  padding-right: calc(max(16px, (100% - 928px) / 2) - var(--sbw, 0px));
 }
-html:is([data-platform=win], [data-platform=linux]) .sbthumb {
-  position: fixed;
-  inset: auto;
-  margin: 0;
-  padding: 0;
-  border: 0;
-  width: 4px;
-  border-radius: 2px;
-  overflow: visible;
-  background: light-dark(#b0b0b0, #4a4a4a);
-  opacity: 0;
-  pointer-events: none;
-  transition: opacity 0.35s, width 0.15s;
-}
-html:is([data-platform=win], [data-platform=linux]) .sbthumb::after {
-  content: "";
-  position: absolute;
-  inset: 0 -4px;
-}
-html:is([data-platform=win], [data-platform=linux]) .sbthumb.on {
-  opacity: 1;
-  pointer-events: auto;
-}
-html:is([data-platform=win], [data-platform=linux]) .sbthumb:hover, html:is([data-platform=win], [data-platform=linux]) .sbthumb.drag {
-  width: 6px;
-  background: light-dark(#8f8f8f, #6a6a6a);
+
+dialog:not(#pop) .dbody,
+.mwin .dbody {
+  scrollbar-gutter: stable;
+  padding-right: calc(16px - var(--sbw, 0px));
 }
 
 .fgroup__head {

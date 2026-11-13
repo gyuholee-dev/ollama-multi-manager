@@ -5,45 +5,18 @@
   scrollbar-color: light-dark(#b0b0b0,#4a4a4a) transparent;
 }
 
-// Windows and Linux (macOS draws its own thin bars that hide when idle): the system's bars are off, and the page draws one thumb that
-// fades in at the edge of the area being scrolled (lib/scrollbars.ts). Off bars take no room, so the padding of an area is the same on
-// both sides.
-html:is([data-platform=win],[data-platform=linux]) {
-  * {
-    scrollbar-width: none;
-  }
+// Where the scrollbars are always shown (Windows, Linux) the bar sits at the right edge of a scrolling area, in what would be its padding:
+// the room it takes (--sbw, measured by lib/scrollbars.ts; 0 on macOS, where the bars float) comes out of the right padding, so that the
+// two sides look alike. The room is kept whether the area scrolls now or not, so the padding does not jump when it starts to.
+main {
+  scrollbar-gutter: stable;
+  padding-right: calc(max(16px,(100% - 928px)/2) - var(--sbw,0px));
+}
 
-  .sbthumb {
-    // (a popover: in the top layer, over a dialog too; its default box is taken off)
-    position: fixed;
-    inset: auto;
-    margin: 0;
-    padding: 0;
-    border: 0;
-    width: 4px;
-    border-radius: 2px;
-    overflow: visible;
-    background: light-dark(#b0b0b0,#4a4a4a);
-    opacity: 0;
-    pointer-events: none;
-    transition: opacity .35s,width .15s;
-
-    &::after {
-      // the room to grab it by: wider than what is drawn
-      content: '';
-      position: absolute;
-      inset: 0 -4px;
-    }
-
-    &.on {
-      opacity: 1;
-      pointer-events: auto;
-    }
-
-    &:hover,
-    &.drag {
-      width: 6px;
-      background: light-dark(#8f8f8f,#6a6a6a);
-    }
+dialog:not(#pop),
+.mwin {
+  .dbody {
+    scrollbar-gutter: stable;
+    padding-right: calc(16px - var(--sbw,0px));
   }
 }
