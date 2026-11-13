@@ -1,6 +1,7 @@
 // polish
 
-* {
+// (not on Windows and Linux: there the shell turns on overlay scrollbars that hide when idle, and a width or colour set here would make them classic bars again)
+html:not([data-platform=win]):not([data-platform=linux]) * {
   scrollbar-width: thin;
   scrollbar-color: light-dark(#b0b0b0,#4a4a4a) transparent;
 }

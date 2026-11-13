@@ -1243,7 +1243,7 @@ dialog:not(#pop) .dbody,
   padding: 0 16px 16px;
 }
 
-* {
+html:not([data-platform=win]):not([data-platform=linux]) * {
   scrollbar-width: thin;
   scrollbar-color: light-dark(#b0b0b0, #4a4a4a) transparent;
 }
