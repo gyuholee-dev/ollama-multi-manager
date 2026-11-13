@@ -1248,6 +1248,32 @@ dialog:not(#pop) .dbody,
   scrollbar-color: light-dark(#b0b0b0, #4a4a4a) transparent;
 }
 
+html:is([data-platform=win], [data-platform=linux]) * {
+  scrollbar-width: auto;
+  scrollbar-color: auto;
+}
+html:is([data-platform=win], [data-platform=linux]) ::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+html:is([data-platform=win], [data-platform=linux]) ::-webkit-scrollbar-button {
+  display: none;
+}
+html:is([data-platform=win], [data-platform=linux]) ::-webkit-scrollbar-track,
+html:is([data-platform=win], [data-platform=linux]) ::-webkit-scrollbar-corner {
+  background: transparent;
+}
+html:is([data-platform=win], [data-platform=linux]) ::-webkit-scrollbar-thumb {
+  border: 2px solid transparent;
+  border-radius: 6px;
+  background: light-dark(#b0b0b0, #4a4a4a);
+  background-clip: content-box;
+}
+html:is([data-platform=win], [data-platform=linux]) ::-webkit-scrollbar-thumb:hover {
+  background: light-dark(#8f8f8f, #6a6a6a);
+  background-clip: content-box;
+}
+
 main {
   scrollbar-gutter: stable;
   padding-right: calc(max(16px, (100% - 928px) / 2) - var(--sbw, 0px));

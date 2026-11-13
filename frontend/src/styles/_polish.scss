@@ -5,6 +5,41 @@
   scrollbar-color: light-dark(#b0b0b0,#4a4a4a) transparent;
 }
 
+// Windows and Linux (macOS draws its own thin bars): the bar as `thin` draws it, without the arrows at its ends. Arrows can only be taken
+// off a bar that is styled by hand, and scrollbar-width and scrollbar-color would take over from these rules, so they are turned off here.
+html:is([data-platform=win],[data-platform=linux]) {
+  * {
+    scrollbar-width: auto;
+    scrollbar-color: auto;
+  }
+
+  ::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+  }
+
+  ::-webkit-scrollbar-button {
+    display: none;
+  }
+
+  ::-webkit-scrollbar-track,
+  ::-webkit-scrollbar-corner {
+    background: transparent;
+  }
+
+  ::-webkit-scrollbar-thumb {
+    border: 2px solid transparent;
+    border-radius: 6px;
+    background: light-dark(#b0b0b0,#4a4a4a);
+    background-clip: content-box;
+  }
+
+  ::-webkit-scrollbar-thumb:hover {
+    background: light-dark(#8f8f8f,#6a6a6a);
+    background-clip: content-box;
+  }
+}
+
 // Where the scrollbars are always shown (Windows, Linux) the bar sits at the right edge of a scrolling area, in what would be its padding:
 // the room it takes (--sbw, measured by lib/scrollbars.ts; 0 on macOS, where the bars float) comes out of the right padding, so that the
 // two sides look alike. The room is kept whether the area scrolls now or not, so the padding does not jump when it starts to.
