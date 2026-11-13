@@ -15,6 +15,17 @@
   -webkit-font-smoothing: antialiased;
 }
 
+@font-face {
+  font-family: "Pretendard Variable";
+  font-style: normal;
+  font-weight: 45 920;
+  font-display: swap;
+  src: url('https://cdn.jsdelivr.net/npm/pretendard@1.3.9/dist/web/variable/woff2/PretendardVariable.woff2') format("woff2-variations");
+}
+html:is([data-platform=win], [data-platform=linux]) body {
+  font-family: "Pretendard Variable", system-ui, sans-serif;
+}
+
 :root {
   color-scheme: light dark;
   --bg: light-dark(#ebebeb,#1c1c1c);
@@ -1607,7 +1618,7 @@ input[type=number]::-webkit-inner-spin-button, input[type=number]::-webkit-outer
   overflow-y: auto;
   white-space: pre-wrap;
   overflow-wrap: anywhere;
-  font: 0.75rem/20px ui-monospace, SFMono-Regular, Menlo, monospace;
+  font: 0.75rem/20px ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
   color: var(--sub);
 }
 
@@ -1983,7 +1994,7 @@ dialog:not(#pop) > .dh > .btns {
   overflow-y: auto;
   white-space: pre-wrap;
   overflow-wrap: anywhere;
-  font: 0.75rem/20px ui-monospace, SFMono-Regular, Menlo, monospace;
+  font: 0.75rem/20px ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
   color: var(--sub);
 }
 

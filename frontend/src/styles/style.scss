@@ -1,5 +1,6 @@
 // Entry stylesheet. One partial per area, in the order the rules must apply (later rules win ties).
 @use 'icons';
+@use 'fonts';
 @use 'tokens';
 @use 'base';
 @use 'header';

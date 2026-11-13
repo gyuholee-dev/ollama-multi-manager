@@ -1,0 +1,15 @@
+// Pretendard for Windows and Linux (set by main.tsx as <html data-platform="win|linux">), bundled so the app works offline.
+// It is the nearest to what macOS shows (SF Pro and Apple SD Gothic Neo, which cannot be shipped): a variable font, so the weight
+// can be tuned in small steps. License: SIL OFL 1.1, assets/Pretendard-OFL.txt. macOS keeps the system font.
+
+@font-face {
+  font-family: 'Pretendard Variable';
+  font-style: normal;
+  font-weight: 45 920;
+  font-display: swap;
+  src: url('../assets/PretendardVariable.woff2') format('woff2-variations');
+}
+
+html:is([data-platform=win],[data-platform=linux]) body {
+  font-family: 'Pretendard Variable', system-ui, sans-serif;
+}
