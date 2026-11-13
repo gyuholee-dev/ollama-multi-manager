@@ -21,11 +21,11 @@ header {
   margin: 0;
 }
 
-// one row, 50px high: the title on the left, the buttons on the right
+// one row, --header-h high: the title on the left, the buttons on the right
 header {
   flex: none;
-  height: 50px;
-  padding: 10px 16px;
+  height: var(--header-h);
+  padding: 0 16px;
   display: flex;
   align-items: center;
 
@@ -58,7 +58,7 @@ header {
 // the page header's buttons: an icon before the label, no border or fill, just a hover and press shade
 // (the monitor window's category buttons keep their look)
 header:not(.mwh) {
-  height: 51px; // the 50px of the row and the line under it
+  height: calc(var(--header-h) + 1px); // the row and the line under it
   border-bottom: 1px solid var(--line);
 
   .btns {

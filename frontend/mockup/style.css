@@ -50,6 +50,7 @@ html:is([data-platform=win], [data-platform=linux]) body {
   --surf: var(--bg);
   --ghost-hover: light-dark(#dcdcdc,#151515);
   --ghost-active: light-dark(#cdcdcd,#0d0d0d);
+  --header-h: 44px;
   --row-h: 37px;
   --row-line: color-mix(in srgb,var(--line) 50%,transparent);
   --row-trim: 9px;
@@ -123,8 +124,8 @@ header {
 
 header {
   flex: none;
-  height: 50px;
-  padding: 10px 16px;
+  height: var(--header-h);
+  padding: 0 16px;
   display: flex;
   align-items: center;
 }
@@ -150,7 +151,7 @@ header .btns {
 }
 
 header:not(.mwh) {
-  height: 51px;
+  height: calc(var(--header-h) + 1px);
   border-bottom: 1px solid var(--line);
 }
 header:not(.mwh) .btns {
@@ -791,7 +792,13 @@ section.off .body > div {
   flex: none;
   position: static;
   margin: 0;
-  padding: 16px 16px 8px;
+  height: var(--header-h);
+  padding: 0 16px;
+  display: flex;
+  align-items: center;
+}
+.mpane > h3 > .inline:last-child {
+  margin-left: auto;
 }
 
 .mrow {
@@ -1204,8 +1211,8 @@ dialog {
   color: var(--text);
   width: 520px;
   max-width: calc(100vw - 32px);
-  max-height: calc(100vh - 108px);
-  top: 86px;
+  max-height: calc(100vh - var(--header-h) - 58px);
+  top: calc(var(--header-h) + 36px);
   bottom: 46px;
   padding: 0 16px 16px;
   overflow: auto;
@@ -1233,7 +1240,14 @@ dialog:not(#pop) > h3,
   flex: none;
   position: static;
   margin: 0;
-  padding: 16px 16px 8px;
+  height: var(--header-h);
+  padding: 0 16px;
+  display: flex;
+  align-items: center;
+}
+dialog:not(#pop) > h3 > .inline:last-child,
+.mwin > h3 > .inline:last-child {
+  margin-left: auto;
 }
 dialog:not(#pop) .dbody,
 .mwin .dbody {
@@ -1982,7 +1996,13 @@ dialog:not(#pop) > .dh {
 dialog:not(#pop) > .dh > h3 {
   position: static;
   margin: 0;
-  padding: 16px 16px 8px;
+  height: var(--header-h);
+  padding: 0 16px;
+  display: flex;
+  align-items: center;
+}
+dialog:not(#pop) > .dh > h3 > .inline:last-child {
+  margin-left: auto;
 }
 dialog:not(#pop) > .dh > .btns {
   justify-content: flex-end;

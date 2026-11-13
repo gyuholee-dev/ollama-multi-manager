@@ -87,7 +87,14 @@ dialog:not(#pop) > .dh {
   > h3 {
     position: static;
     margin: 0;
-    padding: 16px 16px 8px;
+    height: var(--header-h);
+    padding: 0 16px;
+    display: flex;
+    align-items: center;
+
+    > .inline:last-child {
+      margin-left: auto;
+    }
   }
 
   > .btns {

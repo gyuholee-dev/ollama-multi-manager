@@ -49,8 +49,8 @@ dialog {
   color: var(--text);
   width: 520px;
   max-width: calc(100vw - 32px);
-  max-height: calc(100vh - 108px);
-  top: 86px;
+  max-height: calc(100vh - var(--header-h) - 58px);
+  top: calc(var(--header-h) + 36px);
   bottom: 46px;
   padding: 0 16px 16px;
   overflow: auto;
@@ -80,7 +80,14 @@ dialog:not(#pop),
     flex: none;
     position: static;
     margin: 0;
-    padding: 16px 16px 8px;
+    height: var(--header-h); // as high as the page header, the heading and the buttons in the middle of it
+    padding: 0 16px;
+    display: flex;
+    align-items: center;
+
+    > .inline:last-child {
+      margin-left: auto; // the close button at the right end
+    }
   }
 
   .dbody {

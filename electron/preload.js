@@ -7,6 +7,8 @@ contextBridge.exposeInMainWorld('omm', {
   // the shell hides the system title bar (macOS); the page's header is then the drag region and leaves room for the buttons
   customTitleBar: process.argv.includes('--omm-custom-titlebar'),
   // Windows: the shell draws only the three window buttons over the right end of the page's header
+  // the height of the header row the shell sized its window buttons for (px); the page takes it as --header-h
+  headerHeight: Number((process.argv.find(a => a.startsWith('--omm-header-height=')) || '').split('=')[1]) || 0,
   overlayTitleBar: process.argv.includes('--omm-titlebar-overlay'),
   // 'file' | 'dir' (+ the path now in the field, where the dialog opens) -> chosen path, or null when cancelled
   pickPath: (kind, current) => ipcRenderer.invoke('pick-path', kind === 'dir' ? 'dir' : 'file', typeof current === 'string' ? current : ''),

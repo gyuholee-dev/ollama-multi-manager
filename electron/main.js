@@ -7,6 +7,7 @@
 // "Minimize to tray" is how to keep instances running with the window closed.
 
 const fs = require('node:fs');
+const os = require('node:os');
 const path = require('node:path');
 const { app, BrowserWindow, Menu, dialog, ipcMain, nativeTheme, screen, session, shell } = require('electron');
 const { Backend } = require('./backend-launcher');
@@ -34,6 +35,11 @@ if (!app.requestSingleInstanceLock()) {
   // is repositioned wrongly (the system loses the start of the move, "Window move completed without beginning"),
   // while a window dragged by a drag region of the page moves correctly. The page draws the header, which is the
   // drag region, and leaves room for the traffic-light buttons. OMM_NATIVE_TITLEBAR=1 brings the system one back.
+  // The height of the page's header row (and of the title row of a dialog or page), in px: the one number the system's window buttons
+  // follow. Windows: the three buttons are this high. macOS: the traffic lights are centred in it. The page takes it as --header-h.
+  const HEADER_HEIGHT = 44;
+  // macOS 26 (Darwin 25) and later draw the traffic lights 14px high, earlier ones 16px
+  const LIGHTS_HEIGHT = process.platform === 'darwin' && Number(os.release().split('.')[0]) >= 25 ? 14 : 16;
   const NATIVE_TITLEBAR = /^(1|true|yes|on)$/i.test(process.env.OMM_NATIVE_TITLEBAR || '');
   const CUSTOM_TITLEBAR = process.platform === 'darwin' && !NATIVE_TITLEBAR;
   // Windows: the same look. The page's header is the title bar and the system draws only its three buttons (minimize, maximize, close)
@@ -41,16 +47,16 @@ if (!app.requestSingleInstanceLock()) {
   const OVERLAY_TITLEBAR = process.platform === 'win32' && !NATIVE_TITLEBAR;
   const overlayColors = () => {
     const dark = nativeTheme.shouldUseDarkColors;
-    return { color: dark ? '#1c1c1c' : '#ebebeb', symbolColor: dark ? '#eeeeee' : '#222222', height: 50 }; // (the header's colours and its 50px row; the line under it stays)
+    return { color: dark ? '#1c1c1c' : '#ebebeb', symbolColor: dark ? '#eeeeee' : '#222222', height: HEADER_HEIGHT }; // (the header's colours and its row; the line under it stays)
   };
-  const titleBar = lightsY => {
-    if (CUSTOM_TITLEBAR) return { titleBarStyle: 'hidden', trafficLightPosition: { x: 18, y: lightsY } };
+  const titleBar = () => {
+    if (CUSTOM_TITLEBAR) return { titleBarStyle: 'hidden', trafficLightPosition: { x: 18, y: Math.floor((HEADER_HEIGHT - LIGHTS_HEIGHT) / 2) } };
     if (OVERLAY_TITLEBAR) return { titleBarStyle: 'hidden', titleBarOverlay: overlayColors() };
     return {};
   };
   const webPrefs = () => ({
     preload: path.join(__dirname, 'preload.js'), contextIsolation: true, nodeIntegration: false, sandbox: true, spellcheck: false,
-    additionalArguments: [...(CUSTOM_TITLEBAR ? ['--omm-custom-titlebar'] : []), ...(OVERLAY_TITLEBAR ? ['--omm-titlebar-overlay'] : [])],
+    additionalArguments: [`--omm-header-height=${HEADER_HEIGHT}`, ...(CUSTOM_TITLEBAR ? ['--omm-custom-titlebar'] : []), ...(OVERLAY_TITLEBAR ? ['--omm-titlebar-overlay'] : [])],
   });
   if (OVERLAY_TITLEBAR) {
     nativeTheme.on('updated', () => {
@@ -209,7 +215,7 @@ if (!app.requestSingleInstanceLock()) {
     const saved = monitorBounds(id);
     const w = new BrowserWindow({
       width: saved?.width || 480, height: saved?.height || 820, x: saved?.x, y: saved?.y, minWidth: 420, minHeight: 360, show: false, title: 'Ollama Multi Manager',
-      backgroundColor: nativeTheme.shouldUseDarkColors ? '#1c1c1c' : '#ebebeb', ...titleBar(16),
+      backgroundColor: nativeTheme.shouldUseDarkColors ? '#1c1c1c' : '#ebebeb', ...titleBar(),
       webPreferences: webPrefs(),
     });
     monitors.set(id, w);
@@ -226,7 +232,7 @@ if (!app.requestSingleInstanceLock()) {
     const st = loadState();
     win = new BrowserWindow({
       width: st.width || 1100, height: st.height || 760, x: st.x, y: st.y, minWidth: 480, minHeight: 480,
-      show: false, title: 'Ollama Multi Manager', backgroundColor: nativeTheme.shouldUseDarkColors ? '#1c1c1c' : '#ebebeb', ...titleBar(16),
+      show: false, title: 'Ollama Multi Manager', backgroundColor: nativeTheme.shouldUseDarkColors ? '#1c1c1c' : '#ebebeb', ...titleBar(),
       webPreferences: webPrefs(),
     });
     win.once('ready-to-show', () => { win.show(); if (st.maximized) win.maximize(); }); // maximized only once it is on screen
