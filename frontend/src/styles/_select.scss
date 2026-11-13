@@ -1,47 +1,49 @@
-// the drop-down list of a select on Windows and Linux (set by main.tsx as <html data-platform="win|linux">).
-// The system menu of macOS is left as it is. Elsewhere Chromium draws a list of its own that takes over the select's right alignment
-// and has no room beside the text; a customizable select (appearance: base-select) lets the list be styled like the rest of the page.
+// the drop-down list of a select, the same on every system. Chromium draws a list of its own on Windows and Linux that takes over the
+// select's right alignment and has no room beside the text, and macOS shows its system menu; a customizable select
+// (appearance: base-select) lets the list be styled like the rest of the page. A browser without it keeps its own list.
 
-html:is([data-platform=win],[data-platform=linux]) .fld__select select {
-  &,
-  &::picker(select) {
-    appearance: base-select;
-  }
-
-  // the chevron beside the select is the page's own
-  &::picker-icon {
-    display: none;
-  }
-
-  &::picker(select) {
-    position-area: block-end span-inline-start; // under the select, its right edge on the select's right edge (the select sits at the right end of its row)
-    margin: 4px 0 0;
-    padding: 4px;
-    border: 1px solid var(--line);
-    border-radius: 10px;
-    background: var(--card);
-    color: var(--text);
-    box-shadow: 0 6px 20px rgba(0,0,0,.25);
-  }
-
-  option {
-    padding: 6px 12px;
-    border-radius: 6px;
-    text-align: left; // (not the select's right alignment)
-    text-align-last: left;
-    cursor: pointer;
-
-    &:hover,
-    &:focus-visible {
-      background: var(--fill-hover);
+@supports (appearance: base-select) {
+  .fld__select select {
+    &,
+    &::picker(select) {
+      appearance: base-select;
     }
 
-    &:checked {
-      color: var(--accent);
-    }
-
-    &::checkmark {
+    // the chevron beside the select is the page's own
+    &::picker-icon {
       display: none;
+    }
+
+    &::picker(select) {
+      position-area: block-end span-inline-start; // under the select, its right edge on the select's right edge (the select sits at the right end of its row)
+      margin: 4px 0 0;
+      padding: 4px;
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      background: var(--card);
+      color: var(--text);
+      box-shadow: 0 6px 20px rgba(0,0,0,.25);
+    }
+
+    option {
+      padding: 6px 12px;
+      border-radius: 6px;
+      text-align: left; // (not the select's right alignment)
+      text-align-last: left;
+      cursor: pointer;
+
+      &:hover,
+      &:focus-visible {
+        background: var(--fill-hover);
+      }
+
+      &:checked {
+        color: var(--accent);
+      }
+
+      &::checkmark {
+        display: none;
+      }
     }
   }
 }

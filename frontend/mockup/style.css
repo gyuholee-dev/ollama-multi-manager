@@ -1243,9 +1243,40 @@ dialog:not(#pop) .dbody,
   padding: 0 16px 16px;
 }
 
-html:not([data-platform=win]):not([data-platform=linux]) * {
+* {
   scrollbar-width: thin;
   scrollbar-color: light-dark(#b0b0b0, #4a4a4a) transparent;
+}
+
+html:is([data-platform=win], [data-platform=linux]) * {
+  scrollbar-width: auto;
+  scrollbar-color: auto;
+}
+html:is([data-platform=win], [data-platform=linux]) ::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+html:is([data-platform=win], [data-platform=linux]) ::-webkit-scrollbar-button {
+  display: none;
+}
+html:is([data-platform=win], [data-platform=linux]) ::-webkit-scrollbar-track,
+html:is([data-platform=win], [data-platform=linux]) ::-webkit-scrollbar-corner {
+  background: transparent;
+}
+html:is([data-platform=win], [data-platform=linux]) ::-webkit-scrollbar-thumb {
+  border: 3px solid transparent;
+  border-radius: 6px;
+  background: transparent;
+  background-clip: content-box;
+}
+html:is([data-platform=win], [data-platform=linux]) :hover::-webkit-scrollbar-thumb,
+html:is([data-platform=win], [data-platform=linux]) [data-scrolling]::-webkit-scrollbar-thumb {
+  background: light-dark(#b0b0b0, #4a4a4a);
+  background-clip: content-box;
+}
+html:is([data-platform=win], [data-platform=linux]) ::-webkit-scrollbar-thumb:hover {
+  background: light-dark(#8f8f8f, #6a6a6a);
+  background-clip: content-box;
 }
 
 button,
@@ -2035,35 +2066,37 @@ html[data-titlebar=overlay] header .btns {
   -webkit-app-region: no-drag;
 }
 
-html:is([data-platform=win], [data-platform=linux]) .fld__select select, html:is([data-platform=win], [data-platform=linux]) .fld__select select::picker(select) {
-  appearance: base-select;
-}
-html:is([data-platform=win], [data-platform=linux]) .fld__select select::picker-icon {
-  display: none;
-}
-html:is([data-platform=win], [data-platform=linux]) .fld__select select::picker(select) {
-  position-area: block-end span-inline-start;
-  margin: 4px 0 0;
-  padding: 4px;
-  border: 1px solid var(--line);
-  border-radius: 10px;
-  background: var(--card);
-  color: var(--text);
-  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.25);
-}
-html:is([data-platform=win], [data-platform=linux]) .fld__select select option {
-  padding: 6px 12px;
-  border-radius: 6px;
-  text-align: left;
-  text-align-last: left;
-  cursor: pointer;
-}
-html:is([data-platform=win], [data-platform=linux]) .fld__select select option:hover, html:is([data-platform=win], [data-platform=linux]) .fld__select select option:focus-visible {
-  background: var(--fill-hover);
-}
-html:is([data-platform=win], [data-platform=linux]) .fld__select select option:checked {
-  color: var(--accent);
-}
-html:is([data-platform=win], [data-platform=linux]) .fld__select select option::checkmark {
-  display: none;
+@supports (appearance: base-select) {
+  .fld__select select, .fld__select select::picker(select) {
+    appearance: base-select;
+  }
+  .fld__select select::picker-icon {
+    display: none;
+  }
+  .fld__select select::picker(select) {
+    position-area: block-end span-inline-start;
+    margin: 4px 0 0;
+    padding: 4px;
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    background: var(--card);
+    color: var(--text);
+    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.25);
+  }
+  .fld__select select option {
+    padding: 6px 12px;
+    border-radius: 6px;
+    text-align: left;
+    text-align-last: left;
+    cursor: pointer;
+  }
+  .fld__select select option:hover, .fld__select select option:focus-visible {
+    background: var(--fill-hover);
+  }
+  .fld__select select option:checked {
+    color: var(--accent);
+  }
+  .fld__select select option::checkmark {
+    display: none;
+  }
 }

@@ -19,9 +19,6 @@ const log = (...a) => console.log(new Date().toISOString(), '[shell]', ...a);
 const DEV = /^(1|true|yes|on)$/i.test(process.env.OMM_DEV || '');
 // OMM_MOCKUP=1: also serves the design mockup (frontend/mockup) on this PC, independent of developer mode.
 const MOCKUP = /^(1|true|yes|on)$/i.test(process.env.OMM_MOCKUP || '');
-// Windows and Linux: scrollbars that stay hidden until the page is scrolled (thin overlay bars, as on macOS) instead of the always visible
-// classic ones. Set before the app is ready.
-if (process.platform !== 'darwin') app.commandLine.appendSwitch('enable-features', 'OverlayScrollbar,FluentOverlayScrollbar');
 const MENU_LABEL = {
   ko: { reload: '새로고침', freeze: '화면 갱신 중지', resume: '화면 갱신 재개', inspect: '검사' },
   en: { reload: 'Reload', freeze: 'Pause updates', resume: 'Resume updates', inspect: 'Inspect' },
