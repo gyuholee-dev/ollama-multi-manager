@@ -4,7 +4,7 @@
 //   2. keeps frontend/dist rebuilt while the sources change (`vite build --watch`),
 //   3. starts the desktop shell once the first build is there.
 // Save a source file, then use the menu's Reload in the app. Backend (Python) changes need a restart of the app.
-// A variable that is already set in the shell wins over the file.
+// A variable that is already set in the shell wins over the file. OMM_DEV=1 is always set (the file does not have to exist, and neither it nor the shell can turn it off).
 
 const fs = require('node:fs');
 const path = require('node:path');
@@ -17,13 +17,13 @@ const envFile = path.join(root, '.env.dev');
 
 function loadEnv(file) {
   if (!fs.existsSync(file)) {
-    console.warn(`[dev] ${path.basename(file)} not found: copy .env.example to it to choose the settings (continuing with none)`);
+    console.warn(`[dev] ${path.basename(file)} not found: copy .env.example to it to choose more settings (continuing with developer mode only)`);
     return {};
   }
   return parseEnv(fs.readFileSync(file, 'utf8'));
 }
 
-const env = { ...loadEnv(envFile), ...process.env };
+const env = { ...loadEnv(envFile), ...process.env, OMM_DEV: '1' };
 const children = [];
 let stopping = false;
 
