@@ -132,7 +132,7 @@ async def update_instance(iid: int, body: InstanceUpdate, request: Request) -> d
     return updated
 
 
-@api.delete("/instances/{iid}", status_code=204)
+@api.delete("/instances/{iid}", status_code=204, response_model=None)
 async def delete_instance(iid: int, request: Request) -> None:
     request.app.state.manager.delete(iid)
     await request.app.state.manager.sync_standby(iid)
@@ -208,7 +208,7 @@ async def pull_model(body: PullRequest, request: Request, response: Response) ->
     return task.to_dict()
 
 
-@api.delete("/models/{name:path}", status_code=204)
+@api.delete("/models/{name:path}", status_code=204, response_model=None)
 async def delete_model(name: str, request: Request) -> None:
     await request.app.state.models.delete(name)
 
@@ -228,7 +228,7 @@ async def resume_pull(task_id: str, request: Request) -> dict[str, Any]:
     return (await request.app.state.models.resume(task_id)).to_dict()
 
 
-@api.delete("/pulls/{task_id}", status_code=204)
+@api.delete("/pulls/{task_id}", status_code=204, response_model=None)
 async def remove_pull(task_id: str, request: Request) -> None:
     """Stops the download and deletes the partly downloaded files."""
     await request.app.state.models.remove(task_id)
