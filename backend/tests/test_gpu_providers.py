@@ -356,3 +356,25 @@ def test_selecting_the_integrated_gpu_hides_cuda_and_allows_igpu():
     assert "GGML_VK_VISIBLE_DEVICES" not in build_env(11434, InstanceOptions(gpu=1), {"GGML_VK_VISIBLE_DEVICES": "0"}, None, [nv])
     env0 = build_env(11434, InstanceOptions(gpu=rtx), {}, None, comp)
     assert env0["CUDA_VISIBLE_DEVICES"] == "0" and "OLLAMA_IGPU_ENABLE" not in env0
+
+
+def test_windows_provider_reports_the_temperature_the_driver_gives():
+    from app.services.monitor.windows import celsius
+
+    p = WindowsProvider(FakeCounters(win_table()), ADAPTERS, temperature=lambda luid: 43 if luid == IGPU else None)
+    (g,) = p.devices()
+    assert g.temperature_c == 43 and g.supports["temp"] is True
+    assert [celsius(x) for x in (435, 0, 5000, 424)] == [44, None, None, 42]  # tenths of a degree; 0 and absurd values are no reading
+
+
+def test_windows_temperature_failure_leaves_the_rest_of_the_device_alone():
+    p = WindowsProvider(FakeCounters(win_table()), ADAPTERS, temperature=lambda luid: None)
+    (g,) = p.devices()
+    assert g.temperature_c is None and g.supports["temp"] is False and g.util_percent == 50
+
+
+def test_perf_data_matches_the_windows_struct_size():
+    import ctypes
+    from app.services.monitor.windows import PerfData
+
+    assert ctypes.sizeof(PerfData) == 64 and PerfData.Temperature.offset == 56  # D3DKMT_ADAPTER_PERFDATA with natural alignment

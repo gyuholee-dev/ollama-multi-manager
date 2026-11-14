@@ -9,12 +9,14 @@ NVIDIA cards are left to NVML. Three sources, none of which needs special rights
 
 The counters name an adapter by its LUID, the registry says which LUID belongs to which card. An integrated GPU has only a small
 dedicated carve-out and uses ordinary system memory (shared) for the rest: it is reported as unified memory with both added
-together, like AmdProvider does for Linux. Temperature is not offered by this interface.
-The registry layout and the counter names are as Windows documents them but have not been checked on real hardware yet
-(see PdhCounters and read_adapters, the only two places that touch Windows).
+together, like AmdProvider does for Linux. The counters have no temperature: it comes from the display driver's adapter performance data
+(D3DKMTQueryAdapterInfo, the figure Task Manager shows), a device that gives none shows "-".
+The registry layout, the counter names and the adapter performance data are as Windows documents them but have not been checked on
+real hardware yet (see PdhCounters, read_adapters and AdapterTemperature, the only places that touch Windows).
 """
 from __future__ import annotations
 
+import ctypes
 import logging
 import re
 import sys
@@ -44,6 +46,58 @@ def luid_key(value: int) -> str:
 def luid_of(instance: str) -> str | None:
     m = LUID.search(instance)
     return f"0x{m.group(1)}_0x{m.group(2)}".lower() if m else None
+
+
+KMTQAITYPE_ADAPTERPERFDATA = 62
+
+
+class PerfData(ctypes.Structure):
+    """D3DKMT_ADAPTER_PERFDATA (d3dkmthk.h). Fixed-width types on purpose: this class is also built where `long` is 64 bits."""
+
+    _fields_ = [("PhysicalAdapterIndex", ctypes.c_uint32), ("MemoryFrequency", ctypes.c_uint64), ("MaxMemoryFrequency", ctypes.c_uint64),
+                ("MaxMemoryFrequencyOC", ctypes.c_uint64), ("MemoryBandwidth", ctypes.c_uint64), ("PCIEBandwidth", ctypes.c_uint64),
+                ("FanRPM", ctypes.c_uint32), ("Power", ctypes.c_uint32), ("Temperature", ctypes.c_uint32), ("PowerStateOverride", ctypes.c_uint8)]
+
+
+def celsius(deci: int) -> int | None:
+    """The driver reports tenths of a degree Celsius; 0 means it has nothing to say, and anything absurd is not a temperature."""
+    c = round(deci / 10)
+    return c if 0 < c < 150 else None
+
+
+class AdapterTemperature:
+    """Temperature of an adapter by its LUID, through gdi32's D3DKMT calls. None when the driver does not offer it."""
+
+    def __init__(self) -> None:
+        class Luid(ctypes.Structure):
+            _fields_ = [("LowPart", ctypes.c_uint32), ("HighPart", ctypes.c_int32)]
+
+        class OpenFromLuid(ctypes.Structure):
+            _fields_ = [("AdapterLuid", Luid), ("hAdapter", ctypes.c_uint32)]
+
+        class QueryInfo(ctypes.Structure):
+            _fields_ = [("hAdapter", ctypes.c_uint32), ("Type", ctypes.c_uint32), ("pPrivateDriverData", ctypes.c_void_p), ("PrivateDriverDataSize", ctypes.c_uint32)]
+
+        class Close(ctypes.Structure):
+            _fields_ = [("hAdapter", ctypes.c_uint32)]
+
+        self._types = (Luid, OpenFromLuid, QueryInfo, Close)
+        self._gdi = ctypes.WinDLL("gdi32")
+
+    def read(self, luid: int) -> int | None:
+        Luid, OpenFromLuid, QueryInfo, Close = self._types
+        g = self._gdi
+        opened = OpenFromLuid(Luid(luid & 0xFFFFFFFF, luid >> 32), 0)
+        if g.D3DKMTOpenAdapterFromLuid(ctypes.byref(opened)) != 0:
+            return None
+        try:
+            data = PerfData()
+            q = QueryInfo(opened.hAdapter, KMTQAITYPE_ADAPTERPERFDATA, ctypes.cast(ctypes.byref(data), ctypes.c_void_p), ctypes.sizeof(data))
+            if g.D3DKMTQueryAdapterInfo(ctypes.byref(q)) != 0:
+                return None
+            return celsius(data.Temperature)
+        finally:
+            g.D3DKMTCloseAdapter(ctypes.byref(Close(opened.hAdapter)))
 
 
 class Counters(Protocol):
@@ -158,10 +212,12 @@ class PdhCounters:
 class WindowsProvider:
     name = "windows"
 
-    def __init__(self, counters: Counters | None = None, adapters: Callable[[], list[Adapter]] | None = None, clock: Callable[[], float] = time.monotonic):
+    def __init__(self, counters: Counters | None = None, adapters: Callable[[], list[Adapter]] | None = None, clock: Callable[[], float] = time.monotonic,
+                 temperature: Callable[[int], int | None] | None = None):
         if not sys.platform.startswith("win") and counters is None:
             raise RuntimeError("not Windows")
         self.counters = counters or PdhCounters()
+        self.temperature = temperature or self._default_temperature()
         self.clock = clock
         live = {luid_of(inst) for inst in self.counters.read(r"\GPU Adapter Memory(*)\Dedicated Usage")}
         known = (adapters or read_adapters)()
@@ -170,6 +226,21 @@ class WindowsProvider:
             raise RuntimeError("no AMD or Intel GPU")
         self.cards.sort(key=lambda a: (not a.unified, a.name))
         self._cache: tuple[float, dict] | None = None
+
+    @staticmethod
+    def _default_temperature() -> Callable[[int], int | None]:
+        try:
+            read = AdapterTemperature().read
+        except Exception as e:  # no gdi32 (not Windows) or an unexpected layout: the temperature is simply absent
+            log.info("GPU temperature unavailable: %s", e)
+            return lambda luid: None
+
+        def safe(luid: int) -> int | None:
+            try:
+                return read(luid)
+            except Exception:
+                return None
+        return safe
 
     def _sample(self) -> dict:
         now = self.clock()
@@ -182,6 +253,7 @@ class WindowsProvider:
             "engines": c.read(r"\GPU Engine(*)\Utilization Percentage"),
             "pdedicated": self._try(r"\GPU Process Memory(*)\Dedicated Usage"),
             "pshared": self._try(r"\GPU Process Memory(*)\Shared Usage"),
+            "temps": {a.key: self.temperature(a.luid) for a in self.cards},
         }
         self._cache = (now, data)
         return data
@@ -208,10 +280,11 @@ class WindowsProvider:
         out = []
         for i, a in enumerate(self.cards):
             total = a.dedicated + (a.shared if a.unified else 0)
+            temp = s["temps"].get(a.key)
             out.append(GpuInfo(
                 index=i, uuid=f"win-{a.key}", name=a.name, mem_total=total, mem_used=min(int(used.get(a.key, 0)), total),
-                util_percent=busy.get(a.key, 0), temperature_c=None, vendor=VENDORS[a.vendor], unified=a.unified, env_index=i, select_env=self._select_env(a), by_vulkan=True,
-                supports={"mem": True, "util": True, "temp": False, "process": True, "process_util": True},
+                util_percent=busy.get(a.key, 0), temperature_c=temp, vendor=VENDORS[a.vendor], unified=a.unified, env_index=i, select_env=self._select_env(a), by_vulkan=True,
+                supports={"mem": True, "util": True, "temp": temp is not None, "process": True, "process_util": True},
             ))
         return out
 
