@@ -83,7 +83,7 @@ def cpu_by_request(o: InstanceOptions) -> bool:
 
 
 def vulkan_index(devices: list[Any], dev: Any) -> int:
-    """The device's number among Vulkan devices. Not readable from here, so the rule is that discrete cards
+    """The device's number among Vulkan devices when the provider could not read it: the rule is that discrete cards
     come before integrated graphics, each group in the app's order (RTX 5090 = 0, Radeon iGPU = 1 on the machine this was checked on)."""
     ranked = sorted(devices, key=lambda d: (bool(d.unified), d.index))
     return next((i for i, d in enumerate(ranked) if d.index == dev.index), 0)
@@ -119,7 +119,8 @@ def build_env(port: int, o: InstanceOptions, base: dict[str, str], default_model
         elif getattr(dev, "select_env", None):
             env.update(dev.select_env)
             if getattr(dev, "by_vulkan", False):
-                env["GGML_VK_VISIBLE_DEVICES"] = str(vulkan_index(devices or [], dev))
+                known = getattr(dev, "vulkan_index", None)
+                env["GGML_VK_VISIBLE_DEVICES"] = str(known if known is not None else vulkan_index(devices or [], dev))
         else:
             for k in GPU_ENV.get(dev.vendor, ()):
                 env[k] = str(dev.env_index if dev.env_index is not None else dev.index)

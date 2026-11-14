@@ -42,6 +42,7 @@ class GpuInfo:
     env_index: int | None = None
     select_env: dict[str, str] = field(default_factory=dict)  # the environment that makes Ollama use this device alone, when the vendor's variable cannot say it
     by_vulkan: bool = False  # Ollama reaches this device through Vulkan: build_env adds GGML_VK_VISIBLE_DEVICES with the device's Vulkan number
+    vulkan_index: int | None = None  # that number when the provider could read it; otherwise build_env works it out (see vulkan_index there)
     supports: dict[str, bool] = field(default_factory=full_support)
 
     def to_dict(self) -> dict:

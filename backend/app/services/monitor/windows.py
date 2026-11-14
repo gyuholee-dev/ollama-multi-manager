@@ -9,7 +9,9 @@ NVIDIA cards are left to NVML. Three sources, none of which needs special rights
 
 The counters name an adapter by its LUID, the registry says which LUID belongs to which card. An integrated GPU has only a small
 dedicated carve-out and uses ordinary system memory (shared) for the rest: it is reported as unified memory with both added
-together, like AmdProvider does for Linux. The counters have no temperature: it comes from the display driver's adapter performance data
+together, like AmdProvider does for Linux. Which adapters are integrated is what the Vulkan driver says (the same
+classification Ollama goes by when it drops integrated GPUs), joined to the adapters by LUID; without Vulkan the rule below applies:
+a dedicated carve-out under UNIFIED_BELOW is regarded as integrated. The counters have no temperature: it comes from the display driver's adapter performance data
 (D3DKMTQueryAdapterInfo, the figure Task Manager shows), a device that gives none shows "-".
 The registry layout, the counter names and the adapter performance data are as Windows documents them but have not been checked on
 real hardware yet (see PdhCounters, read_adapters and AdapterTemperature, the only places that touch Windows).
@@ -100,6 +102,57 @@ class AdapterTemperature:
             g.D3DKMTCloseAdapter(ctypes.byref(Close(opened.hAdapter)))
 
 
+class VkAppInfo(ctypes.Structure):
+    _fields_ = [("sType", ctypes.c_uint32), ("pNext", ctypes.c_void_p), ("pApplicationName", ctypes.c_char_p), ("applicationVersion", ctypes.c_uint32),
+                ("pEngineName", ctypes.c_char_p), ("engineVersion", ctypes.c_uint32), ("apiVersion", ctypes.c_uint32)]
+
+
+class VkInstanceInfo(ctypes.Structure):
+    _fields_ = [("sType", ctypes.c_uint32), ("pNext", ctypes.c_void_p), ("flags", ctypes.c_uint32), ("pApplicationInfo", ctypes.POINTER(VkAppInfo)),
+                ("enabledLayerCount", ctypes.c_uint32), ("ppEnabledLayerNames", ctypes.c_void_p),
+                ("enabledExtensionCount", ctypes.c_uint32), ("ppEnabledExtensionNames", ctypes.c_void_p)]
+
+
+class VkIdProps(ctypes.Structure):  # VkPhysicalDeviceIDProperties
+    _fields_ = [("sType", ctypes.c_uint32), ("pNext", ctypes.c_void_p), ("deviceUUID", ctypes.c_ubyte * 16), ("driverUUID", ctypes.c_ubyte * 16),
+                ("deviceLUID", ctypes.c_ubyte * 8), ("deviceNodeMask", ctypes.c_uint32), ("deviceLUIDValid", ctypes.c_uint32)]
+
+
+class VkProps2(ctypes.Structure):  # VkPhysicalDeviceProperties2; the plain properties are 824 bytes
+    _fields_ = [("sType", ctypes.c_uint32), ("pNext", ctypes.c_void_p), ("properties", ctypes.c_ubyte * 824)]
+
+
+VK_INTEGRATED, VK_DISCRETE = 1, 2
+
+
+def vulkan_devices() -> list[tuple[int, int, int | None]]:
+    """(Vulkan number, device type, LUID) for every Vulkan device in the loader's order; the number is the one Ollama calls Vulkan<N>
+    (checked on an RTX 5090 + Radeon iGPU machine with scripts/probe_windows_gpu.py)."""
+    import struct
+
+    vk = ctypes.WinDLL("vulkan-1")
+    app = VkAppInfo(0, None, b"omm", 1, b"omm", 1, (1 << 22) | (1 << 12))  # Vulkan 1.1, the first version with device LUIDs
+    info = VkInstanceInfo(1, None, 0, ctypes.pointer(app), 0, None, 0, None)
+    instance = ctypes.c_void_p()
+    if vk.vkCreateInstance(ctypes.byref(info), None, ctypes.byref(instance)) != 0:
+        raise OSError("vkCreateInstance failed")
+    try:
+        count = ctypes.c_uint32(0)
+        vk.vkEnumeratePhysicalDevices(instance, ctypes.byref(count), None)
+        handles = (ctypes.c_void_p * count.value)()
+        vk.vkEnumeratePhysicalDevices(instance, ctypes.byref(count), handles)
+        out = []
+        for i, h in enumerate(handles):
+            ids = VkIdProps(1000071004, None)
+            p2 = VkProps2(1000059001, ctypes.cast(ctypes.byref(ids), ctypes.c_void_p))
+            vk.vkGetPhysicalDeviceProperties2(ctypes.c_void_p(h), ctypes.byref(p2))
+            dtype = struct.unpack_from("<I", bytes(p2.properties), 16)[0]
+            out.append((i, dtype, int.from_bytes(bytes(ids.deviceLUID), "little") if ids.deviceLUIDValid else None))
+        return out
+    finally:
+        vk.vkDestroyInstance(instance, None)
+
+
 class Counters(Protocol):
     def read(self, path: str) -> dict[str, float]:
         """Every instance of a counter, e.g. r'\\GPU Engine(*)\\Utilization Percentage' -> {instance name: value}."""
@@ -110,6 +163,8 @@ class Counters(Protocol):
 class Adapter:
     def __init__(self, name: str, vendor: int, luid: int, dedicated: int, shared: int):
         self.name, self.vendor, self.luid, self.dedicated, self.shared = name, vendor, luid, dedicated, shared
+        self.vulkan_type: int | None = None  # what the Vulkan driver says this adapter is (VK_INTEGRATED / VK_DISCRETE ...), when Vulkan lists it
+        self.vulkan_index: int | None = None
 
     @property
     def key(self) -> str:
@@ -117,6 +172,9 @@ class Adapter:
 
     @property
     def unified(self) -> bool:
+        """Integrated as Vulkan says; without Vulkan, a dedicated carve-out under UNIFIED_BELOW is regarded as integrated."""
+        if self.vulkan_type is not None:
+            return self.vulkan_type == VK_INTEGRATED
         return self.dedicated < UNIFIED_BELOW
 
 
@@ -213,7 +271,8 @@ class WindowsProvider:
     name = "windows"
 
     def __init__(self, counters: Counters | None = None, adapters: Callable[[], list[Adapter]] | None = None, clock: Callable[[], float] = time.monotonic,
-                 temperature: Callable[[int], int | None] | None = None):
+                 temperature: Callable[[int], int | None] | None = None,
+                 vulkan: Callable[[], list[tuple[int, int, int | None]]] | None = None):
         if not sys.platform.startswith("win") and counters is None:
             raise RuntimeError("not Windows")
         self.counters = counters or PdhCounters()
@@ -224,8 +283,19 @@ class WindowsProvider:
         self.cards = [a for a in known if a.key in live and a.vendor in VENDORS]  # NVIDIA is NVML's, the software renderer is no GPU
         if not self.cards:
             raise RuntimeError("no AMD or Intel GPU")
+        self._apply_vulkan(vulkan or vulkan_devices)
         self.cards.sort(key=lambda a: (not a.unified, a.name))
         self._cache: tuple[float, dict] | None = None
+
+    def _apply_vulkan(self, listing: Callable[[], list[tuple[int, int, int | None]]]) -> None:
+        try:
+            found = {luid: (index, dtype) for index, dtype, luid in listing() if luid is not None}
+        except Exception as e:  # no Vulkan driver: the memory rule decides, and build_env falls back to its own numbering
+            log.info("Vulkan device list unavailable: %s", e)
+            return
+        for a in self.cards:
+            if a.luid in found:
+                a.vulkan_index, a.vulkan_type = found[a.luid]
 
     @staticmethod
     def _default_temperature() -> Callable[[int], int | None]:
@@ -283,7 +353,7 @@ class WindowsProvider:
             temp = s["temps"].get(a.key)
             out.append(GpuInfo(
                 index=i, uuid=f"win-{a.key}", name=a.name, mem_total=total, mem_used=min(int(used.get(a.key, 0)), total),
-                util_percent=busy.get(a.key, 0), temperature_c=temp, vendor=VENDORS[a.vendor], unified=a.unified, env_index=i, select_env=self._select_env(a), by_vulkan=True,
+                util_percent=busy.get(a.key, 0), temperature_c=temp, vendor=VENDORS[a.vendor], unified=a.unified, env_index=i, select_env=self._select_env(a), by_vulkan=True, vulkan_index=a.vulkan_index,
                 supports={"mem": True, "util": True, "temp": temp is not None, "process": True, "process_util": True},
             ))
         return out

@@ -378,3 +378,31 @@ def test_perf_data_matches_the_windows_struct_size():
     from app.services.monitor.windows import PerfData
 
     assert ctypes.sizeof(PerfData) == 64 and PerfData.Temperature.offset == 56  # D3DKMT_ADAPTER_PERFDATA with natural alignment
+
+
+def test_windows_integrated_is_what_vulkan_says_not_the_memory_size():
+    from app.services.monitor.windows import VK_DISCRETE, VK_INTEGRATED
+
+    big_carve_out = [Adapter("Radeon APU", 0x1002, IGPU, 8 * GiB, 24 * GiB), Adapter("Small discrete", 0x1002, DGPU, 2 * GiB, 24 * GiB)]
+    table = win_table(**{r"\GPU Adapter Memory(*)\Dedicated Usage": {L(IGPU): 0, L(DGPU): 0}, r"\GPU Adapter Memory(*)\Shared Usage": {L(IGPU): 0, L(DGPU): 0}})
+    seen = [(1, VK_INTEGRATED, IGPU), (2, VK_DISCRETE, DGPU)]
+    by_name = {g.name: g for g in WindowsProvider(FakeCounters(table), lambda: big_carve_out, vulkan=lambda: seen).devices()}
+    assert by_name["Radeon APU"].unified is True and by_name["Radeon APU"].vulkan_index == 1  # 8 GiB carve-out: the memory rule alone says discrete
+    assert by_name["Small discrete"].unified is False and by_name["Small discrete"].vulkan_index == 2
+    assert by_name["Radeon APU"].mem_total == 8 * GiB + 24 * GiB and by_name["Small discrete"].mem_total == 2 * GiB
+
+
+def test_windows_without_vulkan_the_memory_rule_decides():
+    def no_vulkan():
+        raise OSError("vulkan-1.dll not found")
+
+    (g,) = WindowsProvider(FakeCounters(win_table()), ADAPTERS, vulkan=no_vulkan).devices()
+    assert g.unified is True and g.vulkan_index is None  # 486 MiB-class carve-out: regarded as integrated
+
+
+def test_build_env_uses_the_vulkan_number_the_provider_read():
+    from app.services.monitor.windows import VK_INTEGRATED
+
+    p = WindowsProvider(FakeCounters(win_table()), ADAPTERS, vulkan=lambda: [(0, 2, NV), (3, VK_INTEGRATED, IGPU)])
+    dev = p.devices()[0]
+    assert build_env(1, InstanceOptions(gpu=0), {}, None, [dev])["GGML_VK_VISIBLE_DEVICES"] == "3"
