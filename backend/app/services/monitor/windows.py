@@ -210,7 +210,7 @@ class WindowsProvider:
             total = a.dedicated + (a.shared if a.unified else 0)
             out.append(GpuInfo(
                 index=i, uuid=f"win-{a.key}", name=a.name, mem_total=total, mem_used=min(int(used.get(a.key, 0)), total),
-                util_percent=busy.get(a.key, 0), temperature_c=None, vendor=VENDORS[a.vendor], unified=a.unified, env_index=i, select_env=self._select_env(a),
+                util_percent=busy.get(a.key, 0), temperature_c=None, vendor=VENDORS[a.vendor], unified=a.unified, env_index=i, select_env=self._select_env(a), by_vulkan=True,
                 supports={"mem": True, "util": True, "temp": False, "process": True, "process_util": True},
             ))
         return out
@@ -219,7 +219,8 @@ class WindowsProvider:
     def _select_env(a: Adapter) -> dict[str, str]:
         """Ollama leaves integrated graphics out unless told otherwise, and shows the NVIDIA card first: hide it and allow the iGPU.
         (This is what was tried by hand with `ollama serve`: the Vulkan device was used. Which Vulkan number a card has is not
-        the number here, so no device list is given.)"""
+        the number here: build_env adds GGML_VK_VISIBLE_DEVICES, because with CUDA hidden Ollama lists the NVIDIA card through Vulkan
+        too and may pick it, which a test on the RTX 5090 + Radeon iGPU machine showed.)"""
         env = {"CUDA_VISIBLE_DEVICES": "-1"}
         if a.unified:
             env["OLLAMA_IGPU_ENABLE"] = "1"

@@ -340,8 +340,11 @@ def test_windows_provider_reads_once_per_tick():
 def test_selecting_the_integrated_gpu_hides_cuda_and_allows_igpu():
     dev = WindowsProvider(FakeCounters(win_table()), ADAPTERS).devices()[0]
     nv = GpuInfo(0, "n", "RTX", 8, 1, vendor="nvidia")
-    comp = CompositeProvider([Fake("nvml", [nv]), Fake("windows", [dev])]).devices()
-    env = build_env(11434, InstanceOptions(gpu=1), {"CUDA_VISIBLE_DEVICES": "0"}, None, comp)
+    comp = CompositeProvider([Fake("windows", [dev]), Fake("nvml", [nv])]).devices()  # even listed first, the iGPU is Vulkan 1
+    igpu, rtx = (next(d.index for d in comp if d.vendor == v) for v in ("amd", "nvidia"))
+    env = build_env(11434, InstanceOptions(gpu=igpu), {"CUDA_VISIBLE_DEVICES": "0"}, None, comp)
     assert env["CUDA_VISIBLE_DEVICES"] == "-1" and env["OLLAMA_IGPU_ENABLE"] == "1" and "HIP_VISIBLE_DEVICES" not in env
-    env0 = build_env(11434, InstanceOptions(gpu=0), {}, None, comp)
+    assert env["GGML_VK_VISIBLE_DEVICES"] == "1"  # discrete cards come first among Vulkan devices: RTX 0, Radeon iGPU 1
+    assert "GGML_VK_VISIBLE_DEVICES" not in build_env(11434, InstanceOptions(gpu=1), {"GGML_VK_VISIBLE_DEVICES": "0"}, None, [nv])
+    env0 = build_env(11434, InstanceOptions(gpu=rtx), {}, None, comp)
     assert env0["CUDA_VISIBLE_DEVICES"] == "0" and "OLLAMA_IGPU_ENABLE" not in env0

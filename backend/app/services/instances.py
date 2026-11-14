@@ -76,6 +76,13 @@ def find_ollama(configured: str | None) -> str | None:
 GPU_ENV = {"nvidia": ("CUDA_VISIBLE_DEVICES",), "amd": ("HIP_VISIBLE_DEVICES", "ROCR_VISIBLE_DEVICES")}
 
 
+def vulkan_index(devices: list[Any], dev: Any) -> int:
+    """The device's number among Vulkan devices. Not readable from here, so it is assumed that the Vulkan loader lists discrete cards
+    before integrated graphics, each group in the app's order (RTX 5090 = 0, Radeon iGPU = 1 on the machine this was checked on)."""
+    ranked = sorted(devices, key=lambda d: (bool(d.unified), d.index))
+    return next((i for i, d in enumerate(ranked) if d.index == dev.index), 0)
+
+
 def build_env(port: int, o: InstanceOptions, base: dict[str, str], default_models: str | None = None,
               devices: list[Any] | None = None) -> dict[str, str]:
     env = dict(base)
@@ -87,6 +94,7 @@ def build_env(port: int, o: InstanceOptions, base: dict[str, str], default_model
     env["OLLAMA_FLASH_ATTENTION"] = "1" if o.flash_attention else "0"
     env["OLLAMA_KV_CACHE_TYPE"] = o.kv_cache_type
     every = {k for names in GPU_ENV.values() for k in names}
+    env.pop("GGML_VK_VISIBLE_DEVICES", None)  # an inherited one would hide the wrong device
     for k in every:
         env.pop(k, None)
     if o.gpu == "cpu":
@@ -99,6 +107,8 @@ def build_env(port: int, o: InstanceOptions, base: dict[str, str], default_model
             env["CUDA_VISIBLE_DEVICES"] = str(o.gpu)  # devices unknown: assume NVIDIA numbering, as before
         elif getattr(dev, "select_env", None):
             env.update(dev.select_env)
+            if getattr(dev, "by_vulkan", False):
+                env["GGML_VK_VISIBLE_DEVICES"] = str(vulkan_index(devices or [], dev))
         else:
             for k in GPU_ENV.get(dev.vendor, ()):
                 env[k] = str(dev.env_index if dev.env_index is not None else dev.index)
