@@ -3,7 +3,7 @@ import { useDevices, useViews } from '@/app/hooks';
 import { Bar, Legend, type Segment } from '@/components/common/Bar';
 import { Section } from '@/components/common/Section';
 import { instanceColor, vramByGpu, type GpuUsage } from '@/lib/derive';
-import { memoryLabel } from '@/lib/format';
+import { gpuName, memoryLabel } from '@/lib/format';
 import { gb } from '@/lib/units';
 import { useT } from '@/locales/useT';
 import { useMonitorStore } from '@/stores/monitorStore';
@@ -135,7 +135,7 @@ export function Monitor() {
     }
     return (
       <MonitorBox key={`GPU-${n}`} title={`GPU-${n}`} summary={d.name}>
-        <DeviceHead n={0} name="GPU" figures={`${util} · ${temp}`} />
+        <DeviceHead n={0} name={gpuName(d)} figures={`${util} · ${temp}`} />
         <Bar segments={utilSegments} off={!d.supports.util} />
         {d.supports.util ? <Legend segments={utilSegments} /> : <div className="sub off-note">{t('mon.unsupported')}</div>}
         {memory}

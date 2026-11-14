@@ -51,6 +51,9 @@ export const splitModel = (name: string): { family: string; tag: string } => {
 /** Every GPU shares its memory with the CPU (Apple silicon, integrated graphics): there is one pool, not a separate VRAM. */
 export const isUnified = (devices: { unified: boolean }[]): boolean => devices.length > 0 && devices.every((d) => d.unified);
 
+/** What a GPU's use row is called: "iGPU" for integrated graphics, "GPU" otherwise. Apple silicon has no discrete GPU to be told apart from, so it stays "GPU". */
+export const gpuName = (d: { unified: boolean; vendor: string }): string => (d.unified && d.vendor !== 'apple' ? 'iGPU' : 'GPU');
+
 export const memoryLabel = (devices: { unified: boolean }[], t: Translate): string => (isUnified(devices) ? t('mon.unified') : 'VRAM');
 
 export const gpuLabel = (gpu: 'auto' | 'cpu' | number, devices: { name: string }[], t: Translate): string =>

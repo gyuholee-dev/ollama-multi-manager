@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { translate } from '@/locales';
-import { compareModels, derivedFrom, fmtCtx, fmtKeep, fmtUp, memoryLabel, modelInfo, quantOf, splitModel } from './format';
+import { compareModels, derivedFrom, fmtCtx, fmtKeep, fmtUp, gpuName, memoryLabel, modelInfo, quantOf, splitModel } from './format';
 
 const en = (key: string, params?: Record<string, string | number>) => translate('en', key, params);
 
@@ -77,5 +77,14 @@ describe('memoryLabel', () => {
     expect(memoryLabel([{ unified: false }, { unified: false }], t)).toBe('VRAM');
     expect(memoryLabel([{ unified: true }], t)).toBe('UMA');
     expect(memoryLabel([{ unified: true }, { unified: false }], t)).toBe('VRAM'); // a mix keeps the common name
+  });
+});
+
+describe('gpuName', () => {
+  it('calls integrated graphics iGPU, and leaves discrete cards and Apple silicon as GPU', () => {
+    expect(gpuName({ unified: true, vendor: 'amd' })).toBe('iGPU');
+    expect(gpuName({ unified: true, vendor: 'intel' })).toBe('iGPU');
+    expect(gpuName({ unified: false, vendor: 'nvidia' })).toBe('GPU');
+    expect(gpuName({ unified: true, vendor: 'apple' })).toBe('GPU');
   });
 });

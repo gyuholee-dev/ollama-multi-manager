@@ -41,9 +41,9 @@ const VERSION='v0.1.0';let checking=false;
 const detectLang=()=>{for(const l of navigator.languages||[navigator.language]){const b=String(l||'').toLowerCase().split('-')[0];if(window.LOCALES[b])return b}return 'en'};
 const FULL={mem:true,util:true,temp:true,process:true,process_util:true},NOPROC={mem:true,util:true,temp:true,process:false,process_util:false},PMETRICS={mem:true,util:true,temp:true,process:false,process_util:true},NONE={mem:false,util:false,temp:false,process:false,process_util:false};
 const GMODES={
-  nv:[{name:'Apple M4 Pro',vram:48,unified:true,sup:PMETRICS},{name:'NVIDIA GeForce RTX 5090',vram:32,unified:false,sup:FULL}],
-  mac:[{name:'Apple M4 Pro',vram:48,unified:true,sup:NOPROC}],
-  part:[{name:'AMD Radeon Graphics',vram:32,unified:true,sup:{mem:true,util:false,temp:false,process:false,process_util:false}}],
+  nv:[{name:'Apple M4 Pro',vendor:'apple',vram:48,unified:true,sup:PMETRICS},{name:'NVIDIA GeForce RTX 5090',vendor:'nvidia',vram:32,unified:false,sup:FULL}],
+  mac:[{name:'Apple M4 Pro',vendor:'apple',vram:48,unified:true,sup:NOPROC}],
+  part:[{name:'AMD Radeon Graphics',vendor:'amd',vram:32,unified:true,sup:{mem:true,util:false,temp:false,process:false,process_util:false}}],
   none:[]};
 let GPUS=[],GVRAM=[],GDEV=[],GUNI=false,GSUP={};
 const setGpuMode=()=>{GDEV=GMODES[cfg.gpu]||GMODES.nv;GPUS=GDEV.map(d=>d.name);GVRAM=GDEV.map(d=>d.vram);GUNI=GDEV.length>0&&GDEV.every(d=>d.unified);GSUP={mem:GDEV.some(d=>d.sup.mem)}},
@@ -118,7 +118,7 @@ function render(){
   gpuBoxes=()=>!GPUS.length?[mb('GPU','-',headRow('GPU','-',0)+bar([],true)+headRow(memN(),'-',1)+bar([],true)+`<div class="sub off-note">${t('mon.unsupported')}</div>`,'','GPU')]:GPUS.map((_,n)=>{
     const g=V[n],D=GDEV[n],[u,tc,w,sy]=[[62,58,18,5],[71,63,342,3]][n]||[30,50,100,3],ps=g.parts,tp=ps.reduce((x,p)=>x+p.v,0),sysU=ps.length?Math.min(sy,u):u,
      segs=D.sup.process_util?[[S,sysU,'var(--sub)',sysU+'%'],...ps.map(p=>[p.name,(u-sysU)*p.v/Math.max(tp,1),p.col,Math.round((u-sysU)*p.v/Math.max(tp,1))+'%'])]:[[t('mon.util'),u,'var(--accent)',u+'%']],
-     util=headRow('GPU',`${D.sup.util?u+'%':'-'} · ${D.sup.temp?tc+'°C':'-'}${D.sup.process_util?` · ${w} W`:''}`,0)+(D.sup.util?bar(segs)+leg(segs):bar([],true)+`<div class="sub off-note">${t('mon.unsupported')}</div>`);
+     util=headRow(D.unified&&D.vendor!=='apple'?'iGPU':'GPU',`${D.sup.util?u+'%':'-'} · ${D.sup.temp?tc+'°C':'-'}${D.sup.process_util?` · ${w} W`:''}`,0)+(D.sup.util?bar(segs)+leg(segs):bar([],true)+`<div class="sub off-note">${t('mon.unsupported')}</div>`);
     let mem;
     if(!D.sup.mem)mem=headRow(D.unified?t('mon.unified'):'VRAM','-',1)+bar([],true)+`<div class="sub off-note">${t('mon.unsupported')}</div>`;
     else if(D.unified){const other=Math.max(0,g.used-ps.reduce((a,p)=>a+p.v,0)),sys=Math.max(0,21.8-g.used),free=Math.max(0,64-21.8),pp=[...(other>0.05?[[t('mon.gpuOther'),other/64*100,'var(--sub)',other.toFixed(1)+' GB']]:[]),...ps.map(p=>[p.name,p.v/64*100,p.col,p.v.toFixed(1)+' GB']),[t('mon.gpuMax',{limit:g.total}),0,'var(--text)','','mark'],['',free/64*100,'transparent','','gap'],[S,sys/64*100,'var(--line)',sys.toFixed(1)+' GB']];
