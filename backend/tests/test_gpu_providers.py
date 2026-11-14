@@ -457,3 +457,22 @@ def test_the_composite_drops_npus_from_any_provider_and_keeps_the_process_number
     comp = CompositeProvider([nv, other])
     assert [(g.index, g.name) for g in comp.devices()] == [(0, "RTX"), (1, "Radeon")]
     assert comp.process_vram() == {7: {1: 222}}  # the provider's GPU 1 is the app's GPU-1; its NPU 0 has no number
+
+
+def test_the_process_numbers_stay_with_their_provider_while_the_devices_are_being_listed():
+    """The collector asks for the devices and the per-process tables from separate threads at once: a table read in the middle of
+    a listing must still be the finished one, or one provider's numbers get the other's (seen as an iGPU's process shown under the RTX)."""
+    nv = Fake("nvml", [GpuInfo(0, "n", "RTX", 8, 1, vendor="nvidia")], {1: {0: 10}})
+    seen: list[dict] = []
+
+    class Slow(Fake):
+        def devices(self):
+            seen.append(comp.process_vram())  # what another thread would read while this provider is being listed
+            return super().devices()
+
+    amd = Slow("amd", [GpuInfo(0, "r", "Radeon", 4, 1, vendor="amd")], {1: {0: 20}})
+    comp = CompositeProvider([nv, amd])
+    comp.devices()
+    seen.clear()
+    comp.devices()
+    assert seen == [{1: {0: 10, 1: 20}}] and comp.process_vram() == {1: {0: 10, 1: 20}}

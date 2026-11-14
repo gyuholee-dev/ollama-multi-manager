@@ -170,7 +170,7 @@ class CompositeProvider:
 
     def devices(self) -> list[GpuInfo]:
         out: list[GpuInfo] = []
-        self._maps = []
+        maps: list[dict[int, int]] = []
         for p in self.providers:
             mapping: dict[int, int] = {}
             try:
@@ -183,15 +183,19 @@ class CompositeProvider:
                     continue
                 mapping[g.index] = len(out)
                 out.append(replace(g, index=len(out), env_index=g.index if g.env_index is None else g.env_index))
-            self._maps.append(mapping)
+            maps.append(mapping)
+        # The collector asks for the devices and both per-process tables from separate threads at once: the table is built aside
+        # and put in place whole, so no thread sees a half-built one (or two builds mixed) and pairs a provider with another's numbers.
+        self._maps = maps
         return out
 
     def _merge(self, name: str, what: str):
         """The providers' per-process tables merged under the app's GPU numbers; None when no provider can tell."""
         if not self._maps:
             self.devices()
+        maps = self._maps
         merged = None
-        for p, mapping in zip(self.providers, self._maps):
+        for p, mapping in zip(self.providers, maps):
             try:
                 table = getattr(p, name)()
             except Exception:
