@@ -127,7 +127,7 @@ VK_INTEGRATED, VK_DISCRETE = 1, 2
 
 def vulkan_devices() -> list[tuple[int, int, int | None]]:
     """(Vulkan number, device type, LUID) for every Vulkan device in the loader's order; the number is the one Ollama calls Vulkan<N>
-    (checked on an RTX 5090 + Radeon iGPU machine with scripts/probe_windows_gpu.py)."""
+    (checked on an RTX 5090 + Radeon iGPU machine with a probe of the Vulkan devices)."""
     import struct
 
     vk = ctypes.WinDLL("vulkan-1")
