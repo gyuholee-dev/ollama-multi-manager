@@ -118,7 +118,7 @@ export function MonitorBody({ id, view, folds = true }: { id: number; view: Inst
   const samples = useHistoryStore((s) => s.series[String(id)] ?? NONE);
   const imFold = useUiStore((s) => s.imFold);
   const imHide = useUiStore((s) => s.imHide);
-  const shown = (cat: string) => !imHide.includes(cat);
+  const shown = (cat: string) => !folds || !imHide.includes(cat); // (the monitor window, which has no buttons to switch a part, shows all)
   const open = (key: string) => !folds || !imFold.includes(key);
   const plain = !folds; // (not `fixed`: that is the number formatter above)
   const [hour, setHour] = useState<SeriesPoint[] | null>(null);

@@ -1,6 +1,6 @@
 import { useEffect } from 'react';
 import { useViews } from '@/app/hooks';
-import { CategoryButtons, MonitorBody } from '@/containers/MonitorBody';
+import { MonitorBody } from '@/containers/MonitorBody';
 import { translate } from '@/locales';
 import { useT } from '@/locales/useT';
 import { useSettingsStore } from '@/stores/settingsStore';
@@ -17,7 +17,7 @@ export function MonitorWindow({ id }: { id: number }) {
   const gone = ready && !view;
 
   useEffect(() => {
-    document.title = view ? translate(lang, 'im.title', { n: view.name }) : translate(lang, 'app.title');
+    if (view) document.title = translate(lang, 'im.title', { n: view.name }); // (until it is known the page keeps the title it came with)
   }, [lang, view?.name]); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => {
     if (!gone) return;
@@ -25,20 +25,20 @@ export function MonitorWindow({ id }: { id: number }) {
     return () => clearTimeout(timer);
   }, [gone]);
 
-  const note = (text: string) => (
+  const note = (text?: string) => (
     <div id="det" className="mwin">
-      <header className="mwh"><h1>{t('app.title')}</h1></header>
-      <div id="boot" role="status">{text}</div>
+      <header className="mwh"><h1 /></header> {/* (no title until the instance is known: the app's name would flash before its name) */}
+      {text && <div id="boot" role="status">{text}</div>}
     </div>
   );
-  if (!ready) return note(t('boot.loading'));
+  if (!ready) return note(); // (no loading message for now: the header alone, until the instance is known)
   if (!view) return note(t('im.removed'));
   // the same header as the main window (title on the left, buttons on the right) that stays while the body scrolls
   return (
     <div id="det" className="mwin">
       <header className="mwh">
         <h1>{view.name}</h1>
-        <div className="btns"><CategoryButtons /></div>
+        <div className="btns" /> {/* (room for buttons that may come: the four parts are no longer switched here) */}
       </header>
       <div className="dbody"><MonitorBody id={id} view={view} folds={false} /></div>
     </div>

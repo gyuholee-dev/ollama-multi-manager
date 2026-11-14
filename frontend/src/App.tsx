@@ -10,14 +10,12 @@ import { Monitor } from '@/containers/Monitor';
 import { ServerInstances } from '@/containers/ServerInstances';
 import { Summary } from '@/containers/Summary';
 import { translate } from '@/locales';
-import { useT } from '@/locales/useT';
 import { useDialogStore } from '@/stores/dialogStore';
 import { useSettingsStore } from '@/stores/settingsStore';
 import { useUiStore } from '@/stores/uiStore';
 
 /** `monitor`: show only that instance's monitor (a window of its own) instead of the whole page. */
 export default function App({ monitor }: { monitor?: number }) {
-  const t = useT();
   const ready = useUiStore((s) => s.ready);
   const theme = useSettingsStore((s) => s.cfg.theme);
   const lang = useSettingsStore((s) => s.cfg.lang);
@@ -49,12 +47,8 @@ export default function App({ monitor }: { monitor?: number }) {
         <div className="views__scrim" onClick={closePage} />
         <div className="views__track">
           <div className="view" inert={!!page}>
-            {ready ? (
-              // Until the first load is over only a note is shown, so no empty template and no controls flash by.
-              <main><Summary /><Monitor /><ServerInstances /><Logs /></main>
-            ) : (
-              <div id="boot" role="status">{t('boot.loading')}</div>
-            )}
+            {/* Until the first load is over nothing is shown (no loading note for now), so no empty template and no controls flash by. */}
+            {ready ? <main><Summary /><Monitor /><ServerInstances /><Logs /></main> : null}
           </div>
           <div className="view" inert={!page}><PageHost /></div>
         </div>

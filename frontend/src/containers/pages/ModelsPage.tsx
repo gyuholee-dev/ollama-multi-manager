@@ -179,7 +179,7 @@ function ModelEditor({ name, onBack }: { name: string; onBack: () => void }) {
               <div className="kv"><label>{t('mdl.detail.params')}</label>
                 <span>{detail.parameters.length ? <div className="ml">{detail.parameters.map((p, n) => <div key={n}>{p.key} {p.value}</div>)}</div> : t('mdl.detail.none')}</span></div>
             </>
-          ) : <div className="sub">{failed ? t('mdl.detail.failed') : t('mdl.detail.loading')}</div>}
+          ) : failed ? <div className="sub">{t('mdl.detail.failed')}</div> : null}
         </div>
         {detail && (
           <>
