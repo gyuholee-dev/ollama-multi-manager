@@ -24,6 +24,7 @@ class GpuInfo:
 
     `index` is the number the app shows (GPU-0, GPU-1, ...) and is assigned by the CompositeProvider across all
     vendors; `env_index` is the device's own number for its vendor's driver (CUDA_VISIBLE_DEVICES and the like).
+    `select_env`, when a provider gives it, replaces the per-vendor variable in GPU_ENV (see build_env).
     `supports` says which readings this device can give at all, so the UI can tell "not supported" from "no value yet".
     `unified` marks memory shared with the CPU (Apple silicon, integrated graphics): there is no separate VRAM then.
     """
@@ -39,6 +40,7 @@ class GpuInfo:
     kind: str = "gpu"  # gpu | npu
     unified: bool = False
     env_index: int | None = None
+    select_env: dict[str, str] = field(default_factory=dict)  # the environment that makes Ollama use this device alone, when the vendor's variable cannot say it
     supports: dict[str, bool] = field(default_factory=full_support)
 
     def to_dict(self) -> dict:
@@ -244,3 +246,6 @@ def _candidates():
     if sys.platform.startswith("linux"):
         from .amd import AmdProvider
         yield AmdProvider
+    if sys.platform.startswith("win"):
+        from .windows import WindowsProvider
+        yield WindowsProvider

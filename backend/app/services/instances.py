@@ -97,6 +97,8 @@ def build_env(port: int, o: InstanceOptions, base: dict[str, str], default_model
         dev = next((d for d in devices or [] if d.index == o.gpu), None)
         if dev is None:
             env["CUDA_VISIBLE_DEVICES"] = str(o.gpu)  # devices unknown: assume NVIDIA numbering, as before
+        elif getattr(dev, "select_env", None):
+            env.update(dev.select_env)
         else:
             for k in GPU_ENV.get(dev.vendor, ()):
                 env[k] = str(dev.env_index if dev.env_index is not None else dev.index)

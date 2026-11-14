@@ -242,3 +242,106 @@ def test_per_process_use_is_merged_over_vendors_with_global_gpu_numbers():
     nv.process_util = lambda: None
     amd.process_util = lambda: None
     assert comp.process_util() is None
+
+
+# ---- Windows (fake counters and adapter list: the real ones exist only on Windows)
+
+from app.services.monitor.windows import Adapter, WindowsProvider, luid_key
+
+GiB = 2**30
+IGPU, DGPU, NV = 0xA1B2, 0xC3D4, 0xE5F6
+L = lambda low: f"luid_0x00000000_0x{low:08X}_phys_0"
+
+
+class FakeCounters:
+    def __init__(self, table):
+        self.table = table
+
+    def read(self, path):
+        if path not in self.table:
+            raise OSError("counter not available")
+        return dict(self.table[path])
+
+    def close(self):
+        pass
+
+
+def win_table(**over):
+    t = {
+        r"\GPU Adapter Memory(*)\Dedicated Usage": {L(IGPU): 0.5 * GiB, L(NV): 9 * GiB},
+        r"\GPU Adapter Memory(*)\Shared Usage": {L(IGPU): 1.5 * GiB, L(NV): 0.1 * GiB},
+        r"\GPU Engine(*)\Utilization Percentage": {
+            f"pid_100_{L(IGPU)}_eng_0_engtype_Compute_0": 30.0,
+            f"pid_100_{L(IGPU)}_eng_1_engtype_Compute_0": 20.0,
+            f"pid_100_{L(IGPU)}_eng_2_engtype_3D": 10.0,
+            f"pid_200_{L(NV)}_eng_0_engtype_3D": 90.0,
+        },
+        r"\GPU Process Memory(*)\Dedicated Usage": {f"pid_100_{L(IGPU)}": 0.25 * GiB, f"pid_200_{L(NV)}": 5 * GiB},
+        r"\GPU Process Memory(*)\Shared Usage": {f"pid_100_{L(IGPU)}": 1 * GiB, f"pid_200_{L(NV)}": 0.05 * GiB},
+    }
+    t.update(over)
+    return t
+
+
+ADAPTERS = lambda: [
+    Adapter("AMD Radeon(TM) Graphics", 0x1002, IGPU, 512 * 2**20, 32 * GiB),
+    Adapter("NVIDIA GeForce RTX 5090", 0x10DE, NV, 32 * GiB, 64 * GiB),
+    Adapter("Microsoft Basic Render Driver", 0x1414, 0x1, 0, 0),
+    Adapter("Radeon RX (removed)", 0x1002, 0x9999, 8 * GiB, 0),  # recorded in the registry, gone from the counters
+]
+
+
+def test_windows_provider_reports_the_integrated_gpu_as_unified_and_leaves_nvidia_to_nvml():
+    p = WindowsProvider(FakeCounters(win_table()), ADAPTERS)
+    (g,) = p.devices()
+    assert (g.name, g.vendor, g.unified, g.index) == ("AMD Radeon(TM) Graphics", "amd", True, 0)
+    assert g.mem_total == 512 * 2**20 + 32 * GiB and g.mem_used == 2 * GiB  # carve-out and shared memory, added together
+    assert g.util_percent == 50 and g.temperature_c is None and g.supports["temp"] is False  # busiest engine type: Compute 30+20
+    assert luid_key(IGPU) == "0x00000000_0x0000a1b2"
+
+
+def test_windows_provider_attributes_memory_and_time_per_process():
+    p = WindowsProvider(FakeCounters(win_table()), ADAPTERS)
+    assert p.process_vram() == {100: {0: int(0.25 * GiB) + 1 * GiB}}  # pid 200 sits on the NVIDIA card: not this provider's
+    assert p.process_util() == {100: {0: 50}}
+
+
+def test_windows_provider_without_process_counters_still_reports_devices():
+    t = win_table()
+    del t[r"\GPU Process Memory(*)\Dedicated Usage"]
+    p = WindowsProvider(FakeCounters(t), ADAPTERS)
+    assert p.process_vram() is None and len(p.devices()) == 1
+
+
+def test_windows_provider_unavailable_cases():
+    with pytest.raises(RuntimeError):
+        WindowsProvider(FakeCounters(win_table()), lambda: [Adapter("NVIDIA", 0x10DE, NV, 32 * GiB, 0)])
+    with pytest.raises(RuntimeError):
+        WindowsProvider(FakeCounters({r"\GPU Adapter Memory(*)\Dedicated Usage": {}}), ADAPTERS)
+    with pytest.raises(OSError):
+        WindowsProvider(FakeCounters({}), ADAPTERS)  # Windows without the GPU counters (older than 10 1709)
+
+
+def test_windows_provider_reads_once_per_tick():
+    c = FakeCounters(win_table())
+    calls = []
+    orig = c.read
+    c.read = lambda path: (calls.append(path), orig(path))[1]
+    now = [0.0]
+    p = WindowsProvider(c, ADAPTERS, clock=lambda: now[0])
+    calls.clear()
+    p.devices(), p.process_vram(), p.process_util()
+    assert len(calls) == 5
+    now[0] = 2.0
+    p.devices()
+    assert len(calls) == 10
+
+
+def test_selecting_the_integrated_gpu_hides_cuda_and_allows_igpu():
+    dev = WindowsProvider(FakeCounters(win_table()), ADAPTERS).devices()[0]
+    nv = GpuInfo(0, "n", "RTX", 8, 1, vendor="nvidia")
+    comp = CompositeProvider([Fake("nvml", [nv]), Fake("windows", [dev])]).devices()
+    env = build_env(11434, InstanceOptions(gpu=1), {"CUDA_VISIBLE_DEVICES": "0"}, None, comp)
+    assert env["CUDA_VISIBLE_DEVICES"] == "-1" and env["OLLAMA_IGPU_ENABLE"] == "1" and "HIP_VISIBLE_DEVICES" not in env
+    env0 = build_env(11434, InstanceOptions(gpu=0), {}, None, comp)
+    assert env0["CUDA_VISIBLE_DEVICES"] == "0" and "OLLAMA_IGPU_ENABLE" not in env0
