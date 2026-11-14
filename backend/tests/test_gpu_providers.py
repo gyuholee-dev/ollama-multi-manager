@@ -170,6 +170,14 @@ def test_the_apps_gpu_number_becomes_the_vendors_own_number():
 def test_cpu_hides_every_vendors_devices():
     env = build_env(1, InstanceOptions(gpu="cpu"), {}, devices=devs())
     assert env["CUDA_VISIBLE_DEVICES"] == env["HIP_VISIBLE_DEVICES"] == env["ROCR_VISIBLE_DEVICES"] == "-1"
+    assert env["OLLAMA_VULKAN"] == "0" and env["GGML_VK_VISIBLE_DEVICES"] == "-1"  # Vulkan lists the NVIDIA card again once CUDA is hidden
+
+
+def test_cpu_by_request_on_mac_and_windows(monkeypatch):
+    from app.services.instances import cpu_by_request
+    for plat, want in (("darwin", True), ("win32", True), ("linux", False)):
+        monkeypatch.setattr(sys, "platform", plat)
+        assert cpu_by_request(InstanceOptions(gpu="cpu")) is want and not cpu_by_request(InstanceOptions(gpu="auto"))
 
 
 def test_cpu_only_requests_ask_for_zero_gpu_layers():

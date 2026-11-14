@@ -76,6 +76,12 @@ def find_ollama(configured: str | None) -> str | None:
 GPU_ENV = {"nvidia": ("CUDA_VISIBLE_DEVICES",), "amd": ("HIP_VISIBLE_DEVICES", "ROCR_VISIBLE_DEVICES")}
 
 
+def cpu_by_request(o: InstanceOptions) -> bool:
+    """Whether the proxy must ask for zero GPU layers too: on a Mac nothing in the environment turns the GPU off; on Windows the
+    variables above are not known to hold every path, so the request is the sure way (the /v1 endpoints still cannot say it)."""
+    return o.gpu == "cpu" and sys.platform in ("darwin", "win32")
+
+
 def vulkan_index(devices: list[Any], dev: Any) -> int:
     """The device's number among Vulkan devices. Not readable from here, so it is assumed that the Vulkan loader lists discrete cards
     before integrated graphics, each group in the app's order (RTX 5090 = 0, Radeon iGPU = 1 on the machine this was checked on)."""
@@ -99,7 +105,12 @@ def build_env(port: int, o: InstanceOptions, base: dict[str, str], default_model
         env.pop(k, None)
     if o.gpu == "cpu":
         for k in every:
-            env[k] = "-1"  # Apple silicon has no such switch: the proxy asks for zero GPU layers instead (see InstanceProxy.cpu_only)
+            env[k] = "-1"
+        # Ollama also reaches the GPUs through Vulkan, which those variables do not touch: with CUDA hidden, the RTX 5090 still showed up as
+        # a Vulkan device on Windows (seen in an instance's log), so a "cpu" instance ran on it
+        env["OLLAMA_VULKAN"] = "0"
+        env["GGML_VK_VISIBLE_DEVICES"] = "-1"
+        # Apple silicon has no such switch: the proxy asks for zero GPU layers instead (see InstanceProxy.cpu_only)
     elif isinstance(o.gpu, int):
         # the number is the app's own (GPU-0, GPU-1, ... across vendors); the driver wants its own per-vendor number
         dev = next((d for d in devices or [] if d.index == o.gpu), None)
@@ -329,7 +340,7 @@ class InstanceManager:
         proxy.attach(inner, opts.num_parallel)
         proxy.set_allowed(opts.allowed_models)
         proxy.save_content = opts.save_requests
-        proxy.cpu_only = opts.gpu == "cpu" and sys.platform == "darwin"
+        proxy.cpu_only = cpu_by_request(opts)
 
         log_path = self.log_dir / f"instance-{iid}.log"
         if log_path.exists() and log_path.stat().st_size > LOG_FILE_MAX_BYTES:
@@ -544,7 +555,7 @@ class InstanceManager:
         proxy = InstanceProxy(row["name"], port, None, opts.num_parallel, recorder=lambda rec: self.request_stats.record(iid, rec),
                               host=host, api_key=opts.api_key, journal=lambda rec, req, resp: self._journal(iid, rec, req, resp))
         proxy.save_content = opts.save_requests
-        proxy.cpu_only = opts.gpu == "cpu" and sys.platform == "darwin"
+        proxy.cpu_only = cpu_by_request(opts)
         proxy.ensure = lambda: self.ensure_running(iid)
         proxy.set_allowed(opts.allowed_models)
         if opts.listen == "lan" and not opts.api_key:
