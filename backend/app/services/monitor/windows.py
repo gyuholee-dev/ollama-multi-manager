@@ -33,6 +33,9 @@ NVIDIA = 0x10DE
 MICROSOFT = 0x1414  # the software renderer "Microsoft Basic Render Driver"
 VENDORS = {0x1002: "amd", 0x8086: "intel"}
 UNIFIED_BELOW = 4 * 2**30  # a dedicated carve-out smaller than this means an integrated GPU
+# An adapter whose name says it is a neural processor. Ollama cannot compute on NPUs (no support in its hardware list; ollama/ollama#5186 is
+# still open), so they are neither shown nor offered as an instance's device.
+NPU_NAME = re.compile(r"\b(NPU|VPU|IPU)\b|AI Boost|XDNA|Hexagon", re.I)
 CACHE_SECONDS = 0.5  # the monitor asks devices, process_vram and process_util one after another: one sampling serves all three
 
 LUID = re.compile(r"luid_0x([0-9a-f]{8})_0x([0-9a-f]{8})", re.I)
@@ -67,8 +70,13 @@ def celsius(deci: int) -> int | None:
     return c if 0 < c < 150 else None
 
 
-class AdapterTemperature:
-    """Temperature of an adapter by its LUID, through gdi32's D3DKMT calls. None when the driver does not offer it."""
+KMTQAITYPE_ADAPTERTYPE = 15
+ADAPTERTYPE_COMPUTE_ONLY = 1 << 11  # D3DKMT_ADAPTERTYPE.ComputeOnly: the 12th bit of its Value (RenderSupported is the first)
+# The numbers 15 and 62 follow d3dkmthk.h; Microsoft's enum page lists the members without their values, so they are not checked against it.
+
+
+class Gdi:
+    """gdi32's D3DKMT calls: open an adapter by its LUID, ask it one thing, close it."""
 
     def __init__(self) -> None:
         class Luid(ctypes.Structure):
@@ -86,20 +94,46 @@ class AdapterTemperature:
         self._types = (Luid, OpenFromLuid, QueryInfo, Close)
         self._gdi = ctypes.WinDLL("gdi32")
 
-    def read(self, luid: int) -> int | None:
+    def ask(self, luid: int, kind: int, data: ctypes.Structure) -> bool:
+        """Fills `data` with the adapter's answer to the query type `kind`; False when the adapter or the driver does not answer."""
         Luid, OpenFromLuid, QueryInfo, Close = self._types
         g = self._gdi
         opened = OpenFromLuid(Luid(luid & 0xFFFFFFFF, luid >> 32), 0)
         if g.D3DKMTOpenAdapterFromLuid(ctypes.byref(opened)) != 0:
-            return None
+            return False
         try:
-            data = PerfData()
-            q = QueryInfo(opened.hAdapter, KMTQAITYPE_ADAPTERPERFDATA, ctypes.cast(ctypes.byref(data), ctypes.c_void_p), ctypes.sizeof(data))
-            if g.D3DKMTQueryAdapterInfo(ctypes.byref(q)) != 0:
-                return None
-            return celsius(data.Temperature)
+            q = QueryInfo(opened.hAdapter, kind, ctypes.cast(ctypes.byref(data), ctypes.c_void_p), ctypes.sizeof(data))
+            return g.D3DKMTQueryAdapterInfo(ctypes.byref(q)) == 0
         finally:
             g.D3DKMTCloseAdapter(ctypes.byref(Close(opened.hAdapter)))
+
+
+class AdapterTemperature:
+    """Temperature of an adapter by its LUID. None when the driver does not offer it."""
+
+    def __init__(self) -> None:
+        self._gdi = Gdi()
+
+    def read(self, luid: int) -> int | None:
+        data = PerfData()
+        return celsius(data.Temperature) if self._gdi.ask(luid, KMTQAITYPE_ADAPTERPERFDATA, data) else None
+
+
+class AdapterFlags(ctypes.Structure):
+    """D3DKMT_ADAPTERTYPE: one 32-bit value of flag bits."""
+
+    _fields_ = [("Value", ctypes.c_uint32)]
+
+
+class AdapterComputeOnly:
+    """Whether Windows lists an adapter as compute-only (no graphics, no display): what an NPU is. None when it cannot be told."""
+
+    def __init__(self) -> None:
+        self._gdi = Gdi()
+
+    def read(self, luid: int) -> bool | None:
+        data = AdapterFlags()
+        return bool(data.Value & ADAPTERTYPE_COMPUTE_ONLY) if self._gdi.ask(luid, KMTQAITYPE_ADAPTERTYPE, data) else None
 
 
 class VkAppInfo(ctypes.Structure):
@@ -272,7 +306,8 @@ class WindowsProvider:
 
     def __init__(self, counters: Counters | None = None, adapters: Callable[[], list[Adapter]] | None = None, clock: Callable[[], float] = time.monotonic,
                  temperature: Callable[[int], int | None] | None = None,
-                 vulkan: Callable[[], list[tuple[int, int, int | None]]] | None = None):
+                 vulkan: Callable[[], list[tuple[int, int, int | None]]] | None = None,
+                 compute_only: Callable[[int], bool | None] | None = None):
         if not sys.platform.startswith("win") and counters is None:
             raise RuntimeError("not Windows")
         self.counters = counters or PdhCounters()
@@ -280,22 +315,56 @@ class WindowsProvider:
         self.clock = clock
         live = {luid_of(inst) for inst in self.counters.read(r"\GPU Adapter Memory(*)\Dedicated Usage")}
         known = (adapters or read_adapters)()
-        self.cards = [a for a in known if a.key in live and a.vendor in VENDORS]  # NVIDIA is NVML's, the software renderer is no GPU
+        self._vulkan = self._read_vulkan(vulkan or vulkan_devices)
+        compute_only = compute_only or self._default_compute_only()
+        self.cards = []
+        for a in known:
+            if a.key not in live or a.vendor not in VENDORS:  # NVIDIA is NVML's, the software renderer is no GPU
+                continue
+            why = self._npu_reason(a, compute_only)
+            if why:
+                log.info("Not listed, regarded as an NPU (%s): %s", why, a.name)
+                continue
+            self.cards.append(a)
         if not self.cards:
             raise RuntimeError("no AMD or Intel GPU")
-        self._apply_vulkan(vulkan or vulkan_devices)
+        for a in self.cards:
+            if a.luid in self._vulkan:
+                a.vulkan_index, a.vulkan_type = self._vulkan[a.luid]
         self.cards.sort(key=lambda a: (not a.unified, a.name))
         self._cache: tuple[float, dict] | None = None
 
-    def _apply_vulkan(self, listing: Callable[[], list[tuple[int, int, int | None]]]) -> None:
+    def _npu_reason(self, a: Adapter, compute_only: Callable[[int], bool | None]) -> str | None:
+        """Why an adapter is regarded as an NPU, or None. Any one of three rules is enough:
+        its name says so; Windows lists it as compute-only; or Vulkan is readable with device LUIDs and does not list it (an NPU is no Vulkan device,
+        and Ollama reaches the GPUs through Vulkan, so an adapter outside Vulkan is of no use to it either)."""
+        if NPU_NAME.search(a.name):
+            return "name"
         try:
-            found = {luid: (index, dtype) for index, dtype, luid in listing() if luid is not None}
-        except Exception as e:  # no Vulkan driver: the memory rule decides, and build_env falls back to its own numbering
+            if compute_only(a.luid):
+                return "compute-only adapter"
+        except Exception:
+            pass
+        if self._vulkan and a.luid not in self._vulkan:
+            return "not a Vulkan device"
+        return None
+
+    @staticmethod
+    def _default_compute_only() -> Callable[[int], bool | None]:
+        try:
+            return AdapterComputeOnly().read
+        except Exception as e:  # no gdi32 (not Windows): the other two rules still apply
+            log.info("Adapter type unavailable: %s", e)
+            return lambda luid: None
+
+    @staticmethod
+    def _read_vulkan(listing: Callable[[], list[tuple[int, int, int | None]]]) -> dict[int, tuple[int, int]]:
+        """{LUID: (Vulkan number, device type)}; empty when Vulkan cannot be read, and then the memory rule decides what is integrated."""
+        try:
+            return {luid: (index, dtype) for index, dtype, luid in listing() if luid is not None}
+        except Exception as e:
             log.info("Vulkan device list unavailable: %s", e)
-            return
-        for a in self.cards:
-            if a.luid in found:
-                a.vulkan_index, a.vulkan_type = found[a.luid]
+            return {}
 
     @staticmethod
     def _default_temperature() -> Callable[[int], int | None]:

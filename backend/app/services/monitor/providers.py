@@ -158,65 +158,61 @@ def _s(v) -> str:
 
 
 class CompositeProvider:
-    """Every provider that works on this machine, seen as one: devices are numbered across vendors, one after another."""
+    """Every provider that works on this machine, seen as one: devices are numbered across vendors, one after another.
+
+    NPUs are left out here, whichever provider reports them (kind == "npu"): Ollama cannot compute on them, so they are neither shown nor
+    offered as an instance's device. The numbers a provider uses in its per-process tables are translated to the app's numbers."""
 
     def __init__(self, providers: list[GpuProvider]):
         self.providers = providers
         self.name = "+".join(p.name for p in providers) or "none"
-        self._offsets: list[int] = []
+        self._maps: list[dict[int, int]] = []
 
     def devices(self) -> list[GpuInfo]:
         out: list[GpuInfo] = []
-        self._offsets = []
+        self._maps = []
         for p in self.providers:
-            self._offsets.append(len(out))
+            mapping: dict[int, int] = {}
             try:
                 found = p.devices()
             except Exception:  # one vendor failing must not hide the others
                 log.exception("GPU query failed (%s)", p.name)
                 found = []
             for g in found:
+                if g.kind == "npu":
+                    continue
+                mapping[g.index] = len(out)
                 out.append(replace(g, index=len(out), env_index=g.index if g.env_index is None else g.env_index))
+            self._maps.append(mapping)
         return out
+
+    def _merge(self, name: str, what: str):
+        """The providers' per-process tables merged under the app's GPU numbers; None when no provider can tell."""
+        if not self._maps:
+            self.devices()
+        merged = None
+        for p, mapping in zip(self.providers, self._maps):
+            try:
+                table = getattr(p, name)()
+            except Exception:
+                log.exception("GPU %s query failed (%s)", what, p.name)
+                table = None
+            if table is None:
+                continue
+            merged = merged if merged is not None else {}
+            for pid, per_gpu in table.items():
+                cur = merged.setdefault(pid, {})
+                for gpu, value in per_gpu.items():
+                    if gpu in mapping:
+                        cur[mapping[gpu]] = value
+        return merged
 
     def process_vram(self) -> ProcessVram | None:
         """Per-process VRAM merged over the providers that can tell; None when none can."""
-        if not self._offsets:
-            self.devices()
-        merged: ProcessVram | None = None
-        for p, off in zip(self.providers, self._offsets):
-            try:
-                table = p.process_vram()
-            except Exception:
-                log.exception("GPU per-process query failed (%s)", p.name)
-                table = None
-            if table is None:
-                continue
-            merged = merged if merged is not None else {}
-            for pid, per_gpu in table.items():
-                cur = merged.setdefault(pid, {})
-                for gpu, used in per_gpu.items():
-                    cur[gpu + off] = used
-        return merged
+        return self._merge("process_vram", "per-process")
 
     def process_util(self) -> ProcessUtil | None:
-        if not self._offsets:
-            self.devices()
-        merged: ProcessUtil | None = None
-        for p, off in zip(self.providers, self._offsets):
-            try:
-                table = p.process_util()
-            except Exception:
-                log.exception("GPU per-process utilization query failed (%s)", p.name)
-                table = None
-            if table is None:
-                continue
-            merged = merged if merged is not None else {}
-            for pid, per_gpu in table.items():
-                cur = merged.setdefault(pid, {})
-                for gpu, pct in per_gpu.items():
-                    cur[gpu + off] = pct
-        return merged
+        return self._merge("process_util", "per-process utilization")
 
     def close(self) -> None:
         for p in self.providers:

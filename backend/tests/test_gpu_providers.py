@@ -406,3 +406,54 @@ def test_build_env_uses_the_vulkan_number_the_provider_read():
     p = WindowsProvider(FakeCounters(win_table()), ADAPTERS, vulkan=lambda: [(0, 2, NV), (3, VK_INTEGRATED, IGPU)])
     dev = p.devices()[0]
     assert build_env(1, InstanceOptions(gpu=0), {}, None, [dev])["GGML_VK_VISIBLE_DEVICES"] == "3"
+
+
+# ---- NPUs are left out
+
+NPU = 0x7777
+NPU_TABLE = lambda: win_table(**{r"\GPU Adapter Memory(*)\Dedicated Usage": {L(IGPU): 0, L(NPU): 0},
+                                 r"\GPU Adapter Memory(*)\Shared Usage": {L(IGPU): 0, L(NPU): 0}})
+
+
+def with_npu(name, **kw):
+    cards = [Adapter("AMD Radeon(TM) Graphics", 0x1002, IGPU, 512 * 2**20, 32 * GiB), Adapter(name, 0x8086, NPU, 0, 16 * GiB)]
+    return [g.name for g in WindowsProvider(FakeCounters(NPU_TABLE()), lambda: cards, **kw).devices()]
+
+
+def test_an_adapter_named_like_an_npu_is_left_out():
+    for name in ("Intel(R) AI Boost", "AMD IPU Device", "NPU Compute Accelerator Device", "Qualcomm(R) Hexagon(TM) NPU", "AMD XDNA"):
+        assert with_npu(name) == ["AMD Radeon(TM) Graphics"], name
+    assert with_npu("Intel(R) Arc(TM) Graphics") == ["AMD Radeon(TM) Graphics", "Intel(R) Arc(TM) Graphics"]  # a real GPU is not mistaken for one
+
+
+def test_a_compute_only_adapter_is_left_out_and_an_unanswered_query_leaves_it_in():
+    assert with_npu("Some Accelerator", compute_only=lambda luid: luid == NPU) == ["AMD Radeon(TM) Graphics"]
+    assert len(with_npu("Some Accelerator", compute_only=lambda luid: None)) == 2
+
+
+def test_an_adapter_vulkan_does_not_list_is_left_out_only_when_vulkan_can_be_read():
+    from app.services.monitor.windows import VK_INTEGRATED
+
+    listed = lambda: [(0, VK_INTEGRATED, IGPU)]
+    assert with_npu("Some Accelerator", vulkan=listed) == ["AMD Radeon(TM) Graphics"]
+
+    def no_vulkan():
+        raise OSError("no vulkan")
+
+    assert len(with_npu("Some Accelerator", vulkan=no_vulkan)) == 2
+    assert len(with_npu("Some Accelerator", vulkan=lambda: [(0, VK_INTEGRATED, None)])) == 2  # devices without LUIDs say nothing about this adapter
+
+
+def test_a_machine_with_only_an_npu_has_no_windows_gpu():
+    only = [Adapter("Intel(R) AI Boost", 0x8086, NPU, 0, 16 * GiB)]
+    table = win_table(**{r"\GPU Adapter Memory(*)\Dedicated Usage": {L(NPU): 0}})
+    with pytest.raises(RuntimeError):
+        WindowsProvider(FakeCounters(table), lambda: only)
+
+
+def test_the_composite_drops_npus_from_any_provider_and_keeps_the_process_numbers_straight():
+    nv = Fake("nvml", [GpuInfo(0, "n", "RTX", 8, 1, vendor="nvidia")])
+    other = Fake("x", [GpuInfo(0, "p", "NPU 0", 1, 0, vendor="intel", kind="npu"), GpuInfo(1, "g", "Radeon", 4, 1, vendor="amd")], {7: {0: 111, 1: 222}})
+    comp = CompositeProvider([nv, other])
+    assert [(g.index, g.name) for g in comp.devices()] == [(0, "RTX"), (1, "Radeon")]
+    assert comp.process_vram() == {7: {1: 222}}  # the provider's GPU 1 is the app's GPU-1; its NPU 0 has no number
