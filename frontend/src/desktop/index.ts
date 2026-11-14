@@ -37,7 +37,7 @@ export const notifySettingsChanged = (): void => window.omm?.settingsChanged();
  */
 export function openMonitorWindow(id: number): void {
   if (window.omm?.openMonitor) { window.omm.openMonitor(id); return; }
-  window.open(`${location.origin}${location.pathname}#monitor=${id}`, `omm-monitor-${id}`, 'popup,width=580,height=820');
+  window.open(`${location.origin}${location.pathname}#monitor=${id}`, `omm-monitor-${id}`, 'popup,width=480,height=720');
 }
 
 /** The desktop shell on macOS hides the system title bar: the page's header is the drag region (see styles/_titlebar.scss). */

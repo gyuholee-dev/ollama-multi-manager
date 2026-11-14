@@ -35,6 +35,21 @@ if (!app.requestSingleInstanceLock()) {
   // is repositioned wrongly (the system loses the start of the move, "Window move completed without beginning"),
   // while a window dragged by a drag region of the page moves correctly. The page draws the header, which is the
   // drag region, and leaves room for the traffic-light buttons. OMM_NATIVE_TITLEBAR=1 brings the system one back.
+  // The width a window gets when it is made for the first time (the height: see firstBounds; later ones remember what the user chose, except the monitor window's width).
+  const MAIN_SIZE = { width: 960 };
+  const MONITOR_SIZE = { width: 480 };
+  const MAX_FIRST_HEIGHT = 1200; // the most a window is high at first, whatever the screen
+
+  /**
+   * The place and size of a window that has none saved: its width, and the height of the work area (the screen without taskbar, dock or menu bar)
+   * of the display it opens on, at most MAX_FIRST_HEIGHT, at the top of that area and centred across it (`shift` px to the right of the centre).
+   * `near` is a point on the display: the centre of the main window, or the pointer.
+   */
+  function firstBounds(width, near, shift = 0) {
+    const a = screen.getDisplayNearestPoint(near || screen.getCursorScreenPoint()).workArea;
+    return { width, height: Math.min(a.height, MAX_FIRST_HEIGHT), x: Math.round(a.x + (a.width - width) / 2) + shift, y: a.y };
+  }
+
   // The height of the page's header row (and of the title row of a dialog or page), in px: the one number the system's window buttons
   // follow. Windows: the three buttons are this high. macOS: the traffic lights are centred in it. The page takes it as --header-h.
   const HEADER_HEIGHT = 44;
@@ -213,13 +228,18 @@ if (!app.requestSingleInstanceLock()) {
       return;
     }
     const saved = monitorBounds(id);
+    // none saved: as high as the display of the main window allows (the windows already open sit a little to the right of each other)
+    const main = win && !win.isDestroyed() ? win.getBounds() : null;
+    const first = saved?.height ? null : firstBounds(MONITOR_SIZE.width, main && { x: main.x + Math.round(main.width / 2), y: main.y + Math.round(main.height / 2) }, 28 * monitors.size);
     const w = new BrowserWindow({
-      width: saved?.width || 480, height: saved?.height || 820, x: saved?.x, y: saved?.y, minWidth: 420, minHeight: 360, show: false, title: 'Ollama Multi Manager',
+      // the width is fixed (only the height changes); the window is neither maximized nor made full screen, which would widen it
+      width: MONITOR_SIZE.width, minWidth: MONITOR_SIZE.width, maxWidth: MONITOR_SIZE.width, maximizable: false, fullscreenable: false,
+      height: saved?.height || first.height, x: saved?.x ?? first?.x, y: saved?.y ?? first?.y, minHeight: 360, show: false, title: 'Ollama Multi Manager',
       backgroundColor: nativeTheme.shouldUseDarkColors ? '#1c1c1c' : '#ebebeb', ...titleBar(),
       webPreferences: webPrefs(),
     });
     monitors.set(id, w);
-    w.once('ready-to-show', () => { w.show(); if (saved?.maximized) w.maximize(); }); // maximized only once it is on screen
+    w.once('ready-to-show', () => w.show());
     trackBounds(w, () => saveMonitorState(id, w));
     w.on('close', () => saveMonitorState(id, w, true));
     w.loadURL(`${backend.url}/#token=${backend.token}&monitor=${id}`);
@@ -230,8 +250,9 @@ if (!app.requestSingleInstanceLock()) {
 
   function createWindow() {
     const st = loadState();
+    const first = st.width && st.height ? null : firstBounds(MAIN_SIZE.width); // nothing saved: the display under the pointer
     win = new BrowserWindow({
-      width: st.width || 1100, height: st.height || 760, x: st.x, y: st.y, minWidth: 480, minHeight: 480,
+      width: st.width || first.width, height: st.height || first.height, x: st.x ?? first?.x, y: st.y ?? first?.y, minWidth: 480, minHeight: 480,
       show: false, title: 'Ollama Multi Manager', backgroundColor: nativeTheme.shouldUseDarkColors ? '#1c1c1c' : '#ebebeb', ...titleBar(),
       webPreferences: webPrefs(),
     });
