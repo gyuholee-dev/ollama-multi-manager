@@ -61,6 +61,7 @@ header:not(.mwh) {
   height: calc(var(--header-h) + 1px); // the row and the line under it
   border-bottom: 1px solid var(--line);
 
+
   .btns {
     display: flex;
 
@@ -115,6 +116,12 @@ header:not(.mwh) {
       }
     }
   }
+}
+
+// the monitor window's header has the same line under it (the height of the row and the line, as above)
+header.mwh {
+  height: calc(var(--header-h) + 1px);
+  border-bottom: 1px solid var(--line);
 }
 
 // the monitor window's category buttons: the shown ones (active) take the page background colour

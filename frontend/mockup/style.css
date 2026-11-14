@@ -196,6 +196,11 @@ header:not(.mwh) button:active, header:not(.mwh) button.on {
   }
 }
 
+header.mwh {
+  height: calc(var(--header-h) + 1px);
+  border-bottom: 1px solid var(--line);
+}
+
 header.mwh button.on,
 header.mwh button.on:hover {
   background: var(--bg);
@@ -2020,6 +2025,12 @@ dialog:not(#pop) > .dh > .btns {
   background: var(--bg);
   color: var(--text);
   --surf: var(--bg);
+}
+.mwin .dbody {
+  padding-top: 16px;
+}
+.mwin section:last-child {
+  margin-bottom: 0;
 }
 
 .mpart:not(:last-child) {

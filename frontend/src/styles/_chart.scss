@@ -127,6 +127,15 @@ dialog:not(#pop) > .dh {
   background: var(--bg);
   color: var(--text);
   --surf: var(--bg);
+
+  .dbody {
+    padding-top: 16px; // (the header above has its line, then room before the first section)
+  }
+
+  // the last section ends at the body's own bottom padding, not after a margin of its own as well
+  section:last-child {
+    margin-bottom: 0;
+  }
 }
 
 // a part of a section of the monitor window: its title, then what it shows. The parts are closed by a hairline (the last one has none); the gaps
