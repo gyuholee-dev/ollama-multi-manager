@@ -5,6 +5,7 @@
 #utabs,
 #ltabs,
 #stabs,
+.tabs,
 #mtabs {
   margin: 0 8px 0 auto;
   min-width: 0;
@@ -23,6 +24,7 @@
 #utabs button,
 #ltabs button,
 #stabs button,
+.tabs button,
 #mtabs button {
   flex: none;
 }
@@ -32,6 +34,7 @@ section.off #stabs,
 section.off #utabs,
 section.off #ltabs,
 section.off #stabs,
+section.off .tabs,
 section.off #mtabs {
   opacity: 0;
   transform: translateX(32px);
@@ -52,6 +55,7 @@ main #stabs,
 main #utabs,
 main #ltabs,
 main #stabs,
+main .tabs,
 main #mtabs {
   --surf: var(--bg);
 }
@@ -61,6 +65,7 @@ main #stabs button,
 main #utabs button,
 main #ltabs button,
 main #stabs button,
+main .tabs button,
 main #mtabs button {
   background: var(--btn);
 }
@@ -70,6 +75,7 @@ main #stabs button:hover,
 main #utabs button:hover,
 main #ltabs button:hover,
 main #stabs button:hover,
+main .tabs button:hover,
 main #mtabs button:hover {
   background: light-dark(#cbcbcb,color-mix(in srgb,var(--btn) 50%,var(--surf)));
 }
@@ -89,8 +95,11 @@ main #ltabs button.on:hover,
 main #stabs button:active,
 main #stabs button.on,
 main #stabs button.on:hover,
+main .tabs button:active,
 main #mtabs button:active,
+main .tabs button.on,
 main #mtabs button.on,
+main .tabs button.on:hover,
 main #mtabs button.on:hover {
   background: light-dark(#bcbcbc,color-mix(in srgb,var(--btn) 25%,var(--surf)));
 }

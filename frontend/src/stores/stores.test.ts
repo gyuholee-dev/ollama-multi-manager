@@ -72,11 +72,11 @@ describe('uiStore', () => {
     expect(useUiStore.getState().sumOn).toEqual(['perf']);
     expect(useUiStore.getState().collapsed).toEqual(['logs']);
   });
-  it('shows every monitor category at first and toggles each one', () => {
+  it('shows every part of the monitor window at first and toggles each one', () => {
     useUiStore.setState({ imHide: [] });
-    useUiStore.getState().toggleImCat('res');
-    expect(useUiStore.getState().imHide).toEqual(['res']);
-    useUiStore.getState().toggleImCat('res');
+    useUiStore.getState().toggleImPart('cpu');
+    expect(useUiStore.getState().imHide).toEqual(['cpu']);
+    useUiStore.getState().toggleImPart('cpu');
     expect(useUiStore.getState().imHide).toEqual([]);
   });
   it('opens every monitor sub-section at first and remembers the ones that are closed', () => {

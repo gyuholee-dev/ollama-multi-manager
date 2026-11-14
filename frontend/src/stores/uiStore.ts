@@ -2,7 +2,7 @@ import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import type { SortKey } from '@/lib/derive';
 
-export type SectionId = 'sum' | 'mon' | 'inst' | 'logs';
+export type SectionId = 'sum' | 'mon' | 'inst' | 'logs' | 'imModels' | 'imState' | 'imRes' | 'imLog'; // (the last four: the sections of the monitor window)
 
 interface UiState {
   // volatile
@@ -17,7 +17,7 @@ interface UiState {
   sortDir: 1 | -1;
   sumOn: string[];
   monOff: string[]; // system monitor boxes switched off (a box that is not listed is shown: a new GPU starts on)
-  imHide: string[]; // the categories of the instance monitor window that are switched off
+  imHide: string[]; // the parts of the instance monitor window that are switched off (by the buttons in their section's header)
   imFold: string[]; // the sub-sections of the instance monitor window that are closed
   collapsed: SectionId[];
 
@@ -29,7 +29,7 @@ interface UiState {
   sortBy: (key: SortKey) => void;
   toggleSum: (id: string) => void;
   toggleMon: (id: string) => void;
-  toggleImCat: (id: string) => void;
+  toggleImPart: (id: string) => void;
   toggleImFold: (id: string) => void;
   toggleSection: (id: SectionId) => void;
 }
@@ -64,7 +64,7 @@ export const useUiStore = create<UiState>()(
       },
       toggleSum: (id) => set({ sumOn: toggle(get().sumOn, id) }),
       toggleMon: (id) => set({ monOff: toggle(get().monOff, id) }),
-      toggleImCat: (id) => set({ imHide: toggle(get().imHide, id) }),
+      toggleImPart: (id) => set({ imHide: toggle(get().imHide, id) }),
       toggleImFold: (id) => set({ imFold: toggle(get().imFold, id) }),
       toggleSection: (id) => set({ collapsed: toggle(get().collapsed, id) }),
     }),

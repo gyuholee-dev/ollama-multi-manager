@@ -69,11 +69,6 @@
     }
   }
 
-  // a part that does not fold: the title only, nothing to click
-  &--fixed > .fold__head {
-    cursor: default;
-  }
-
   // a row, closed by a hairline (the last one has none)
   &:not(:last-child) {
     border-bottom: 1px solid var(--row-line);

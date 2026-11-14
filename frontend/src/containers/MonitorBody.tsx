@@ -3,6 +3,7 @@ import { api } from '@/api/client';
 import type { InstanceSample, Perf, RequestDetail, RequestEntry, RequestsResponse, SeriesPoint } from '@/api/types';
 import { BarChart, LineChart, niceMax } from '@/components/charts/Charts';
 import { Collapse } from '@/components/common/Collapse';
+import { Section } from '@/components/common/Section';
 import type { InstanceView } from '@/lib/derive';
 import { expAt, fmtUp, hms, memoryLabel } from '@/lib/format';
 import { gb } from '@/lib/units';
@@ -10,7 +11,18 @@ import { useT } from '@/locales/useT';
 import { useLogStore } from '@/stores/logStore';
 import { useHistoryStore, type Sample } from '@/stores/historyStore';
 import { useMonitorStore } from '@/stores/monitorStore';
-import { useUiStore } from '@/stores/uiStore';
+import { useUiStore, type SectionId } from '@/stores/uiStore';
+
+/** One part of a section of the monitor: a titled block (folding in the dialog, fixed in the window). */
+/** The name on a group button: the title without a note in brackets at its end ("Per model (last 5 min)" -> "Per model"). */
+const short = (title: string): string => title.replace(/\s*[(（][^)）]*[)）]\s*$/, '');
+
+interface Part {
+  id: string;
+  title: string;
+  boxed?: boolean;
+  body: ReactNode;
+}
 
 const NONE: Sample[] = [];
 /** The live graphs always show this much time, so their left edge reads the same on every graph. */
@@ -28,9 +40,6 @@ function liveWindow(all: Sample[]): { recent: Sample[]; slots: (Sample | null)[]
   while (slots.length < n) slots.unshift(null);
   return { recent, slots };
 }
-
-/** The four kinds of information of the window; the buttons under its title switch each one on or off. */
-const CATEGORIES: [string, string][] = [['models', 'd.models'], ['state', 'f.state'], ['res', 'd.res'], ['log', 'im.history']];
 
 function Cell({ label, value, unit, tone }: { label: string; value: ReactNode; unit?: string; tone?: '--err' | '--warn' }) {
   return (
@@ -96,31 +105,17 @@ function InstanceLog({ name }: { name: string }) {
 const fixed = (v: number | null | undefined, digits = 1): string => (v == null ? '-' : v.toFixed(digits));
 const sum = (xs: number[]): number => xs.reduce((a, x) => a + x, 0);
 
-/** The buttons that switch the four categories of the monitor on or off (they sit in the header of the dialog or window). */
-export function CategoryButtons() {
-  const t = useT();
-  const imHide = useUiStore((s) => s.imHide);
-  const toggleCat = useUiStore((s) => s.toggleImCat);
-  return (
-    <>
-      {CATEGORIES.map(([key, label]) => (
-        <button key={key} className={`small${imHide.includes(key) ? '' : ' on'}`} onClick={() => toggleCat(key)}>{t(label)}</button>
-      ))}
-    </>
-  );
-}
-
 /** Live numbers and graphs of one running instance: what it is doing now, the last hour, and its resources. */
-/** `folds` false: the parts of each section are always open and cannot be folded (the monitor window). */
+/** `folds` false: the monitor window, whose parts are plain blocks that cannot be folded and are switched on and off by the buttons of their section. */
 export function MonitorBody({ id, view, folds = true }: { id: number; view: InstanceView; folds?: boolean }) {
   const t = useT();
   const snap = useMonitorStore((s) => s.snap);
   const samples = useHistoryStore((s) => s.series[String(id)] ?? NONE);
   const imFold = useUiStore((s) => s.imFold);
   const imHide = useUiStore((s) => s.imHide);
-  const shown = (cat: string) => !folds || !imHide.includes(cat); // (the monitor window, which has no buttons to switch a part, shows all)
+  const toggleHide = useUiStore((s) => s.toggleImPart);
+  const shown = (part: string) => folds || !imHide.includes(part); // (the dialog shows all parts; the window's buttons switch them off)
   const open = (key: string) => !folds || !imFold.includes(key);
-  const plain = !folds; // (not `fixed`: that is the number formatter above)
   const [hour, setHour] = useState<SeriesPoint[] | null>(null);
   const [recent, setRecent] = useState<RequestsResponse['requests']>([]);
 
@@ -128,8 +123,8 @@ export function MonitorBody({ id, view, folds = true }: { id: number; view: Inst
     let alive = true;
     // only what is shown is asked for
     Promise.all([
-      shown('state') && open('hour') ? api.get<{ series: SeriesPoint[] }>(`/monitor/requests?minutes=60&instance=${id}`).then((r) => r.series) : Promise.resolve(null),
-      shown('log') && open('recent') ? api.get<RequestsResponse>(`/instances/${id}/requests?limit=20`).then((q) => q.requests) : Promise.resolve(null),
+      shown('hour') && open('hour') ? api.get<{ series: SeriesPoint[] }>(`/monitor/requests?minutes=60&instance=${id}`).then((r) => r.series) : Promise.resolve(null),
+      shown('recent') && open('recent') ? api.get<RequestsResponse>(`/instances/${id}/requests?limit=20`).then((q) => q.requests) : Promise.resolve(null),
     ]).then(([series, requests]) => { if (alive) { if (series) setHour(series); if (requests) setRecent(requests); } }, () => { /* keep what is shown */ });
     return () => { alive = false; };
   }, [id, snap, imFold, imHide]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -175,34 +170,36 @@ export function MonitorBody({ id, view, folds = true }: { id: number; view: Inst
   const live = samples.length >= 2;
   const collecting = <div className="sub">{t('im.collecting')}</div>;
 
-  return (
-        <div id="dt">
-          {shown('models') && (
-          <div className="box fgroup"><div className="fgroup__head"><h4 className="fgroup__title">{t('d.models')}</h4></div>
-            <Collapse fixed={plain} id="loaded" title={t('d.loaded')}>
-              {view.loaded.length ? view.loaded.map((x) => (
-                <div className="kv" key={x.name}><label>{x.name} · {x.gb.toFixed(1)} GB</label><span className="sub">{expAt(x.exp, view.keep, t)}</span></div>
-              )) : <div className="sub">{t('d.none')}</div>}
-            </Collapse>
-            <Collapse fixed={plain} id="bymodel" title={t('rq.byModel')}>
-              {p && Object.keys(p.models).length > 0 ? (
-                <div className="rqw"><table className="rq"><tbody>
-                  <tr><th>{t('rq.model')}</th><th className="r">{t('rq.count')}</th><th className="r">{t('rq.speed')}</th><th className="r">{t('rq.avg')}</th></tr>
-                  {Object.entries(p.models).map(([name, x]) => (
-                    <tr key={name}><td>{name}</td>
-                      <td className="r">{x.requests}{x.errors > 0 && <> <span className="bad">({x.errors})</span></>}</td>
-                      <td className="r">{x.tok_per_s != null ? `${Math.round(x.tok_per_s)} tok/s` : '-'}</td>
-                      <td className="r">{x.latency_avg != null ? `${x.latency_avg.toFixed(1)} s` : '-'}</td></tr>
-                  ))}
-                </tbody></table></div>
-              ) : <div className="sub">{t('rq.none')}</div>}
-            </Collapse>
-          </div>
-          )}
-
-          {shown('state') && (
-          <div className="box fgroup"><div className="fgroup__head"><h4 className="fgroup__title">{t('f.state')}</h4></div>
-            <Collapse fixed={plain} id="now" title={t('im.now')}>
+  // The parts of the monitor, grouped in four sections. The dialog shows each section as a box with folding parts; the window shows each as a
+  // section like those of the main view: its header has the name, a button per part to switch it on or off, and the button that hides the section.
+  const sections: { id: SectionId; title: string; parts: Part[] }[] = [
+    {
+      id: 'imModels', title: t('d.models'), parts: [
+        {
+          id: 'loaded', title: t('d.loaded'), body: view.loaded.length ? view.loaded.map((x) => (
+            <div className="kv" key={x.name}><label>{x.name} · {x.gb.toFixed(1)} GB</label><span className="sub">{expAt(x.exp, view.keep, t)}</span></div>
+          )) : <div className="sub">{t('d.none')}</div>,
+        },
+        {
+          id: 'bymodel', title: t('rq.byModel'), body: p && Object.keys(p.models).length > 0 ? (
+            <div className="rqw"><table className="rq"><tbody>
+              <tr><th>{t('rq.model')}</th><th className="r">{t('rq.count')}</th><th className="r">{t('rq.speed')}</th><th className="r">{t('rq.avg')}</th></tr>
+              {Object.entries(p.models).map(([name, x]) => (
+                <tr key={name}><td>{name}</td>
+                  <td className="r">{x.requests}{x.errors > 0 && <> <span className="bad">({x.errors})</span></>}</td>
+                  <td className="r">{x.tok_per_s != null ? `${Math.round(x.tok_per_s)} tok/s` : '-'}</td>
+                  <td className="r">{x.latency_avg != null ? `${x.latency_avg.toFixed(1)} s` : '-'}</td></tr>
+              ))}
+            </tbody></table></div>
+          ) : <div className="sub">{t('rq.none')}</div>,
+        },
+      ],
+    },
+    {
+      id: 'imState', title: t('f.state'), parts: [
+        {
+          id: 'now', title: t('im.now'), body: (
+            <>
               <div className="sc">
                 <Cell label={t('c.reqs')} value={p ? p.processing : '-'} unit={p ? ` ${t('u.case')}` : undefined} />
                 <Cell label={t('c.queued')} value={p ? p.queued : '-'} unit={p ? ` ${t('u.case')}` : undefined} />
@@ -216,8 +213,12 @@ export function MonitorBody({ id, view, folds = true }: { id: number; view: Inst
               <div className="sub" style={{ marginTop: 8 }}>
                 {t('im.window', { m: p ? Math.round(p.window_seconds / 60) : 5 })} · {t('d.uptime')} {running ? fmtUp(Date.now() - view.startedAt, t) : '-'}
               </div>
-            </Collapse>
-            <Collapse fixed={plain} id="hour" title={t('im.hour')}>
+            </>
+          ),
+        },
+        {
+          id: 'hour', title: t('im.hour'), body: (
+            <>
               <div className="sc" style={{ marginBottom: 12 }}>
                 <Cell label={t('im.total')} value={<>{total} / <span style={errors ? { color: 'var(--err)' } : undefined}>{errors}</span></>} unit={` ${t('u.case')}`} />
                 <Cell label={t('im.tokIn')} value={tokIn} />
@@ -228,54 +229,86 @@ export function MonitorBody({ id, view, folds = true }: { id: number; view: Inst
                 format={(v) => `${Math.round(v)} tok/s`} />
               <LineChart title={t('im.latency')} value={nowLatency} points={series.map((x) => x.latency_avg)} max={latencyMax} left={hourLeft} right={hourRight} floor={1}
                 format={(v) => `${v.toFixed(1)} s`} />
-            </Collapse>
-          </div>
-          )}
+            </>
+          ),
+        },
+      ],
+    },
+    {
+      id: 'imRes', title: t('d.res'), parts: [
+        {
+          id: 'cpu', title: 'CPU', body: live ? <LineChart title="CPU" value={last ? `${last.cpu.toFixed(1)} %` : undefined} points={slots.map((x) => x?.cpu ?? null)} max={100}
+            left={liveLeft} right={liveRight} format={(v) => `${Math.round(v)} %`} /> : collecting,
+        },
+        {
+          id: 'mem', title: t('c.mem'), body: live ? <LineChart title={t('c.mem')} value={last ? `${last.rss.toFixed(1)} GB` : undefined} points={slots.map((x) => x?.rss ?? null)} max={memTotal}
+            left={liveLeft} right={liveRight} format={(v) => `${v.toFixed(1)} GB`} /> : collecting,
+        },
+        ...(!memReadable ? [{
+          id: 'vram', title: memName, body: (
+            <div className="chart off"><div className="chh"><span className="sub">{memName}</span><span className="val">-</span></div><div className="plot" /><div className="sub off-note">{t('mon.unsupported')}</div></div>
+          ),
+        }] : []),
+        ...(memReadable && hasVram ? [{
+          id: 'vram', title: memName, body: (
+            <LineChart title={memName} value={last?.vram != null ? `${last.vram.toFixed(1)} GB${m?.vram_source === 'estimated' ? ' ~' : ''}` : undefined}
+              points={slots.map((x) => x?.vram ?? null)} max={vramTotal || undefined} left={liveLeft} right={liveRight} floor={1} format={(v) => `${v.toFixed(1)} GB`} />
+          ),
+        }] : []),
+        {
+          id: 'conc', title: t('im.conc'), body: live ? <LineChart title={t('im.conc')} value={last ? `${last.processing} + ${last.queued}` : undefined}
+            points={slots.map((x) => (x ? x.processing + x.queued : null))} max={view.parallel} left={liveLeft} right={liveRight} floor={1} format={(v) => v.toFixed(1)} /> : collecting,
+        },
+      ],
+    },
+    {
+      id: 'imLog', title: t('im.history'), parts: [
+        {
+          id: 'recent', title: t('rq.recent'), boxed: true, body: recent.length ? (
+            <div className="rqw"><table className="rq"><tbody>
+              <tr><th>{t('rq.time')}</th><th>{t('rq.path')}</th><th className="r">{t('rq.status')}</th><th className="r">{t('rq.dur')}</th><th className="r">{t('rq.tok')}</th></tr>
+              {recent.map((r) => <RequestRow key={r.id} iid={id} r={r} />)}
+            </tbody></table></div>
+          ) : <div className="sub">{t('rq.none')}</div>,
+        },
+        { id: 'ilog', title: t('im.log'), boxed: true, body: <InstanceLog name={view.name} /> },
+      ],
+    },
+  ];
 
-          {shown('res') && (
-          <div className="box fgroup"><div className="fgroup__head"><h4 className="fgroup__title">{t('d.res')}</h4></div>
-            <Collapse fixed={plain} id="cpu" title="CPU">
-              {live ? <LineChart title="CPU" value={last ? `${last.cpu.toFixed(1)} %` : undefined} points={slots.map((x) => x?.cpu ?? null)} max={100}
-                left={liveLeft} right={liveRight} format={(v) => `${Math.round(v)} %`} /> : collecting}
-            </Collapse>
-            <Collapse fixed={plain} id="mem" title={t('c.mem')}>
-              {live ? <LineChart title={t('c.mem')} value={last ? `${last.rss.toFixed(1)} GB` : undefined} points={slots.map((x) => x?.rss ?? null)} max={memTotal}
-                left={liveLeft} right={liveRight} format={(v) => `${v.toFixed(1)} GB`} /> : collecting}
-            </Collapse>
-            {!memReadable && (
-              <Collapse fixed={plain} id="vram" title={memName}>
-                <div className="chart off"><div className="chh"><span className="sub">{memName}</span><span className="val">-</span></div><div className="plot" /><div className="sub off-note">{t('mon.unsupported')}</div></div>
-              </Collapse>
-            )}
-            {memReadable && hasVram && (
-              <Collapse fixed={plain} id="vram" title={memName}>
-                <LineChart title={memName} value={last?.vram != null ? `${last.vram.toFixed(1)} GB${m?.vram_source === 'estimated' ? ' ~' : ''}` : undefined}
-                  points={slots.map((x) => x?.vram ?? null)} max={vramTotal || undefined} left={liveLeft} right={liveRight} floor={1} format={(v) => `${v.toFixed(1)} GB`} />
-              </Collapse>
-            )}
-            <Collapse fixed={plain} id="conc" title={t('im.conc')}>
-              {live ? <LineChart title={t('im.conc')} value={last ? `${last.processing} + ${last.queued}` : undefined}
-                points={slots.map((x) => (x ? x.processing + x.queued : null))} max={view.parallel} left={liveLeft} right={liveRight} floor={1} format={(v) => v.toFixed(1)} /> : collecting}
-            </Collapse>
-          </div>
-          )}
+  // the dialog's parts fold; the window's do not: a title, then what it shows (in a box of its own where `boxed`)
+  const part = (x: Part) => <Collapse key={x.id} id={x.id} title={x.title}>{x.body}</Collapse>;
+  const plainPart = (x: Part) => (
+    <div className="mpart" key={x.id}>
+      <div className="mpart__title">{x.title}</div>
+      {x.boxed ? <div className="card">{x.body}</div> : x.body}
+    </div>
+  );
 
-          {shown('log') && (
-          <div className="box fgroup"><div className="fgroup__head"><h4 className="fgroup__title">{t('im.history')}</h4></div>
-            <Collapse fixed={plain} boxed id="recent" title={t('rq.recent')}>
-              {recent.length ? (
-                <div className="rqw"><table className="rq"><tbody>
-                  <tr><th>{t('rq.time')}</th><th>{t('rq.path')}</th><th className="r">{t('rq.status')}</th><th className="r">{t('rq.dur')}</th><th className="r">{t('rq.tok')}</th></tr>
-                  {recent.map((r) => <RequestRow key={r.id} iid={id} r={r} />)}
-                </tbody></table></div>
-              ) : <div className="sub">{t('rq.none')}</div>}
-            </Collapse>
-            <Collapse fixed={plain} boxed id="ilog" title={t('im.log')}>
-              <InstanceLog name={view.name} />
-            </Collapse>
+  if (folds) {
+    return (
+      <div id="dt">
+        {sections.map((sec) => (
+          <div className="box fgroup" key={sec.id}><div className="fgroup__head"><h4 className="fgroup__title">{sec.title}</h4></div>{sec.parts.map(part)}</div>
+        ))}
+      </div>
+    );
+  }
+  return (
+    <div id="dt">
+      {sections.map((sec) => {
+        const on = sec.parts.filter((x) => shown(x.id));
+        const tabs = (
+          <div className="tabs">
+            {sec.parts.map((x) => <button key={x.id} className={`small${shown(x.id) ? ' on' : ''}`} onClick={() => toggleHide(x.id)}>{short(x.title)}</button>)}
           </div>
-          )}
-        </div>
+        );
+        return (
+          <Section key={sec.id} id={sec.id} title={sec.title} tabs={tabs}>
+            {on.length > 0 && <div className="box fgroup">{on.map(plainPart)}</div>}
+          </Section>
+        );
+      })}
+    </div>
   );
 }
-

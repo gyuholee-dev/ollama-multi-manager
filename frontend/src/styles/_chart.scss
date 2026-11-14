@@ -129,9 +129,16 @@ dialog:not(#pop) > .dh {
   --surf: var(--bg);
 }
 
-// no panel under what a fold opens in this window: its content sits on the box itself, in line with the fold's title (except where .fold--boxed)
-.mwin .box .fold:not(.fold--boxed) .fold__card {
-  --surf: var(--box);
-  padding: 0;
-  background: none;
+// a part of a section of the monitor window: its title, then what it shows. The parts are closed by a hairline (the last one has none); the gaps
+// are margins and padding, not a fixed height. Where `.card` is in it (the recent requests, the log) the content sits in a box of its own.
+.mpart {
+  &:not(:last-child) {
+    margin-bottom: 14px;
+    padding-bottom: 14px;
+    border-bottom: 1px solid var(--row-line);
+  }
+
+  &__title {
+    margin-bottom: 10px;
+  }
 }
