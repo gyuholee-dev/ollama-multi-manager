@@ -7,8 +7,8 @@
         hwmon/hwmon*/temp1_input    millidegrees C (the edge temperature)
 
 An integrated GPU (APU) has only a small dedicated carve-out and uses ordinary system memory (GTT) for the rest:
-it is reported as unified memory with VRAM and GTT added together. Telling the two kinds apart is a guess from the
-carve-out size (see UNIFIED_BELOW), which is to be checked on real hardware. Per-process GPU memory is not offered
+it is reported as unified memory with VRAM and GTT added together. The two kinds are told apart by a rule on the
+carve-out size (see UNIFIED_BELOW): a GPU below it is regarded as integrated. The rule is to be checked on real hardware. Per-process GPU memory is not offered
 by this interface, so the instances' share is estimated from what Ollama reports.
 Windows and the other vendors are not covered here.
 """

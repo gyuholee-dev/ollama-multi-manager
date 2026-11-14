@@ -83,8 +83,8 @@ def cpu_by_request(o: InstanceOptions) -> bool:
 
 
 def vulkan_index(devices: list[Any], dev: Any) -> int:
-    """The device's number among Vulkan devices. Not readable from here, so it is assumed that the Vulkan loader lists discrete cards
-    before integrated graphics, each group in the app's order (RTX 5090 = 0, Radeon iGPU = 1 on the machine this was checked on)."""
+    """The device's number among Vulkan devices. Not readable from here, so the rule is that discrete cards
+    come before integrated graphics, each group in the app's order (RTX 5090 = 0, Radeon iGPU = 1 on the machine this was checked on)."""
     ranked = sorted(devices, key=lambda d: (bool(d.unified), d.index))
     return next((i for i, d in enumerate(ranked) if d.index == dev.index), 0)
 
