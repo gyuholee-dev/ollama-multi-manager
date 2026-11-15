@@ -231,7 +231,7 @@ if (!app.requestSingleInstanceLock()) {
       tell(`Screenshot (${kind}) saved: ${file}${note}`);
       await ui.done(`${l.savedNote}: ${path.basename(file)}`);
     } catch (e) {
-      if (e.message === 'canceled') {
+      if (e.code === 'CANCELED') {
         tell(`Screenshot (${kind}) canceled`);
         await ui.canceled(l.canceledNote);
       } else {

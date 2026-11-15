@@ -70,13 +70,13 @@ app.whenReady().then(async () => {
 
     // Escape cancels the choosing and leaves no picture
     const before = fs.readdirSync(dir).length;
-    const canceled = takeScreenshot(tall.webContents, 'element', { dir, label: 'canceled' }).then(() => 'picture', e => e.message);
+    const canceled = takeScreenshot(tall.webContents, 'element', { dir, label: 'canceled' }).then(() => 'picture', e => e.code);
     await sleep(500);
     tall.webContents.sendInputEvent({ type: 'mouseMove', x: 60, y: 120 });
     await sleep(100);
     tall.webContents.sendInputEvent({ type: 'keyDown', keyCode: 'Escape' });
     tall.webContents.sendInputEvent({ type: 'keyUp', keyCode: 'Escape' });
-    check('tall: Escape cancels the choosing', await canceled, 'canceled');
+    check('tall: Escape cancels the choosing', await canceled, 'CANCELED');
     check('tall: a cancel saves nothing', fs.readdirSync(dir).length, before);
     check('tall: and the page is not left in inspect mode (a picture can be taken at once)', size((await takeScreenshot(tall.webContents, 'viewport', { dir, label: 'after-cancel' })).file), [vw * dpr, vh * dpr]);
 

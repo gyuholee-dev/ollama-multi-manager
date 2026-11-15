@@ -74,6 +74,7 @@
     }
   },
   "dependencies": {
+    "cdp-screenshot-extension": "github:gyuholee-dev/cdp-screenshot-extension#main",
     "react": "^19.3.1",
     "react-dom": "^19.3.1",
     "zustand": "^5.1.0"
