@@ -2115,7 +2115,7 @@ dialog:not(#pop) > .dh > .btns {
   color: var(--text);
   --surf: var(--bg);
 }
-.mwin .dbody {
+.mwin:not(.page) .dbody {
   padding-top: 16px;
 }
 .mwin section:last-child {

@@ -15,6 +15,9 @@ export interface Cfg {
   vramWarn: number;
   extMon: boolean; // "web access"
   monPort: number;
+  mcpOn: boolean; // the MCP server
+  mcpPort: number;
+  mcpLan: boolean; // other machines may connect
   exe: string;
   modelsPath: string;
 }
@@ -23,17 +26,18 @@ export interface Cfg {
 export const KEYMAP: Record<keyof Cfg, keyof Settings> = {
   defOllama: 'monitor_default_ollama', keepDays: 'history_keep_days', vramWarn: 'vram_warn_percent',
   lang: 'language', theme: 'theme', login: 'launch_at_login', tray: 'minimize_to_tray', interval: 'refresh_interval_seconds',
-  extMon: 'external_monitoring_enabled', monPort: 'external_monitoring_port', exe: 'ollama_executable_path', modelsPath: 'default_models_path',
+  extMon: 'external_monitoring_enabled', monPort: 'external_monitoring_port', mcpOn: 'mcp_enabled', mcpPort: 'mcp_port', mcpLan: 'mcp_lan', exe: 'ollama_executable_path', modelsPath: 'default_models_path',
 };
 
 export const DEFAULT_PORT = 9100;
-const DEFAULTS: Cfg = { lang: '', theme: 'system', login: false, tray: false, interval: 3, defOllama: true, keepDays: 7, vramWarn: 85, extMon: false, monPort: DEFAULT_PORT, exe: '', modelsPath: '' };
+export const DEFAULT_MCP_PORT = 9101;
+const DEFAULTS: Cfg = { lang: '', theme: 'system', login: false, tray: false, interval: 3, defOllama: true, keepDays: 7, vramWarn: 85, extMon: false, monPort: DEFAULT_PORT, mcpOn: false, mcpPort: DEFAULT_MCP_PORT, mcpLan: false, exe: '', modelsPath: '' };
 
 export const defaultCfg = (): Cfg => ({ ...DEFAULTS, lang: detectLang() });
 
 export const cfgFromApi = (s: Settings): Cfg => ({
   lang: s.language || detectLang(), theme: s.theme, login: s.launch_at_login, tray: s.minimize_to_tray,
-  interval: s.refresh_interval_seconds, defOllama: s.monitor_default_ollama, keepDays: s.history_keep_days, vramWarn: s.vram_warn_percent, extMon: s.external_monitoring_enabled, monPort: s.external_monitoring_port,
+  interval: s.refresh_interval_seconds, defOllama: s.monitor_default_ollama, keepDays: s.history_keep_days, vramWarn: s.vram_warn_percent, extMon: s.external_monitoring_enabled, monPort: s.external_monitoring_port, mcpOn: s.mcp_enabled, mcpPort: s.mcp_port, mcpLan: s.mcp_lan,
   exe: s.ollama_executable_path || '', modelsPath: s.default_models_path || '',
 });
 
@@ -80,8 +84,9 @@ export const useSettingsStore = create<SettingsState>((set, get) => ({
   reset: async () => {
     const patch: Record<string, unknown> = {};
     for (const k of Object.keys(KEYMAP) as (keyof Cfg)[]) patch[KEYMAP[k]] = k === 'lang' ? null : cfgToApi(k, DEFAULTS[k]);
-    patch.external_monitoring_password = ''; // the web admin password and the metrics token go too
+    patch.external_monitoring_password = ''; // the web admin password, the metrics token and the MCP token go too
     patch.external_monitoring_metrics_token = '';
+    patch.mcp_token = '';
     const cfg = cfgFromApi(await api.put<Settings>('/settings', patch));
     set({ cfg, saved: { ...cfg } });
   },

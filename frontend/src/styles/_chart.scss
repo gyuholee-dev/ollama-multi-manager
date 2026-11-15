@@ -128,8 +128,10 @@ dialog:not(#pop) > .dh {
   color: var(--text);
   --surf: var(--bg);
 
-  .dbody {
-    padding-top: 16px; // (the header above has its line, then room before the first section)
+  // the monitor window only: its header has a line, then room before the first section (a page, the side panel, has none: its title is
+  // already followed by the room of the title bar)
+  &:not(.page) .dbody {
+    padding-top: 16px;
   }
 
   // the last section ends at the body's own bottom padding, not after a margin of its own as well

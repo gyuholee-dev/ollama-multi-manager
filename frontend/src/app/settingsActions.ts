@@ -31,6 +31,14 @@ export async function commitSetting(field: keyof Cfg): Promise<void> {
       return;
     }
   }
+  if (field === 'mcpPort' || field === 'mcpOn') {
+    const bad = portProblem(cfg.mcpPort) ?? (cfg.mcpPort === cfg.monPort ? [t('port.conflict'), t('mcp.portWeb', { p: cfg.mcpPort })] as [string, string] : null);
+    if (cfg.mcpOn && bad) {
+      store.revert();
+      await notify('warn', ...bad);
+      return;
+    }
+  }
   // a path counts as changed only when its text differs from what was saved (touching the field and leaving it changes nothing)
   const pathChanged = (field === 'exe' || field === 'modelsPath') && String(cfg[field]).trim() !== String(store.saved[field]).trim();
   try {
@@ -45,6 +53,11 @@ export async function commitSetting(field: keyof Cfg): Promise<void> {
     try { useMonitorStore.getState().setInfo(await api.get<Info>('/info')); } catch { /* keep the old info */ }
     const x = useMonitorStore.getState().info?.external_monitoring;
     if (x?.enabled && !x.active) void notify('warn', t('ext.title'), x.error ?? '');
+  }
+  if (field === 'mcpPort' || field === 'mcpOn' || field === 'mcpLan') {
+    try { useMonitorStore.getState().setInfo(await api.get<Info>('/info')); } catch { /* keep the old info */ }
+    const m = useMonitorStore.getState().info?.mcp;
+    if (m?.enabled && m.token_set && !m.active) void notify('warn', t('mcp.title'), m.error ?? '');
   }
   if (pathChanged) void loadModels(); // another executable or folder: another list
   if (pathChanged && useInstancesStore.getState().list.some((i) => i.status.state === 'running' || i.status.state === 'starting')) {
@@ -96,6 +109,38 @@ export async function clearMetricsToken(): Promise<boolean> {
 /** The saved metrics token ("" when there is none). */
 export async function readMetricsToken(): Promise<string> {
   try { return (await api.get<Settings>('/settings')).external_monitoring_metrics_token ?? ''; } catch { return ''; }
+}
+
+/** Sets the MCP token. Resolves true when it was saved. */
+async function putMcpToken(token: string): Promise<boolean> {
+  try {
+    await api.put<Settings>('/settings', { mcp_token: token });
+  } catch (e) {
+    await fail(e);
+    return false;
+  }
+  try { useMonitorStore.getState().setInfo(await api.get<Info>('/info')); } catch { /* keep the old info */ }
+  return true;
+}
+
+/** `quiet`: a generated token is on the screen to be copied, so no popup over it. */
+export async function commitMcpToken(token: string, quiet = false): Promise<boolean> {
+  if (token.length < API_KEY_MIN) { await notify('warn', t('mcp.title'), t('key.short', { n: API_KEY_MIN })); return false; }
+  if (!(await putMcpToken(token))) return false;
+  if (!quiet) void notify('info', t('mcp.title'), t('mcp.tokenSaved'));
+  return true;
+}
+
+/** Removes the MCP token (the user emptied the field): the server stops. */
+export async function clearMcpToken(): Promise<boolean> {
+  if (!(await putMcpToken(''))) return false;
+  void notify('info', t('mcp.title'), t('mcp.tokenCleared'));
+  return true;
+}
+
+/** The saved MCP token ("" when there is none). */
+export async function readMcpToken(): Promise<string> {
+  try { return (await api.get<Settings>('/settings')).mcp_token ?? ''; } catch { return ''; }
 }
 
 export async function resetSettings(): Promise<void> {

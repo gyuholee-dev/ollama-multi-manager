@@ -52,6 +52,11 @@ export interface Settings {
   external_monitoring_metrics_token_set: boolean;
   external_monitoring_metrics_token?: string; // the metrics token itself, shown to be copied; left out for guests
   external_monitoring_session_hours: number; // how long a web sign-in lasts
+  mcp_enabled: boolean; // the MCP server (read-only tools for an MCP client)
+  mcp_port: number;
+  mcp_lan: boolean; // other machines may connect too (otherwise this PC only)
+  mcp_token_set: boolean;
+  mcp_token?: string; // the MCP token itself, shown to be copied; left out for guests
   refresh_interval_seconds: number;
   monitor_default_ollama: boolean; // show the default Ollama (11434) when it runs
   history_keep_days: number; // how long the per-minute request numbers are kept
@@ -60,7 +65,7 @@ export interface Settings {
   default_models_path?: string | null;
 }
 /** `external_monitoring_password` is write-only: "" removes the password. */
-export type SettingsPatch = Partial<Omit<Settings, 'external_monitoring_password_set' | 'external_monitoring_metrics_token_set'>> & { external_monitoring_password?: string };
+export type SettingsPatch = Partial<Omit<Settings, 'external_monitoring_password_set' | 'external_monitoring_metrics_token_set' | 'mcp_token_set'>> & { external_monitoring_password?: string };
 
 export interface WebAccessStatus {
   enabled: boolean;
@@ -71,11 +76,22 @@ export interface WebAccessStatus {
   error: string | null;
 }
 
+export interface McpStatus {
+  enabled: boolean;
+  port: number;
+  lan: boolean;
+  token_set: boolean;
+  path: string; // "/mcp"
+  active: boolean;
+  error: string | null;
+}
+
 export interface Info {
   version: string;
   platform: string;
   lan_ip: string;
   external_monitoring: WebAccessStatus;
+  mcp: McpStatus;
   guest: boolean; // true on the read-only page of web access without a password
 }
 

@@ -11,6 +11,7 @@ from app.services.webauth import DEFAULT_SESSION_HOURS, MIN_PASSWORD_LENGTH, MIN
 
 PASSWORD_KEY = "external_monitoring_password_hash"  # stored, never returned: the settings show only whether one is set
 TOKEN_KEY = "external_monitoring_metrics_token"  # the token that opens /metrics: kept as it is, so the settings window can show it to be copied (not to guests)
+MCP_TOKEN_KEY = "mcp_token"  # the token an MCP client sends: kept as it is, like the metrics token (shown in the settings window, not to guests)
 SECRET_KEYS = (PASSWORD_KEY,)
 
 
@@ -26,6 +27,7 @@ class SettingsService:
         values = {r["key"]: json.loads(r["value"]) for r in self.db.query("SELECT key, value FROM settings") if r["key"] not in SECRET_KEYS}
         values["external_monitoring_password_set"] = bool(self.get(PASSWORD_KEY))
         values["external_monitoring_metrics_token_set"] = bool(values.get(TOKEN_KEY))
+        values["mcp_token_set"] = bool(values.get(MCP_TOKEN_KEY))
         values.setdefault("external_monitoring_session_hours", DEFAULT_SESSION_HOURS)
         return values
 
@@ -45,6 +47,11 @@ class SettingsService:
             if token and len(token) < MIN_API_KEY_LENGTH:
                 raise SettingsError(f"The metrics API key needs at least {MIN_API_KEY_LENGTH} characters")
             values[TOKEN_KEY] = token or None
+        if "mcp_token" in values:  # "" removes it
+            token = values["mcp_token"] or ""
+            if token and len(token) < MIN_API_KEY_LENGTH:
+                raise SettingsError(f"The MCP token needs at least {MIN_API_KEY_LENGTH} characters")
+            values[MCP_TOKEN_KEY] = token or None
         exe = values.get("ollama_executable_path")
         if exe is not None and not (os.path.isfile(exe) and os.access(exe, os.X_OK)):
             raise SettingsError(f"ollama_executable_path is not an executable file: {exe}")

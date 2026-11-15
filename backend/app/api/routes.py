@@ -58,21 +58,26 @@ async def health() -> dict[str, str]:
 async def get_settings(request: Request) -> dict[str, Any]:
     values = request.app.state.settings.all()
     if is_guest(request):  # paths on this PC are of no use to a guest, and the metrics token is not theirs to read
-        values = {k: v for k, v in values.items() if k not in ("ollama_executable_path", "default_models_path", "external_monitoring_metrics_token")}
+        values = {k: v for k, v in values.items() if k not in ("ollama_executable_path", "default_models_path", "external_monitoring_metrics_token", "mcp_token")}
     return values
 
 
 @api.put("/settings")
 async def put_settings(patch: SettingsPatch, request: Request) -> dict[str, Any]:
     st = request.app.state
-    port = patch.external_monitoring_port
-    if port is not None and st.db.one("SELECT 1 FROM instances WHERE port=?", (port,)):
-        raise HTTPException(409, f"Port {port} is used by an instance")
+    for port in (patch.external_monitoring_port, patch.mcp_port):
+        if port is not None and st.db.one("SELECT 1 FROM instances WHERE port=?", (port,)):
+            raise HTTPException(409, f"Port {port} is used by an instance")
+    web_port = patch.external_monitoring_port if patch.external_monitoring_port is not None else st.settings.get("external_monitoring_port")
+    mcp_port = patch.mcp_port if patch.mcp_port is not None else st.settings.get("mcp_port")
+    if (patch.external_monitoring_port is not None or patch.mcp_port is not None) and web_port == mcp_port:
+        raise HTTPException(409, f"Port {mcp_port} is used by the web access; the MCP server needs a port of its own")
     try:
         result = st.settings.update(patch)
     except SettingsError as e:
         raise HTTPException(422, str(e)) from e
     await st.external.apply()
+    await st.mcp.apply()
     if "history_keep_days" in patch.model_fields_set:
         st.manager.request_stats.prune()  # a shorter period takes effect now, not at the next start
     if {"ollama_executable_path", "default_models_path"} & patch.model_fields_set:
@@ -96,7 +101,7 @@ async def shutdown(request: Request) -> dict[str, str]:
 @api.get("/info")
 async def info(request: Request) -> dict[str, Any]:
     return {"version": request.app.state.version, "platform": sys.platform, "lan_ip": lan_ip(),
-            "external_monitoring": request.app.state.external.status(), "guest": is_guest(request)}
+            "external_monitoring": request.app.state.external.status(), "mcp": request.app.state.mcp.status(), "guest": is_guest(request)}
 
 
 # ---- instances

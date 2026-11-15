@@ -54,6 +54,8 @@ const ko: Messages = {
   'set.title': '환경설정', 'set.general': '일반', 'set.login': '시스템 시작 시 자동 실행',
   'set.tray': '트레이로 최소화', 'set.lang': '언어', 'set.theme': '테마',
   'theme.system': '시스템', 'theme.light': '라이트', 'theme.dark': '다크',
+  'set.mcp': 'MCP 서버', 'set.mcpOn': 'MCP 서버 사용', 'set.mcpHint': 'Claude Desktop, Claude Code 같은 MCP 클라이언트가 이 앱의 인스턴스·모델·시스템 상태·로그를 읽을 수 있게 합니다. 읽기 전용이고 요청 내용(프롬프트와 응답)은 넘기지 않습니다. 토큰이 있어야 시작합니다.', 'set.mcpPort': 'MCP 포트', 'set.mcpLan': '다른 PC에서도 접속 허용', 'set.mcpLanHint': '끄면 이 PC에서만 접속할 수 있습니다. 켜면 같은 네트워크의 다른 PC에서 토큰으로 접속하며, 주고받는 내용이 암호화되지 않으므로 신뢰하는 네트워크에서만 켜세요.', 'set.mcpAddr': 'MCP 주소', 'set.mcpToken': 'MCP 토큰', 'set.mcpTokenHint': 'MCP 클라이언트가 Authorization: Bearer <토큰> 헤더로 보냅니다. 비우면 서버가 멈춥니다.', 'set.mcpNeedToken': '토큰을 만들면 시작합니다', 'set.mcpOff': '꺼짐',
+  'mcp.title': 'MCP 서버', 'mcp.tokenSaved': 'MCP 토큰을 저장했습니다. 이전 토큰은 더 이상 쓸 수 없습니다.', 'mcp.tokenCleared': 'MCP 토큰을 삭제했습니다. 서버가 멈춥니다.', 'mcp.portWeb': '포트 {p}은(는) 웹 접속이 쓰고 있습니다. MCP 서버는 다른 포트가 필요합니다.',
   'set.monitor': '모니터', 'set.extAddrOff': '허용 안됨', 'set.extAddr': '원격 모니터링 주소', 'btn.copy': '복사', 'btn.copied': '복사됨', 'btn.clear': '비우기', 'set.web': '원격 모니터링', 'set.ext': '원격 모니터링 허용', 'set.extPort': '원격 모니터링 포트',
   'set.interval': '측정값 갱신 주기', 'sec.n': '{n}초', 'day.n': '{n}일',
   'set.defOllama': '기본 Ollama 표시', 'set.defOllamaHint': '이 PC의 11434 포트에서 Ollama가 돌고 있으면 읽기 전용 카드로 보여 줍니다.',

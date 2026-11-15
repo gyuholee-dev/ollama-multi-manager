@@ -18,6 +18,7 @@ from app.db import Database
 from app.services.external import ExternalMonitor
 from app.services.hub import Hub
 from app.services.instances import InstanceError, InstanceManager
+from app.services.mcp import McpService
 from app.services.models import ModelService
 from app.services.monitor.collector import Collector
 from app.services.monitor.providers import GpuProvider, detect_provider
@@ -53,23 +54,25 @@ def create_app(data_dir: Path | None = None, provider: GpuProvider | None = None
         app.state.models = models
         app.state.version = VERSION
         external = app.state.external = ExternalMonitor(settings, manager, collector, app, ui if ui.is_dir() else None)
+        mcp = app.state.mcp = McpService(settings, manager, collector, models, VERSION)
         log.info("Backend started (data dir: %s)", data_dir)
 
         await models.store.cleanup_orphan()
         app.state.background = set()
         warm = asyncio.create_task(models.store.warm()) if not os.environ.get("OMM_NO_STORE_WARM") else None  # tests: no real Ollama at startup
-        tasks = [asyncio.create_task(collector.run()), asyncio.create_task(manager.restore()), asyncio.create_task(external.apply()), asyncio.create_task(manager.idle_loop())]
+        tasks = [asyncio.create_task(collector.run()), asyncio.create_task(manager.restore()), asyncio.create_task(external.apply()), asyncio.create_task(manager.idle_loop()), asyncio.create_task(mcp.apply())]
         try:
             yield
         finally:
             tasks[0].cancel()
             tasks[3].cancel()
             await asyncio.gather(tasks[0], tasks[3], return_exceptions=True)
-            await asyncio.gather(*tasks[1:3], return_exceptions=True)  # let restore finish so shutdown sees a consistent state
+            await asyncio.gather(*tasks[1:3], tasks[4], return_exceptions=True)  # let restore finish so shutdown sees a consistent state
             for t in [*([warm] if warm else []), *app.state.background]:
                 t.cancel()
             await asyncio.gather(*([warm] if warm else []), *app.state.background, return_exceptions=True)
             await external.close()
+            await mcp.close()
             await models.close()
             await manager.shutdown()
             await collector.close()

@@ -23,6 +23,8 @@ const args = [
   '--distpath', path.join(out, 'backend'), '--workpath', path.join(out, 'pyinstaller'), '--specpath', path.join(out, 'pyinstaller'),
   '--add-data', `${path.join(backend, 'schema.sql')}${win ? ';' : ':'}.`,   // db.py reads schema.sql next to the app package
   '--collect-submodules', 'uvicorn', '--collect-submodules', 'app', '--hidden-import', 'pynvml',
+  // the MCP server: the JSON schema checker reads its schemas from data files, and the SDK asks for its own version
+  '--collect-data', 'jsonschema_specifications', '--copy-metadata', 'mcp',
   path.join(backend, 'run_backend.py'),
 ];
 console.log(`> ${python} ${args.join(' ')}`);

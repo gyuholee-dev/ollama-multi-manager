@@ -78,7 +78,7 @@ describe('pullStore', () => {
 describe('settings', () => {
   const settings = {
     language: null, theme: 'dark' as const, launch_at_login: false, minimize_to_tray: true, external_monitoring_enabled: false,
-    external_monitoring_port: 9100, external_monitoring_password_set: false, external_monitoring_metrics_token_set: false, external_monitoring_session_hours: 12, refresh_interval_seconds: 3, monitor_default_ollama: true, history_keep_days: 7, vram_warn_percent: 85, ollama_executable_path: null, default_models_path: '/models',
+    external_monitoring_port: 9100, mcp_enabled: false, mcp_port: 9101, mcp_lan: false, mcp_token_set: false, external_monitoring_password_set: false, external_monitoring_metrics_token_set: false, external_monitoring_session_hours: 12, refresh_interval_seconds: 3, monitor_default_ollama: true, history_keep_days: 7, vram_warn_percent: 85, ollama_executable_path: null, default_models_path: '/models',
   };
   it('turns the backend settings into the form and back', () => {
     const cfg = cfgFromApi(settings);
@@ -87,6 +87,12 @@ describe('settings', () => {
     expect(cfgToApi('exe', '  ' as Cfg['exe'])).toBeNull();
     expect(cfgToApi('modelsPath', ' /x ')).toBe('/x');
     expect(cfgToApi('tray', false)).toBe(false);
+  });
+  it('keeps the MCP server\'s settings under their own names', () => {
+    const saved = cfgFromApi({ ...settings, mcp_enabled: true, mcp_port: 9200, mcp_lan: true });
+    expect(saved).toMatchObject({ mcpOn: true, mcpPort: 9200, mcpLan: true });
+    expect(diffCfg(saved, { ...saved, mcpOn: false, mcpPort: 9300 })).toEqual({ mcp_enabled: false, mcp_port: 9300 });
+    expect(cfgFromApi(settings)).toMatchObject({ mcpOn: false, mcpPort: 9101, mcpLan: false }); // off, and this PC only, until it is switched on
   });
   it('sends only what changed', () => {
     const saved = cfgFromApi(settings);

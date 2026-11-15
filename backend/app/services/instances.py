@@ -236,9 +236,9 @@ class InstanceManager:
 
     def next_port(self) -> int:
         used = {r["port"] for r in self.db.query("SELECT port FROM instances")}
-        mon = self.settings.get("external_monitoring_port")
+        reserved = {self.settings.get("external_monitoring_port"), self.settings.get("mcp_port")}
         port = FIRST_INSTANCE_PORT
-        while port in used or port == mon or not port_free(port):
+        while port in used or port in reserved or not port_free(port):
             port += 1
         return port
 
@@ -280,7 +280,7 @@ class InstanceManager:
         self._log(0, "info", f"Deleted {row['name']}")
 
     def _check_port(self, port: int) -> None:
-        if port == self.settings.get("external_monitoring_port"):
+        if port in (self.settings.get("external_monitoring_port"), self.settings.get("mcp_port")):
             raise InstanceError("port_reserved", f"Port {port} is used by web access", 409)
 
     @staticmethod

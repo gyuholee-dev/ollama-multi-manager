@@ -1,6 +1,6 @@
 import { useEffect, useState, type ReactNode } from 'react';
 import { log } from '@/app/log';
-import { clearMetricsToken, commitMetricsToken, commitPassword, commitSetting, readMetricsToken, resetSettings } from '@/app/settingsActions';
+import { clearMcpToken, clearMetricsToken, commitMcpToken, commitMetricsToken, commitPassword, commitSetting, readMcpToken, readMetricsToken, resetSettings } from '@/app/settingsActions';
 import { DialogBody, PageTitle } from '@/components/common/Dialog';
 import { pickPath } from '@/desktop';
 import { copyText } from '@/lib/clipboard';
@@ -86,6 +86,33 @@ export function SettingsPage() {
     setToken(fresh); setSavedToken(fresh); // filled in, and copied right away
     if (await copyText(fresh)) flashDone();
   };
+  // the MCP server: its own token, shown to be copied like the metrics token
+  const mcp = useMonitorStore((s) => s.info?.mcp);
+  const mcpTokenSet = mcp?.token_set ?? false;
+  const [mcpToken, setMcpToken] = useState('');
+  const [savedMcpToken, setSavedMcpToken] = useState('');
+  const [mcpDone, setMcpDone] = useState(false);
+  const [mcpAddrDone, setMcpAddrDone] = useState(false);
+  useEffect(() => {
+    if (!mcpTokenSet) { setMcpToken(''); setSavedMcpToken(''); return; }
+    let live = true;
+    void readMcpToken().then((v) => { if (live) { setMcpToken(v); setSavedMcpToken(v); } });
+    return () => { live = false; };
+  }, [mcpTokenSet]);
+  const flashMcp = () => { setMcpDone(true); setTimeout(() => setMcpDone(false), 1500); };
+  const saveMcpToken = async () => {
+    if (mcpToken === savedMcpToken) return;
+    const ok = mcpToken ? await commitMcpToken(mcpToken) : await clearMcpToken();
+    if (ok) setSavedMcpToken(mcpToken); else setMcpToken(savedMcpToken);
+  };
+  const generateMcpToken = async () => {
+    const fresh = randomKey();
+    if (!(await commitMcpToken(fresh, true))) return;
+    setMcpToken(fresh); setSavedMcpToken(fresh);
+    if (await copyText(fresh)) flashMcp();
+  };
+  const mcpAddress = cfg.mcpOn && mcpTokenSet ? `http://${cfg.mcpLan && lanIp ? lanIp : '127.0.0.1'}:${cfg.mcpPort}${mcp?.path ?? '/mcp'}` : '';
+  const copyMcpAddress = async () => { if (mcpAddress && (await copyText(mcpAddress))) { setMcpAddrDone(true); setTimeout(() => setMcpAddrDone(false), 1500); } };
   const savePw = async () => { if (pw && (await commitPassword(pw))) setPw(''); };
   const save = () => { log('Settings saved'); close(); }; // every change is already stored; this just closes the window
 
@@ -126,6 +153,29 @@ export function SettingsPage() {
               ? <button type="button" className={tokenDone ? 'inline inline--done' : 'inline'} aria-label={t('btn.copy')} title={tokenDone ? t('btn.copied') : t('btn.copy')} onClick={() => void copyToken()}><span className="material-icons">{tokenDone ? 'check' : 'content_copy'}</span></button>
               : <button type="button" className={tokenDone ? 'inline inline--done' : 'inline'} aria-label={t('btn.genKey')} title={t('btn.genKey')} onClick={() => void generateToken()}><span className="material-icons">{tokenDone ? 'check' : 'autorenew'}</span></button>}
             <span className="fld__note sub">{t('set.mxTokenHint')}</span></div>
+        </Box>
+        <Box title={t('set.mcp')}>
+          <Switch id="mcpon" label={t('set.mcpOn')} hint={t('set.mcpHint')} checked={cfg.mcpOn} onChange={(v) => apply({ mcpOn: v }, 'mcpOn')} />
+          <div className="fld"><label className="fld__label" htmlFor="mcpport">{t('set.mcpPort')}</label>
+            <input id="mcpport" className="fld__text" type="number" min={1024} max={65535} value={cfg.mcpPort} onChange={(e) => edit({ mcpPort: +e.target.value })}
+              onBlur={() => void commitSetting('mcpPort')} onKeyDown={onEnter('mcpPort')} /></div>
+          <Switch id="mcplan" label={t('set.mcpLan')} hint={t('set.mcpLanHint')} checked={cfg.mcpLan} onChange={(v) => apply({ mcpLan: v }, 'mcpLan')} />
+          <div className="fld fld--note"><label className="fld__label" htmlFor="mcptoken">{t('set.mcpToken')}</label>
+            <input id="mcptoken" className="fld__text fld__text--grow" type="text" autoComplete="off" spellCheck={false} value={mcpToken} placeholder={t('set.extPwUnset')}
+              onChange={(e) => setMcpToken(e.target.value)} onBlur={() => void saveMcpToken()} onKeyDown={(e) => { if (e.key === 'Enter') void saveMcpToken(); }} />
+            {mcpToken
+              ? <button type="button" className={mcpDone ? 'inline inline--done' : 'inline'} aria-label={t('btn.copy')} title={mcpDone ? t('btn.copied') : t('btn.copy')} onClick={() => void (copyText(mcpToken).then((ok) => { if (ok) flashMcp(); }))}><span className="material-icons">{mcpDone ? 'check' : 'content_copy'}</span></button>
+              : <button type="button" className={mcpDone ? 'inline inline--done' : 'inline'} aria-label={t('btn.genKey')} title={t('btn.genKey')} onClick={() => void generateMcpToken()}><span className="material-icons">{mcpDone ? 'check' : 'autorenew'}</span></button>}
+            <span className="fld__note sub">{t('set.mcpTokenHint')}</span></div>
+          <div className="fld"><label className="fld__label" htmlFor={mcpAddress ? 'mcpaddr' : undefined}>{t('set.mcpAddr')}</label>
+            {mcpAddress ? (
+              <span className="fld__group">
+                <input id="mcpaddr" className="fld__text" readOnly value={mcpAddress} />
+                <button type="button" className={mcpAddrDone ? 'inline inline--done' : 'inline'} aria-label={t('btn.copy')} title={mcpAddrDone ? t('btn.copied') : t('btn.copy')} onClick={() => void copyMcpAddress()}>
+                  <span className="material-icons">{mcpAddrDone ? 'check' : 'content_copy'}</span>
+                </button>
+              </span>
+            ) : <span className="fld__static">{cfg.mcpOn && !mcpTokenSet ? t('set.mcpNeedToken') : t('set.mcpOff')}</span>}</div>
         </Box>
         <Box title={t('set.monitor')}>
           {platform === 'darwin' && <Switch id="pm" label={t('set.pm')} hint={t('set.pmHint')} checked={false} disabled onChange={() => undefined} />}
