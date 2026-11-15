@@ -14,15 +14,17 @@ const warnStyle = { color: 'var(--warn)' };
 
 interface BoxProps {
   title: string;
+  /** The device's name, after the title in a quieter voice (the title row then holds the name on the left and the figures on the right). */
+  name?: string;
   summary: string;
   warn?: boolean;
   children: ReactNode;
 }
 
-function MonitorBox({ title, summary, warn, children }: BoxProps) {
+function MonitorBox({ title, name, summary, warn, children }: BoxProps) {
   return (
     <div className="sb">
-      <div className="top" style={{ margin: 0 }}><span className="ti">{title}</span><span className="sub" style={warn ? warnStyle : undefined}>{summary}</span></div>
+      <div className="top" style={{ margin: 0 }}><span className={`ti${name ? ' named' : ''}`}>{title}{name && <span className="name"> · {name}</span>}</span><span className="sub" style={warn ? warnStyle : undefined}>{summary}</span></div>
       {children}
     </div>
   );
@@ -65,6 +67,7 @@ export function Monitor() {
   const memText = (g: number): string => (g < 1 ? `${Math.round(g * 1024)} MB` : `${g.toFixed(1)} GB`);
 
   const cores = sys.cpu_count || 1;
+  const cpuName = sys.cpu_name;
   const cpuTotal = Math.round(sys.cpu_percent);
   const cpuParts = mine.map((x) => ({ ...x, pct: Math.round((x.m?.cpu_percent ?? 0) / cores) }));
   const cpuOther = Math.max(0, cpuTotal - cpuParts.reduce((a, x) => a + x.pct, 0));
@@ -134,7 +137,7 @@ export function Monitor() {
       );
     }
     return (
-      <MonitorBox key={`GPU-${n}`} title={`GPU-${n}`} summary={d.name}>
+      <MonitorBox key={`GPU-${n}`} title={`GPU-${n}`} name={d.name} summary="">
         <DeviceHead n={0} name={gpuName(d)} figures={`${util} · ${temp}`} />
         <Bar segments={utilSegments} off={!d.supports.util} />
         {d.supports.util ? <Legend segments={utilSegments} /> : <div className="sub off-note">{t('mon.unsupported')}</div>}
@@ -154,12 +157,12 @@ export function Monitor() {
 
   const boxes = [
     show('CPU') && (
-      <MonitorBox key="CPU" title="CPU" summary={t('mon.cpu', { pct: cpuTotal, n: cores })}>
+      <MonitorBox key="CPU" title="CPU" name={cpuName} summary={t('mon.cpu', { pct: cpuTotal, n: cores })}>
         <Bar segments={cpuSegments} /><Legend segments={cpuSegments} />
       </MonitorBox>
     ),
     show('RAM') && (
-      <MonitorBox key="RAM" title="RAM" summary={`${Math.round((ramUsed / ramTotal) * 100)}% · ${ramUsed.toFixed(1)} / ${ramTotal.toFixed(0)} GB`}>
+      <MonitorBox key="RAM" title="RAM" name={sys.mem_name} summary={`${Math.round((ramUsed / ramTotal) * 100)}% · ${ramUsed.toFixed(1)} / ${ramTotal.toFixed(0)} GB`}>
         <Bar segments={ramSegments} /><Legend segments={ramSegments} />
       </MonitorBox>
     ),

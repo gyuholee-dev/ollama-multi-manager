@@ -19,3 +19,6 @@ export function useExternal(): ExternalView | null {
 }
 
 export const useDevices = (): GpuDevice[] => useMonitorStore((s) => s.snap?.gpu?.devices ?? NO_DEVICES);
+
+/** The CPU's model name ("" before the first snapshot or where the system does not say). */
+export const useCpuName = (): string => useMonitorStore((s) => s.snap?.system.cpu_name ?? '');

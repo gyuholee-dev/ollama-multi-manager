@@ -54,7 +54,7 @@ const ko: Messages = {
   'set.title': '환경설정', 'set.general': '일반', 'set.login': '시스템 시작 시 자동 실행',
   'set.tray': '트레이로 최소화', 'set.lang': '언어', 'set.theme': '테마',
   'theme.system': '시스템', 'theme.light': '라이트', 'theme.dark': '다크',
-  'set.monitor': '모니터', 'set.extAddrOff': '허용 안됨', 'set.extAddr': '원격 모니터링 주소', 'btn.copy': '복사', 'btn.copied': '복사됨', 'set.web': '원격 모니터링', 'set.ext': '원격 모니터링 허용', 'set.extPort': '원격 모니터링 포트',
+  'set.monitor': '모니터', 'set.extAddrOff': '허용 안됨', 'set.extAddr': '원격 모니터링 주소', 'btn.copy': '복사', 'btn.copied': '복사됨', 'btn.clear': '비우기', 'set.web': '원격 모니터링', 'set.ext': '원격 모니터링 허용', 'set.extPort': '원격 모니터링 포트',
   'set.interval': '측정값 갱신 주기', 'sec.n': '{n}초', 'day.n': '{n}일',
   'set.defOllama': '기본 Ollama 표시', 'set.defOllamaHint': '이 PC의 11434 포트에서 Ollama가 돌고 있으면 읽기 전용 카드로 보여 줍니다.',
   'set.vramWarn': 'VRAM 경고 기준', 'set.vramWarnHint': "GPU 메모리 사용률이 이 값을 넘으면 요약과 시스템 모니터에 경고를 표시하고, 인스턴스를 시작할 때 확인 창을 띄웁니다.", 'set.intervalHint': "CPU·메모리·GPU와 인스턴스별 사용량을 읽어 화면을 갱신하는 간격입니다. 짧을수록 화면이 부드럽지만 부하가 늘어납니다. 인스턴스 상태 변화와 로그는 즉시 반영됩니다.", 'set.keep': '통계 보관 기간', 'set.keepHint': '요청 수·실패·토큰·응답 시간을 분 단위로 모은 통계 숫자를 보관하는 기간입니다. 저장된 요청 내용(프롬프트·답변)과 로그에는 영향이 없습니다.', 'set.pm': 'powermetrics 사용',

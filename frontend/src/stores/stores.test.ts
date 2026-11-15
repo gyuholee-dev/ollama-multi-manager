@@ -3,6 +3,7 @@ import type { PullTask } from '@/api/types';
 import { useDialogStore } from './dialogStore';
 import { MAX_LOG_LINES, useLogStore } from './logStore';
 import { unfinished, usePullStore } from './pullStore';
+import { useRequestClearStore } from './requestClearStore';
 import { cfgFromApi, cfgToApi, diffCfg, type Cfg } from './settingsStore';
 import { useUiStore } from './uiStore';
 
@@ -18,6 +19,29 @@ describe('logStore', () => {
     expect(lines).toHaveLength(MAX_LOG_LINES);
     expect(lines[0]?.m).toBe('20');
     expect(lines.at(-1)?.m).toBe(String(MAX_LOG_LINES + 19));
+  });
+  it('clears the lines of one source, or all of them', () => {
+    const add = useLogStore.getState().add;
+    add({ ts: 1, src: 'app', m: 'a', level: 'info' });
+    add({ ts: 2, src: 'worker-1', m: 'b', level: 'info' });
+    add({ ts: 3, src: 'worker-2', m: 'c', level: 'info' });
+    useLogStore.getState().clear('worker-1');
+    expect(useLogStore.getState().lines.map((l) => l.m)).toEqual(['a', 'c']);
+    add({ ts: 4, src: 'worker-1', m: 'd', level: 'info' }); // new lines of a cleared source come in as usual
+    expect(useLogStore.getState().lines.map((l) => l.m)).toEqual(['a', 'c', 'd']);
+    useLogStore.getState().clear('all');
+    expect(useLogStore.getState().lines).toEqual([]);
+  });
+});
+
+describe('requestClearStore', () => {
+  beforeEach(() => useRequestClearStore.setState({ clearedAt: {} }));
+  it('hides requests up to the time given, per instance, and never moves the mark back', () => {
+    const { clear } = useRequestClearStore.getState();
+    clear(1, 100);
+    clear(2, 50);
+    clear(1, 80);
+    expect(useRequestClearStore.getState().clearedAt).toEqual({ 1: 100, 2: 50 });
   });
 });
 

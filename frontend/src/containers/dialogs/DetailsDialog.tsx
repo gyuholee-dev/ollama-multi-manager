@@ -1,7 +1,7 @@
 import { useEffect, useState, type ReactNode } from 'react';
 import { api } from '@/api/client';
 import type { InstalledModel } from '@/api/types';
-import { useDevices, useViews } from '@/app/hooks';
+import { useCpuName, useDevices, useViews } from '@/app/hooks';
 import { Dialog, DialogBody, DialogTitle } from '@/components/common/Dialog';
 import { StateBadge } from '@/components/common/StateBadge';
 import type { InstanceView } from '@/lib/derive';
@@ -25,6 +25,7 @@ function Details({ view: i }: { view: InstanceView }) {
   const close = useDialogStore((s) => s.close);
   const lanIp = useMonitorStore((s) => s.info?.lan_ip);
   const devices = useDevices();
+  const cpuName = useCpuName();
   const [avail, setAvail] = useState<InstalledModel[]>([]);
   const installed = useModelStore((s) => s.list);
   const running = i.state === 'running';
@@ -71,7 +72,7 @@ function Details({ view: i }: { view: InstanceView }) {
           <Row k={t('d.vram', { mem: memoryLabel(devices, t) })}>{vram}</Row>
           <Row k={t('f.ctx')}>{fmtCtx(i.ctx)}</Row>
           <Row k={t('f.keep')}>{fmtKeep(i.keep, t) + (i.keep >= 0 && i.loaded.length ? ` · ${expAt(i.loaded[0]?.exp ?? null, i.keep, t)}` : '')}</Row>
-          <Row k={t('f.device')}>{gpuLabel(i.gpu, devices, t)}</Row>
+          <Row k={t('f.device')}>{gpuLabel(i.gpu, devices, t, cpuName)}</Row>
           <Row k={t('f.kvq')}>{i.kvq}</Row>
           <Row k={t('f.flash')}>{on(i.flash)}</Row>
         </div>

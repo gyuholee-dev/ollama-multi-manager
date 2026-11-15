@@ -55,7 +55,7 @@ const en: Messages = {
   'set.title': 'Settings', 'set.general': 'General', 'set.login': 'Launch at system startup',
   'set.tray': 'Minimize to tray', 'set.lang': 'Language', 'set.theme': 'Theme',
   'theme.system': 'System', 'theme.light': 'Light', 'theme.dark': 'Dark',
-  'set.monitor': 'Monitor', 'set.extAddrOff': 'Not allowed', 'set.extAddr': 'Remote monitoring address', 'btn.copy': 'Copy', 'btn.copied': 'Copied', 'set.web': 'Remote monitoring', 'set.ext': 'Allow remote monitoring', 'set.extPort': 'Remote monitoring port',
+  'set.monitor': 'Monitor', 'set.extAddrOff': 'Not allowed', 'set.extAddr': 'Remote monitoring address', 'btn.copy': 'Copy', 'btn.copied': 'Copied', 'btn.clear': 'Clear', 'set.web': 'Remote monitoring', 'set.ext': 'Allow remote monitoring', 'set.extPort': 'Remote monitoring port',
   'set.interval': 'Reading refresh interval', 'sec.n': '{n} s', 'day.n': '{n} d',
   'set.defOllama': 'Show default Ollama', 'set.defOllamaHint': 'Shows an Ollama running on this PC\'s port 11434 as a read-only card.',
   'set.vramWarn': 'VRAM warning level', 'set.vramWarnHint': "When GPU memory use goes above this, the summary and the system monitor show a warning, and starting an instance asks for confirmation.", 'set.intervalHint': "How often CPU, memory, GPU and per-instance use are read and the screen is refreshed. Shorter is smoother but costs more load. Instance state changes and logs show at once.", 'set.keep': 'Statistics kept for', 'set.keepHint': 'How long the per-minute statistics (requests, failures, tokens, response times) are kept. It does not affect saved request content (prompts and answers) or logs.', 'set.pm': 'Use powermetrics',

@@ -99,6 +99,8 @@ export interface GpuDevice {
 export interface SystemStats {
   cpu_percent: number;
   cpu_count: number;
+  cpu_name: string; // the CPU's model name; "" when the system does not say
+  mem_name: string; // the memory's kind ("LPDDR5 · Hynix", "DDR5-6000"); "" when the system does not say or has not answered yet
   mem_total: number;
   mem_used: number;
   disk_total: number | null;

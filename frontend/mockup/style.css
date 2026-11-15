@@ -676,6 +676,23 @@ section.off .body > div {
   margin-left: 8px;
 }
 
+.top > .ti.named {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.top > .ti.named + .sub {
+  flex: none;
+  margin-left: 12px;
+}
+
+.top > .ti.named > .name {
+  font-size: 0.875rem;
+  font-weight: 400;
+  color: var(--sub);
+}
+
 .top > .ti.tag {
   font-size: 0.875rem;
   font-weight: 400;
@@ -1625,6 +1642,15 @@ input[type=number]::-webkit-inner-spin-button, input[type=number]::-webkit-outer
   color: var(--sub);
 }
 
+.listtools {
+  display: flex;
+  justify-content: flex-end;
+  margin-bottom: 8px;
+}
+.listtools > * + * {
+  margin-left: 6px;
+}
+
 .views {
   position: relative;
   flex: 1;
@@ -1760,6 +1786,14 @@ input[type=number]::-webkit-inner-spin-button, input[type=number]::-webkit-outer
 .tabs > * + *,
 #mtabs > * + * {
   margin-left: 6px;
+}
+
+.tabs__sep {
+  flex: none;
+  align-self: center;
+  width: 1px;
+  height: 16px;
+  background: var(--line);
 }
 
 #ltabs button,

@@ -7,7 +7,7 @@ const dev = (over: Partial<GpuDevice>): GpuDevice => ({
   index: 0, uuid: 'u', name: 'GPU', mem_total: 17.8 * GiB, mem_used: 0.7 * GiB, util_percent: null, temperature_c: null,
   vendor: 'apple', kind: 'gpu', unified: true, env_index: 0, supports: { mem: true, util: true, temp: true, process: false, process_util: false }, ...over,
 });
-const system = (used: number): SystemStats => ({ cpu_percent: 0, cpu_count: 12, mem_total: 24 * GiB, mem_used: used * GiB, disk_total: null, disk_used: null });
+const system = (used: number): SystemStats => ({ cpu_percent: 0, cpu_count: 12, cpu_name: '', mem_name: '', mem_total: 24 * GiB, mem_used: used * GiB, disk_total: null, disk_used: null });
 
 describe('modelNeed', () => {
   const installed = [{ name: 'a:8b', size: 5 * GiB }, { name: 'b:7b', size: 4 * GiB }, { name: 'c:3b', size: 2 * GiB }];

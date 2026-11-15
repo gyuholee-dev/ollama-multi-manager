@@ -3,6 +3,7 @@ import { api } from '@/api/client';
 import type { InstanceSample, Perf, RequestDetail, RequestEntry, RequestsResponse, SeriesPoint } from '@/api/types';
 import { BarChart, LineChart, niceMax } from '@/components/charts/Charts';
 import { Collapse } from '@/components/common/Collapse';
+import { ClearButton, CopyButton, ListTools } from '@/components/common/ListTools';
 import { Section } from '@/components/common/Section';
 import type { InstanceView } from '@/lib/derive';
 import { expAt, fmtUp, hms, memoryLabel } from '@/lib/format';
@@ -11,6 +12,7 @@ import { useT } from '@/locales/useT';
 import { useLogStore } from '@/stores/logStore';
 import { useHistoryStore, type Sample } from '@/stores/historyStore';
 import { useMonitorStore } from '@/stores/monitorStore';
+import { useRequestClearStore } from '@/stores/requestClearStore';
 import { useUiStore, type SectionId } from '@/stores/uiStore';
 
 /** One part of a section of the monitor: a titled block (folding in the dialog, fixed in the window). */
@@ -93,13 +95,19 @@ function InstanceLog({ name }: { name: string }) {
   const lines = useLogStore((s) => s.lines);
   const box = useRef<HTMLDivElement>(null);
   const atEnd = useRef(true);
+  const clear = useLogStore((s) => s.clear);
   const text = lines.filter((l) => l.src === name).map((l) => `[${hms(l.ts)}] ${l.m}`).join('\n');
   const el = box.current;
   if (el) atEnd.current = el.scrollTop + el.clientHeight >= el.scrollHeight - 4;
   useLayoutEffect(() => {
     if (box.current && atEnd.current) box.current.scrollTop = box.current.scrollHeight;
   }, [text]);
-  return text ? <div className="ilog" ref={box}>{text}</div> : <div className="sub">{t('im.logNone')}</div>;
+  return (
+    <>
+      <ListTools><CopyButton text={() => text} disabled={!text} /><ClearButton onClear={() => clear(name)} disabled={!text} /></ListTools>
+      {text ? <div className="ilog" ref={box}>{text}</div> : <div className="sub">{t('im.logNone')}</div>}
+    </>
+  );
 }
 
 const fixed = (v: number | null | undefined, digits = 1): string => (v == null ? '-' : v.toFixed(digits));
@@ -118,6 +126,13 @@ export function MonitorBody({ id, view, folds = true }: { id: number; view: Inst
   const open = (key: string) => !folds || !imFold.includes(key);
   const [hour, setHour] = useState<SeriesPoint[] | null>(null);
   const [recent, setRecent] = useState<RequestsResponse['requests']>([]);
+  const clearedAt = useRequestClearStore((s) => s.clearedAt[id] ?? 0);
+  const clearRequests = useRequestClearStore((s) => s.clear);
+  const requests = recent.filter((r) => r.ts > clearedAt); // what "Clear" has not hidden
+  const requestsText = () => [
+    [t('rq.time'), t('rq.path'), t('rq.status'), t('rq.dur'), t('rq.tok')].join('\t'),
+    ...requests.map((r) => [hms(r.ts * 1000), r.path, r.outcome === 'cancelled' ? t('rq.cancelled') : r.status, `${r.duration.toFixed(1)} s`, `${r.prompt_tokens ?? '-'} / ${r.tokens ?? '-'}`].join('\t')),
+  ].join('\n');
 
   useEffect(() => {
     let alive = true;
@@ -264,11 +279,14 @@ export function MonitorBody({ id, view, folds = true }: { id: number; view: Inst
     {
       id: 'imLog', title: t('im.history'), parts: [
         {
-          id: 'recent', title: t('rq.recent'), boxed: true, body: recent.length ? (
-            <div className="rqw"><table className="rq"><tbody>
-              <tr><th>{t('rq.time')}</th><th>{t('rq.path')}</th><th className="r">{t('rq.status')}</th><th className="r">{t('rq.dur')}</th><th className="r">{t('rq.tok')}</th></tr>
-              {recent.map((r) => <RequestRow key={r.id} iid={id} r={r} />)}
-            </tbody></table></div>
+          id: 'recent', title: t('rq.recent'), boxed: true, body: requests.length ? (
+            <>
+              <ListTools><CopyButton text={requestsText} /><ClearButton onClear={() => clearRequests(id, Math.max(...recent.map((r) => r.ts)))} /></ListTools>
+              <div className="rqw"><table className="rq"><tbody>
+                <tr><th>{t('rq.time')}</th><th>{t('rq.path')}</th><th className="r">{t('rq.status')}</th><th className="r">{t('rq.dur')}</th><th className="r">{t('rq.tok')}</th></tr>
+                {requests.map((r) => <RequestRow key={r.id} iid={id} r={r} />)}
+              </tbody></table></div>
+            </>
           ) : <div className="sub">{t('rq.none')}</div>,
         },
         { id: 'ilog', title: t('im.log'), boxed: true, body: <InstanceLog name={view.name} /> },

@@ -3,7 +3,7 @@ import { api } from '@/api/client';
 import type { InstanceCreate } from '@/api/types';
 import { reloadInstances } from '@/app/instanceActions';
 import { fail, notify, popup } from '@/app/dialogs';
-import { useDevices, useExternal } from '@/app/hooks';
+import { useCpuName, useDevices, useExternal } from '@/app/hooks';
 import { Dialog, DialogBody, DialogTitle } from '@/components/common/Dialog';
 import { Fold } from '@/components/common/Fold';
 import { ModelPicker } from '@/components/common/ModelPicker';
@@ -39,6 +39,7 @@ function Form({ port: firstPort }: { port: number }) {
   const monPort = useSettingsStore((s) => s.cfg.monPort);
   const external = useExternal();
   const devices = useDevices();
+  const cpuName = useCpuName();
   const system = useMonitorStore((s) => s.snap?.system);
 
   const [name, setName] = useState(() => { let k = 1; while (list.some((i) => i.name === `worker-${k}`)) k++; return `worker-${k}`; });
@@ -121,7 +122,7 @@ function Form({ port: firstPort }: { port: number }) {
           <Fold title={t('new.advanced')} hint={t('new.advancedT')}>
             <div className="fld"><label className="fld__label" htmlFor="gp">{t('f.device')}</label>
               <span className="fld__select"><select id="gp" value={gpu} onChange={(e) => setGpu(e.target.value)}>
-                {['auto', 'cpu', ...devices.map((d) => String(d.index))].map((g) => <option key={g} value={g}>{gpuLabel(g === 'auto' || g === 'cpu' ? g : +g, devices, t)}</option>)}
+                {['auto', 'cpu', ...devices.map((d) => String(d.index))].map((g) => <option key={g} value={g}>{gpuLabel(g === 'auto' || g === 'cpu' ? g : +g, devices, t, cpuName)}</option>)}
               </select><span className="material-icons">expand_more</span></span></div>
             <div className="fld"><label className="fld__label" htmlFor="kvq">{t('f.kvq')}</label>
               <span className="fld__select"><select id="kvq" value={kvq} onChange={(e) => setKvq(e.target.value as typeof kvq)}>

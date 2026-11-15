@@ -20,6 +20,24 @@
   }
 }
 
+.top>.ti.named {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+
+  + .sub {
+    flex: none;
+    margin-left: 12px;
+  }
+}
+
+.top>.ti.named>.name {
+  font-size: .875rem;
+  font-weight: 400;
+  color: var(--sub);
+}
+
 .top>.ti.tag {
   font-size: .875rem;
   font-weight: 400;

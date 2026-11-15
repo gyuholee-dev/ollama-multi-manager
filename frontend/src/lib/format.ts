@@ -56,8 +56,11 @@ export const gpuName = (d: { unified: boolean; vendor: string }): string => (d.u
 
 export const memoryLabel = (devices: { unified: boolean }[], t: Translate): string => (isUnified(devices) ? t('mon.unified') : 'VRAM');
 
-export const gpuLabel = (gpu: 'auto' | 'cpu' | number, devices: { name: string }[], t: Translate): string =>
-  gpu === 'auto' ? t('gpu.auto') : gpu === 'cpu' ? 'CPU' : t('gpu.n', { g: gpu, name: devices[gpu]?.name ?? '?' });
+/** "CPU · AMD Ryzen 9 9950X3D 16-Core Processor", or just "CPU" where the system does not tell the model. */
+export const cpuLabel = (cpuName: string): string => (cpuName ? `CPU · ${cpuName}` : 'CPU');
+
+export const gpuLabel = (gpu: 'auto' | 'cpu' | number, devices: { name: string }[], t: Translate, cpuName = ''): string =>
+  gpu === 'auto' ? t('gpu.auto') : gpu === 'cpu' ? cpuLabel(cpuName) : t('gpu.n', { g: gpu, name: devices[gpu]?.name ?? '?' });
 
 /** Ollama treats "llama3" and "llama3:latest" as the same model. */
 export const normModel = (name: string): string => {

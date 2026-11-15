@@ -13,7 +13,9 @@ import psutil
 
 from app.services.hub import Hub
 from app.services.instances import Handle, InstanceManager
+from app.services.monitor.cpu import cpu_name
 from app.services.monitor.providers import GpuProvider, ProcessUtil, ProcessVram
+from app.services.monitor.ram import ram_name
 from app.services.settings import SettingsService
 
 log = logging.getLogger("omm.monitor")
@@ -118,7 +120,7 @@ class Collector:
             disk = {"disk_total": du.total, "disk_used": du.used}
         except OSError:
             disk = {"disk_total": None, "disk_used": None}
-        return {"cpu_percent": psutil.cpu_percent(None), "cpu_count": psutil.cpu_count() or 1, "mem_total": vm.total, "mem_used": vm.total - vm.available, **disk}
+        return {"cpu_percent": psutil.cpu_percent(None), "cpu_count": psutil.cpu_count() or 1, "cpu_name": cpu_name(), "mem_name": ram_name(), "mem_total": vm.total, "mem_used": vm.total - vm.available, **disk}
 
     def _safe_devices(self):
         try:

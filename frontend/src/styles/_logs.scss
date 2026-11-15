@@ -16,3 +16,14 @@
   font: .75rem/20px ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
   color: var(--sub);
 }
+
+// copy and clear above a list (the instance's log and recent requests)
+.listtools {
+  display: flex;
+  justify-content: flex-end;
+  margin-bottom: 8px;
+
+  > * + * {
+    margin-left: 6px;
+  }
+}

@@ -1,4 +1,5 @@
 import { useEffect, useLayoutEffect, useRef } from 'react';
+import { ClearButton, CopyButton } from '@/components/common/ListTools';
 import { Section } from '@/components/common/Section';
 import { hms } from '@/lib/format';
 import { useT } from '@/locales/useT';
@@ -10,6 +11,7 @@ export function Logs() {
   const lines = useLogStore((s) => s.lines);
   const filter = useUiStore((s) => s.logFilter);
   const setFilter = useUiStore((s) => s.setLogFilter);
+  const clear = useLogStore((s) => s.clear);
   const box = useRef<HTMLDivElement>(null);
   const atEnd = useRef(true);
 
@@ -34,6 +36,9 @@ export function Logs() {
       {['all', ...sources].map((name) => (
         <button key={name} className={`small${name === active ? ' on' : ''}`} onClick={() => setFilter(name)}>{label(name)}</button>
       ))}
+      <span className="tabs__sep" />
+      <CopyButton text={() => text} disabled={!text} />
+      <ClearButton onClear={() => clear(active)} disabled={!text} />
     </div>
   );
 

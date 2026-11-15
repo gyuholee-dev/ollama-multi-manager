@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { translate } from '@/locales';
-import { compareModels, derivedFrom, fmtCtx, fmtKeep, fmtUp, gpuName, memoryLabel, modelInfo, quantOf, splitModel } from './format';
+import { compareModels, cpuLabel, derivedFrom, fmtCtx, fmtKeep, fmtUp, gpuLabel, gpuName, memoryLabel, modelInfo, quantOf, splitModel } from './format';
 
 const en = (key: string, params?: Record<string, string | number>) => translate('en', key, params);
 
@@ -86,5 +86,20 @@ describe('gpuName', () => {
     expect(gpuName({ unified: true, vendor: 'intel' })).toBe('iGPU');
     expect(gpuName({ unified: false, vendor: 'nvidia' })).toBe('GPU');
     expect(gpuName({ unified: true, vendor: 'apple' })).toBe('GPU');
+  });
+});
+
+describe('cpuLabel and gpuLabel', () => {
+  const t = (k: string, v?: Record<string, string | number>) => translate('en', k, v);
+  it('shows the CPU with its model where the system gives one, else just CPU', () => {
+    expect(cpuLabel('AMD Ryzen 9 9950X3D 16-Core Processor')).toBe('CPU · AMD Ryzen 9 9950X3D 16-Core Processor');
+    expect(cpuLabel('')).toBe('CPU');
+  });
+  it('shows an instance\'s device setting with the CPU model and the GPU names', () => {
+    const devices = [{ name: 'NVIDIA GeForce RTX 5090' }, { name: 'AMD Radeon(TM) Graphics' }];
+    expect(gpuLabel('cpu', devices, t, 'Apple M4 Pro')).toBe('CPU · Apple M4 Pro');
+    expect(gpuLabel('cpu', devices, t)).toBe('CPU');
+    expect(gpuLabel('auto', devices, t, 'Apple M4 Pro')).toBe('Auto');
+    expect(gpuLabel(1, devices, t, 'Apple M4 Pro')).toBe('GPU-1 · AMD Radeon(TM) Graphics');
   });
 });
