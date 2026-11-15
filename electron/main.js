@@ -261,14 +261,15 @@ if (!app.requestSingleInstanceLock()) {
       if (DEV) {
         const frozen = await w.webContents.executeJavaScript('window.__omm?.isFrozen() === true').catch(() => false);
         if (items.length) items.push({ type: 'separator' });
+        // the screenshots first; reload, freeze and inspect always last
         items.push(
-          { label: l.reload, click: () => w.webContents.reload() },
-          { label: frozen ? l.resume : l.freeze, click: () => w.webContents.executeJavaScript(`window.__omm?.setFrozen(${!frozen})`) },
-          { label: l.inspect, click: () => w.webContents.inspectElement(p.x, p.y) },
-          { type: 'separator' },
           { label: l.shot, click: () => shoot(w, 'viewport', label) },
           { label: l.fullShot, click: () => shoot(w, 'full', label) },
           { label: l.elementShot, click: () => shoot(w, 'element', label) },
+          { type: 'separator' },
+          { label: l.reload, click: () => w.webContents.reload() },
+          { label: frozen ? l.resume : l.freeze, click: () => w.webContents.executeJavaScript(`window.__omm?.setFrozen(${!frozen})`) },
+          { label: l.inspect, click: () => w.webContents.inspectElement(p.x, p.y) },
         );
       }
       if (items.length) Menu.buildFromTemplate(items).popup({ window: w });
