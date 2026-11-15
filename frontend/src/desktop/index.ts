@@ -15,7 +15,7 @@ declare global {
   interface Window {
     omm?: OmmBridge;
     /** Used by the desktop shell's developer context menu. */
-    __omm?: { isFrozen(): boolean; setFrozen(on: boolean): void };
+    __omm?: { isFrozen(): boolean; setFrozen(on: boolean, quiet?: boolean): void; status(text: string): void };
   }
 }
 

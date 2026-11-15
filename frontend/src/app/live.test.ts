@@ -29,6 +29,17 @@ describe('live updates', () => {
     expect(usePullStore.getState().tasks.a?.status).toBe('pulling');
   });
 
+  it('can hold the page still without saying so in the footer', () => {
+    pushLog(line('before'));
+    setFrozen(true, true);
+    expect(useUiStore.getState().frozen).toBe(true);
+    expect(useUiStore.getState().status).toContain('before'); // not "paused"
+    pushLog(line('while held', 2000));
+    expect(useLogStore.getState().lines.map((l) => l.m)).toEqual(['before']);
+    setFrozen(false);
+    expect(useLogStore.getState().lines.map((l) => l.m)).toEqual(['before', 'while held']);
+  });
+
   it('holds everything back while frozen and applies it once on resume', () => {
     setFrozen(true);
     expect(useUiStore.getState().status).toMatch(/paused/i);

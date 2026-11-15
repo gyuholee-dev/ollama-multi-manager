@@ -16,7 +16,9 @@
     "build:frontend": "tsc --noEmit -p frontend && vite build --config frontend/vite.config.mts",
     "build:mockup-css": "node scripts/build-mockup-css.js",
     "typecheck": "tsc --noEmit -p frontend",
-    "test:frontend": "vitest run --config frontend/vitest.config.ts"
+    "test:frontend": "vitest run --config frontend/vitest.config.ts",
+    "test:electron": "node --test \"test/electron/*.test.js\"",
+    "test:electron:smoke": "electron test/electron/smoke/run.js"
   },
   "devDependencies": {
     "@types/react": "^19.3.0",

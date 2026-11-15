@@ -79,7 +79,7 @@ async function onStatus(up: boolean): Promise<void> {
 /** Starts talking to the backend. Returns a function that stops it. */
 export function startApp(): () => void {
   initClient();
-  window.__omm = { isFrozen, setFrozen };
+  window.__omm = { isFrozen, setFrozen, status: (text) => useUiStore.getState().setStatus(text) };
   const stopHistory = useMonitorStore.subscribe((state, prev) => { if (state.snap && state.snap !== prev.snap) useHistoryStore.getState().push(state.snap); });
   const stopSocket = connectSocket(onMessage, (up) => { void onStatus(up); });
   return () => { stopSocket(); stopHistory(); };

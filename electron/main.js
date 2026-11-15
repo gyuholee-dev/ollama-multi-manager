@@ -9,10 +9,13 @@
 const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
-const { app, BrowserWindow, Menu, dialog, ipcMain, nativeTheme, screen, session, shell } = require('electron');
+const electron = require('electron');
+const { app, BrowserWindow, Menu, dialog, ipcMain, nativeTheme, screen, session, shell } = electron;
 const { Backend } = require('./backend-launcher');
 const { AppTray } = require('./tray');
 const { startMockupServer } = require('./dev-mockup');
+const { overlay } = require('./overlay');
+const { focusWindow, putOnClipboard, screenshotDir, takeScreenshot } = require('./screenshot');
 
 const log = (...a) => console.log(new Date().toISOString(), '[shell]', ...a);
 
@@ -21,8 +24,10 @@ const DEV = /^(1|true|yes|on)$/i.test(process.env.OMM_DEV || '');
 // OMM_MOCKUP=1: also serves the design mockup (frontend/mockup) on this PC, independent of developer mode.
 const MOCKUP = /^(1|true|yes|on)$/i.test(process.env.OMM_MOCKUP || '');
 const MENU_LABEL = {
-  ko: { copy: '복사', reload: '새로고침', freeze: '화면 갱신 중지', resume: '화면 갱신 재개', inspect: '검사' },
-  en: { copy: 'Copy', reload: 'Reload', freeze: 'Pause updates', resume: 'Resume updates', inspect: 'Inspect' },
+  ko: { copy: '복사', reload: '새로고침', freeze: '화면 갱신 중지', resume: '화면 갱신 재개', inspect: '검사', shot: '스크린샷', fullShot: '전체 스크린샷', elementShot: '엘리먼트 스크린샷',
+         pickNote: '찍을 엘리먼트를 클릭하세요 (Esc: 취소)', savedNote: '스크린샷 저장됨', canceledNote: '스크린샷 취소됨', failedNote: '스크린샷 실패' },
+  en: { copy: 'Copy', reload: 'Reload', freeze: 'Pause updates', resume: 'Resume updates', inspect: 'Inspect', shot: 'Screenshot', fullShot: 'Full screenshot', elementShot: 'Element screenshot',
+         pickNote: 'Click the element to photograph (Esc cancels)', savedNote: 'Screenshot saved', canceledNote: 'Screenshot canceled', failedNote: 'Screenshot failed' },
 };
 
 if (!app.requestSingleInstanceLock()) {
@@ -202,6 +207,40 @@ if (!app.requestSingleInstanceLock()) {
     return !!s && s.rangeCount > 0 && inside(s.anchorNode) && inside(s.focusNode);
   })()`;
 
+  // Developer mode: a screenshot of a window as PNG under <data folder>/screenshots (see screenshot.js), also put on the clipboard.
+  // The page shows what is going on (overlay.js: a note while an element is chosen, a flash and a note when it is done); the result is also
+  // told in the console and in the page's footer, with the whole path.
+  async function shoot(w, kind, label) {
+    const l = MENU_LABEL[String(settings.language || app.getLocale()).slice(0, 2)] || MENU_LABEL.en;
+    const ui = overlay(w.webContents);
+    const tell = text => {
+      log(text);
+      if (!w.isDestroyed()) w.webContents.executeJavaScript(`window.__omm?.status(${JSON.stringify(text)})`).catch(() => {});
+    };
+    try {
+      await focusWindow(w, { electronApp: app }); // always: the window may be behind others or not active, which spoils the choosing of an element
+      const { file, png } = await takeScreenshot(w.webContents, kind, {
+        dir: screenshotDir(app.getPath('userData')), label, feedback: { picking: () => ui.picking(l.pickNote), clear: ui.clear },
+      });
+      let note = '';
+      try {
+        await putOnClipboard(electron, png);
+      } catch (e) {
+        note = ` (not put on the clipboard: ${e.message})`; // the file is saved all the same
+      }
+      tell(`Screenshot (${kind}) saved: ${file}${note}`);
+      await ui.done(`${l.savedNote}: ${path.basename(file)}`);
+    } catch (e) {
+      if (e.message === 'canceled') {
+        tell(`Screenshot (${kind}) canceled`);
+        await ui.canceled(l.canceledNote);
+      } else {
+        tell(`Screenshot (${kind}) failed: ${e.message}`);
+        await ui.failed(`${l.failedNote}: ${e.message}`);
+      }
+    }
+  }
+
   // The page may only ever be the backend's own UI; everything else opens in the system browser.
   // Right-click on text selected in a log area offers "Copy" (an Electron window has no menu of its own); in developer mode
   // the menu also offers reload, pausing the page's live updates, and inspect.
@@ -226,6 +265,10 @@ if (!app.requestSingleInstanceLock()) {
           { label: l.reload, click: () => w.webContents.reload() },
           { label: frozen ? l.resume : l.freeze, click: () => w.webContents.executeJavaScript(`window.__omm?.setFrozen(${!frozen})`) },
           { label: l.inspect, click: () => w.webContents.inspectElement(p.x, p.y) },
+          { type: 'separator' },
+          { label: l.shot, click: () => shoot(w, 'viewport', label) },
+          { label: l.fullShot, click: () => shoot(w, 'full', label) },
+          { label: l.elementShot, click: () => shoot(w, 'element', label) },
         );
       }
       if (items.length) Menu.buildFromTemplate(items).popup({ window: w });

@@ -57,12 +57,13 @@ export function pushPullRemoved(id: string): void {
 
 const PAUSED_TEXT = 'Updates paused (developer mode)';
 
-export function setFrozen(on: boolean): void {
+/** `quiet`: the footer keeps its text instead of saying the updates are paused (the developer screenshot holds the page still without showing that in the picture). */
+export function setFrozen(on: boolean, quiet = false): void {
   const ui = useUiStore.getState();
   if (on === ui.frozen) return;
   if (on) {
     ui.setFrozen(true);
-    ui.setStatus(PAUSED_TEXT);
+    if (!quiet) ui.setStatus(PAUSED_TEXT);
     return;
   }
   ui.setFrozen(false);
