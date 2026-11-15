@@ -20,6 +20,21 @@ describe('logStore', () => {
     expect(lines[0]?.m).toBe('20');
     expect(lines.at(-1)?.m).toBe(String(MAX_LOG_LINES + 19));
   });
+  it('gives each line a number that stays with it while others come and go', () => {
+    const add = useLogStore.getState().add;
+    add({ ts: 1, src: 'app', m: 'a', level: 'info' });
+    add({ ts: 2, src: 'app', m: 'b', level: 'info' });
+    const [a, b] = useLogStore.getState().lines;
+    add({ ts: 3, src: 'app', m: 'c', level: 'info' });
+    useLogStore.getState().clear('nothing');
+    const now = useLogStore.getState().lines;
+    expect(now.slice(0, 2).map((l) => l.id)).toEqual([a!.id, b!.id]); // the page keeps these lines' elements
+    expect(new Set(now.map((l) => l.id)).size).toBe(3);
+    for (let i = 0; i < MAX_LOG_LINES; i++) add({ ts: 9, src: 'app', m: 'x', level: 'info' });
+    const ids = useLogStore.getState().lines.map((l) => l.id);
+    expect(ids).toEqual([...ids].sort((p, q) => p - q)); // in order, and a trimmed line's number is not used again
+    expect(ids).not.toContain(a!.id);
+  });
   it('clears the lines of one source, or all of them', () => {
     const add = useLogStore.getState().add;
     add({ ts: 1, src: 'app', m: 'a', level: 'info' });

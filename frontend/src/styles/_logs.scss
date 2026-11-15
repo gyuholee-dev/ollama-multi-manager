@@ -7,6 +7,11 @@
   padding: 14px;
 }
 
+// one log line (an element of its own, so that a selection survives new lines); an empty line keeps its height
+.logl {
+  min-height: 20px;
+}
+
 #logs {
   height: 180px;
   overflow-x: hidden;
@@ -17,13 +22,57 @@
   color: var(--sub);
 }
 
-// copy and clear above a list (the instance's log and recent requests)
-.listtools {
+// copy and clear laid over the top right corner of a list (the logs, the recent requests)
+.ovl {
+  position: relative;
+
+  &--strip {
+    padding-top: 30px;
+  }
+
+  // in a card with 14px padding: 6px from the card's own corner
+  &--card > .ovl__tools {
+    top: -8px;
+    right: -8px;
+  }
+}
+
+.ovl__tools {
+  position: absolute;
+  top: 6px;
+  right: 6px;
   display: flex;
-  justify-content: flex-end;
-  margin-bottom: 8px;
+  opacity: .55;
+  transition: opacity .15s ease;
 
   > * + * {
-    margin-left: 6px;
+    margin-left: 4px;
+  }
+}
+
+.ovl:hover > .ovl__tools,
+.ovl:focus-within > .ovl__tools {
+  opacity: 1;
+}
+
+.ovl__btn {
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border: 0;
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--surf, var(--card)) 80%, transparent);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--sub);
+
+  &:hover:not(:disabled) {
+    background: var(--ghost-hover);
+    color: var(--text);
+  }
+
+  &:disabled {
+    opacity: .4;
   }
 }

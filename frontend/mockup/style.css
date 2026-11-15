@@ -1642,13 +1642,52 @@ input[type=number]::-webkit-inner-spin-button, input[type=number]::-webkit-outer
   color: var(--sub);
 }
 
-.listtools {
-  display: flex;
-  justify-content: flex-end;
-  margin-bottom: 8px;
+.ovl {
+  position: relative;
 }
-.listtools > * + * {
-  margin-left: 6px;
+.ovl--strip {
+  padding-top: 30px;
+}
+.ovl--card > .ovl__tools {
+  top: -8px;
+  right: -8px;
+}
+
+.ovl__tools {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  display: flex;
+  opacity: 0.55;
+  transition: opacity 0.15s ease;
+}
+.ovl__tools > * + * {
+  margin-left: 4px;
+}
+
+.ovl:hover > .ovl__tools,
+.ovl:focus-within > .ovl__tools {
+  opacity: 1;
+}
+
+.ovl__btn {
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border: 0;
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--surf, var(--card)) 80%, transparent);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--sub);
+}
+.ovl__btn:hover:not(:disabled) {
+  background: var(--ghost-hover);
+  color: var(--text);
+}
+.ovl__btn:disabled {
+  opacity: 0.4;
 }
 
 .views {
@@ -1786,14 +1825,6 @@ input[type=number]::-webkit-inner-spin-button, input[type=number]::-webkit-outer
 .tabs > * + *,
 #mtabs > * + * {
   margin-left: 6px;
-}
-
-.tabs__sep {
-  flex: none;
-  align-self: center;
-  width: 1px;
-  height: 16px;
-  background: var(--line);
 }
 
 #ltabs button,

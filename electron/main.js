@@ -21,8 +21,8 @@ const DEV = /^(1|true|yes|on)$/i.test(process.env.OMM_DEV || '');
 // OMM_MOCKUP=1: also serves the design mockup (frontend/mockup) on this PC, independent of developer mode.
 const MOCKUP = /^(1|true|yes|on)$/i.test(process.env.OMM_MOCKUP || '');
 const MENU_LABEL = {
-  ko: { reload: '새로고침', freeze: '화면 갱신 중지', resume: '화면 갱신 재개', inspect: '검사' },
-  en: { reload: 'Reload', freeze: 'Pause updates', resume: 'Resume updates', inspect: 'Inspect' },
+  ko: { copy: '복사', reload: '새로고침', freeze: '화면 갱신 중지', resume: '화면 갱신 재개', inspect: '검사' },
+  en: { copy: 'Copy', reload: 'Reload', freeze: 'Pause updates', resume: 'Resume updates', inspect: 'Inspect' },
 };
 
 if (!app.requestSingleInstanceLock()) {
@@ -195,8 +195,16 @@ if (!app.requestSingleInstanceLock()) {
     monitors.forEach(w => { if (!w.isVisible()) w.show(); });
   }
 
+  // Is the text selected in the page inside an area the page marks as copyable (data-copy-area: the logs)? Both ends of the selection must be.
+  const IN_COPY_AREA = `(() => {
+    const s = getSelection();
+    const inside = (n) => !!(n && (n.nodeType === 1 ? n : n.parentElement)?.closest('[data-copy-area]'));
+    return !!s && s.rangeCount > 0 && inside(s.anchorNode) && inside(s.focusNode);
+  })()`;
+
   // The page may only ever be the backend's own UI; everything else opens in the system browser.
-  // In developer mode a right-click menu offers reload, pausing the page's live updates, and inspect.
+  // Right-click on text selected in a log area offers "Copy" (an Electron window has no menu of its own); in developer mode
+  // the menu also offers reload, pausing the page's live updates, and inspect.
   function guard(w, label = 'main') {
     debugWindow(w, label);
     const isOwn = u => { try { return new URL(u).origin === backend.url; } catch { return false; } };
@@ -205,17 +213,23 @@ if (!app.requestSingleInstanceLock()) {
     w.webContents.on('will-navigate', keepOwn);
     w.webContents.on('will-redirect', keepOwn); // a redirect must not take the window away either
     w.webContents.setWindowOpenHandler(({ url }) => { external(url); return { action: 'deny' }; });
-    if (DEV) {
-      w.webContents.on('context-menu', async (_e, p) => {
-        const l = MENU_LABEL[String(settings.language || app.getLocale()).slice(0, 2)] || MENU_LABEL.en;
+    w.webContents.on('context-menu', async (_e, p) => {
+      const l = MENU_LABEL[String(settings.language || app.getLocale()).slice(0, 2)] || MENU_LABEL.en;
+      const items = [];
+      if (p.selectionText && p.editFlags.canCopy && await w.webContents.executeJavaScript(IN_COPY_AREA).catch(() => false)) {
+        items.push({ label: l.copy, role: 'copy' });
+      }
+      if (DEV) {
         const frozen = await w.webContents.executeJavaScript('window.__omm?.isFrozen() === true').catch(() => false);
-        Menu.buildFromTemplate([
+        if (items.length) items.push({ type: 'separator' });
+        items.push(
           { label: l.reload, click: () => w.webContents.reload() },
           { label: frozen ? l.resume : l.freeze, click: () => w.webContents.executeJavaScript(`window.__omm?.setFrozen(${!frozen})`) },
           { label: l.inspect, click: () => w.webContents.inspectElement(p.x, p.y) },
-        ]).popup({ window: w });
-      });
-    }
+        );
+      }
+      if (items.length) Menu.buildFromTemplate(items).popup({ window: w });
+    });
   }
 
   // One monitor window per instance: a second request for the same instance brings the first to the front.

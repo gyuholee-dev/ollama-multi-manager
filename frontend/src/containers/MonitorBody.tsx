@@ -3,7 +3,7 @@ import { api } from '@/api/client';
 import type { InstanceSample, Perf, RequestDetail, RequestEntry, RequestsResponse, SeriesPoint } from '@/api/types';
 import { BarChart, LineChart, niceMax } from '@/components/charts/Charts';
 import { Collapse } from '@/components/common/Collapse';
-import { ClearButton, CopyButton, ListTools } from '@/components/common/ListTools';
+import { ClearButton, CopyButton, Overlay } from '@/components/common/ListTools';
 import { Section } from '@/components/common/Section';
 import type { InstanceView } from '@/lib/derive';
 import { expAt, fmtUp, hms, memoryLabel } from '@/lib/format';
@@ -96,17 +96,19 @@ function InstanceLog({ name }: { name: string }) {
   const box = useRef<HTMLDivElement>(null);
   const atEnd = useRef(true);
   const clear = useLogStore((s) => s.clear);
-  const text = lines.filter((l) => l.src === name).map((l) => `[${hms(l.ts)}] ${l.m}`).join('\n');
+  const mine = lines.filter((l) => l.src === name);
+  const text = mine.map((l) => `[${hms(l.ts)}] ${l.m}`).join('\n'); // what "copy" takes
+  const newest = mine.at(-1)?.id;
   const el = box.current;
   if (el) atEnd.current = el.scrollTop + el.clientHeight >= el.scrollHeight - 4;
   useLayoutEffect(() => {
     if (box.current && atEnd.current) box.current.scrollTop = box.current.scrollHeight;
-  }, [text]);
+  }, [newest, mine.length]);
+  if (!text) return <div className="sub">{t('im.logNone')}</div>;
   return (
-    <>
-      <ListTools><CopyButton text={() => text} disabled={!text} /><ClearButton onClear={() => clear(name)} disabled={!text} /></ListTools>
-      {text ? <div className="ilog" ref={box}>{text}</div> : <div className="sub">{t('im.logNone')}</div>}
-    </>
+    <Overlay card tools={<><CopyButton text={() => text} /><ClearButton onClear={() => clear(name)} /></>}>
+      <div className="ilog" ref={box} data-copy-area="">{mine.map((l) => <div className="logl" key={l.id}>{`[${hms(l.ts)}] ${l.m}`}</div>)}</div>
+    </Overlay>
   );
 }
 
@@ -280,13 +282,12 @@ export function MonitorBody({ id, view, folds = true }: { id: number; view: Inst
       id: 'imLog', title: t('im.history'), parts: [
         {
           id: 'recent', title: t('rq.recent'), boxed: true, body: requests.length ? (
-            <>
-              <ListTools><CopyButton text={requestsText} /><ClearButton onClear={() => clearRequests(id, Math.max(...recent.map((r) => r.ts)))} /></ListTools>
+            <Overlay strip card tools={<><CopyButton text={requestsText} /><ClearButton onClear={() => clearRequests(id, Math.max(...recent.map((r) => r.ts)))} /></>}>
               <div className="rqw"><table className="rq"><tbody>
                 <tr><th>{t('rq.time')}</th><th>{t('rq.path')}</th><th className="r">{t('rq.status')}</th><th className="r">{t('rq.dur')}</th><th className="r">{t('rq.tok')}</th></tr>
                 {requests.map((r) => <RequestRow key={r.id} iid={id} r={r} />)}
               </tbody></table></div>
-            </>
+            </Overlay>
           ) : <div className="sub">{t('rq.none')}</div>,
         },
         { id: 'ilog', title: t('im.log'), boxed: true, body: <InstanceLog name={view.name} /> },
