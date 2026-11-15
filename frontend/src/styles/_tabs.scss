@@ -104,6 +104,26 @@ main #mtabs button.on:hover {
   background: light-dark(#bcbcbc,color-mix(in srgb,var(--btn) 25%,var(--surf)));
 }
 
+// the icon buttons beside the main page's tabs (the log's copy and clear) take the tab buttons' colours
+main .sh__tools {
+  --surf: var(--bg);
+
+  .ibtn {
+    background: var(--btn);
+    border: 1px solid var(--line);
+    color: inherit;
+
+    &:hover:not(:disabled) {
+      background: light-dark(#cbcbcb,color-mix(in srgb,var(--btn) 50%,var(--surf)));
+      color: inherit;
+    }
+
+    &:active:not(:disabled) {
+      background: light-dark(#bcbcbc,color-mix(in srgb,var(--btn) 25%,var(--surf)));
+    }
+  }
+}
+
 #stabs .material-icons {
   font-size: .875rem;
   margin: 0 -2px 0 2px;

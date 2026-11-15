@@ -22,46 +22,14 @@
   color: var(--sub);
 }
 
-// copy and clear laid over the top right corner of a list (the logs, the recent requests)
-.ovl {
-  position: relative;
-
-  &--strip {
-    padding-top: 30px;
-  }
-
-  // in a card with 14px padding: 6px from the card's own corner
-  &--card > .ovl__tools {
-    top: -8px;
-    right: -8px;
-  }
-}
-
-.ovl__tools {
-  position: absolute;
-  top: 6px;
-  right: 6px;
-  display: flex;
-  opacity: .55;
-  transition: opacity .15s ease;
-
-  > * + * {
-    margin-left: 4px;
-  }
-}
-
-.ovl:hover > .ovl__tools,
-.ovl:focus-within > .ovl__tools {
-  opacity: 1;
-}
-
-.ovl__btn {
+// an icon button (copy, clear): square, no frame
+.ibtn {
   width: 28px;
   height: 28px;
   padding: 0;
   border: 0;
   border-radius: 8px;
-  background: color-mix(in srgb, var(--surf, var(--card)) 80%, transparent);
+  background: none;
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -75,4 +43,29 @@
   &:disabled {
     opacity: .4;
   }
+}
+
+// buttons at the right of a title row (the main log's section header, the instance monitor's recent requests and log)
+.sh__tools,
+.fold__tools,
+.mpart__tools {
+  display: inline-flex;
+  align-items: center;
+
+  > * + * {
+    margin-left: 4px;
+  }
+}
+
+.sh__tools {
+  margin-right: 8px;
+  transition: opacity .25s ease,transform .25s ease,visibility 0s;
+}
+
+section.off .sh__tools {
+  opacity: 0;
+  transform: translateX(32px);
+  visibility: hidden;
+  pointer-events: none;
+  transition: opacity .25s ease,transform .25s ease,visibility 0s .25s;
 }

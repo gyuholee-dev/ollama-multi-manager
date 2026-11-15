@@ -1573,6 +1573,13 @@ input[type=number]::-webkit-inner-spin-button, input[type=number]::-webkit-outer
   justify-content: space-between;
   cursor: pointer;
 }
+.fold__title {
+  flex: 1;
+  min-width: 0;
+}
+.fold__tools {
+  margin-right: 8px;
+}
 .fold__check {
   position: absolute;
   opacity: 0;
@@ -1632,6 +1639,10 @@ input[type=number]::-webkit-inner-spin-button, input[type=number]::-webkit-outer
   padding: 14px;
 }
 
+.logl {
+  min-height: 20px;
+}
+
 #logs {
   height: 180px;
   overflow-x: hidden;
@@ -1642,52 +1653,49 @@ input[type=number]::-webkit-inner-spin-button, input[type=number]::-webkit-outer
   color: var(--sub);
 }
 
-.ovl {
-  position: relative;
-}
-.ovl--strip {
-  padding-top: 30px;
-}
-.ovl--card > .ovl__tools {
-  top: -8px;
-  right: -8px;
-}
-
-.ovl__tools {
-  position: absolute;
-  top: 6px;
-  right: 6px;
-  display: flex;
-  opacity: 0.55;
-  transition: opacity 0.15s ease;
-}
-.ovl__tools > * + * {
-  margin-left: 4px;
-}
-
-.ovl:hover > .ovl__tools,
-.ovl:focus-within > .ovl__tools {
-  opacity: 1;
-}
-
-.ovl__btn {
+.ibtn {
   width: 28px;
   height: 28px;
   padding: 0;
   border: 0;
   border-radius: 8px;
-  background: color-mix(in srgb, var(--surf, var(--card)) 80%, transparent);
+  background: none;
   display: inline-flex;
   align-items: center;
   justify-content: center;
   color: var(--sub);
 }
-.ovl__btn:hover:not(:disabled) {
+.ibtn:hover:not(:disabled) {
   background: var(--ghost-hover);
   color: var(--text);
 }
-.ovl__btn:disabled {
+.ibtn:disabled {
   opacity: 0.4;
+}
+
+.sh__tools,
+.fold__tools,
+.mpart__tools {
+  display: inline-flex;
+  align-items: center;
+}
+.sh__tools > * + *,
+.fold__tools > * + *,
+.mpart__tools > * + * {
+  margin-left: 4px;
+}
+
+.sh__tools {
+  margin-right: 8px;
+  transition: opacity 0.25s ease, transform 0.25s ease, visibility 0s;
+}
+
+section.off .sh__tools {
+  opacity: 0;
+  transform: translateX(32px);
+  visibility: hidden;
+  pointer-events: none;
+  transition: opacity 0.25s ease, transform 0.25s ease, visibility 0s 0.25s;
 }
 
 .views {
@@ -1912,6 +1920,22 @@ main #mtabs button.on:hover {
   background: light-dark(#bcbcbc, color-mix(in srgb, var(--btn) 25%, var(--surf)));
 }
 
+main .sh__tools {
+  --surf: var(--bg);
+}
+main .sh__tools .ibtn {
+  background: var(--btn);
+  border: 1px solid var(--line);
+  color: inherit;
+}
+main .sh__tools .ibtn:hover:not(:disabled) {
+  background: light-dark(#cbcbcb, color-mix(in srgb, var(--btn) 50%, var(--surf)));
+  color: inherit;
+}
+main .sh__tools .ibtn:active:not(:disabled) {
+  background: light-dark(#bcbcbc, color-mix(in srgb, var(--btn) 25%, var(--surf)));
+}
+
 #stabs .material-icons {
   font-size: 0.875rem;
   margin: 0 -2px 0 2px;
@@ -2104,6 +2128,9 @@ dialog:not(#pop) > .dh > .btns {
   border-bottom: 1px solid var(--row-line);
 }
 .mpart__title {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
   margin-bottom: 10px;
 }
 

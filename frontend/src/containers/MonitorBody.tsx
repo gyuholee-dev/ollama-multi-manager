@@ -3,13 +3,13 @@ import { api } from '@/api/client';
 import type { InstanceSample, Perf, RequestDetail, RequestEntry, RequestsResponse, SeriesPoint } from '@/api/types';
 import { BarChart, LineChart, niceMax } from '@/components/charts/Charts';
 import { Collapse } from '@/components/common/Collapse';
-import { ClearButton, CopyButton, Overlay } from '@/components/common/ListTools';
+import { ClearButton, CopyButton } from '@/components/common/ListTools';
 import { Section } from '@/components/common/Section';
 import type { InstanceView } from '@/lib/derive';
 import { expAt, fmtUp, hms, memoryLabel } from '@/lib/format';
 import { gb } from '@/lib/units';
 import { useT } from '@/locales/useT';
-import { useLogStore } from '@/stores/logStore';
+import { useLogStore, type StoredLine } from '@/stores/logStore';
 import { useHistoryStore, type Sample } from '@/stores/historyStore';
 import { useMonitorStore } from '@/stores/monitorStore';
 import { useRequestClearStore } from '@/stores/requestClearStore';
@@ -22,6 +22,8 @@ const short = (title: string): string => title.replace(/\s*[(（][^)）]*[)）]\
 interface Part {
   id: string;
   title: string;
+  /** Buttons at the right of the part's title row. */
+  tools?: ReactNode;
   boxed?: boolean;
   body: ReactNode;
 }
@@ -90,26 +92,19 @@ function RequestRow({ iid, r }: { iid: number; r: RequestEntry }) {
 }
 
 /** The instance's own output (what the log section of the page shows for it), following the newest line. */
-function InstanceLog({ name }: { name: string }) {
+function InstanceLog({ mine }: { mine: StoredLine[] }) {
   const t = useT();
-  const lines = useLogStore((s) => s.lines);
   const box = useRef<HTMLDivElement>(null);
   const atEnd = useRef(true);
-  const clear = useLogStore((s) => s.clear);
-  const mine = lines.filter((l) => l.src === name);
-  const text = mine.map((l) => `[${hms(l.ts)}] ${l.m}`).join('\n'); // what "copy" takes
   const newest = mine.at(-1)?.id;
   const el = box.current;
   if (el) atEnd.current = el.scrollTop + el.clientHeight >= el.scrollHeight - 4;
   useLayoutEffect(() => {
     if (box.current && atEnd.current) box.current.scrollTop = box.current.scrollHeight;
   }, [newest, mine.length]);
-  if (!text) return <div className="sub">{t('im.logNone')}</div>;
-  return (
-    <Overlay card tools={<><CopyButton text={() => text} /><ClearButton onClear={() => clear(name)} /></>}>
-      <div className="ilog" ref={box} data-copy-area="">{mine.map((l) => <div className="logl" key={l.id}>{`[${hms(l.ts)}] ${l.m}`}</div>)}</div>
-    </Overlay>
-  );
+  if (!mine.length) return <div className="sub">{t('im.logNone')}</div>;
+  // a line is an element of its own: a selection in it survives new lines (and is what the shell's "Copy" menu takes)
+  return <div className="ilog" ref={box} data-copy-area="">{mine.map((l) => <div className="logl" key={l.id}>{`[${hms(l.ts)}] ${l.m}`}</div>)}</div>;
 }
 
 const fixed = (v: number | null | undefined, digits = 1): string => (v == null ? '-' : v.toFixed(digits));
@@ -131,6 +126,10 @@ export function MonitorBody({ id, view, folds = true }: { id: number; view: Inst
   const clearedAt = useRequestClearStore((s) => s.clearedAt[id] ?? 0);
   const clearRequests = useRequestClearStore((s) => s.clear);
   const requests = recent.filter((r) => r.ts > clearedAt); // what "Clear" has not hidden
+  const lines = useLogStore((s) => s.lines);
+  const clearLog = useLogStore((s) => s.clear);
+  const mine = lines.filter((l) => l.src === view.name); // this instance's own output
+  const logText = () => mine.map((l) => `[${hms(l.ts)}] ${l.m}`).join('\n'); // what "copy" takes
   const requestsText = () => [
     [t('rq.time'), t('rq.path'), t('rq.status'), t('rq.dur'), t('rq.tok')].join('\t'),
     ...requests.map((r) => [hms(r.ts * 1000), r.path, r.outcome === 'cancelled' ? t('rq.cancelled') : r.status, `${r.duration.toFixed(1)} s`, `${r.prompt_tokens ?? '-'} / ${r.tokens ?? '-'}`].join('\t')),
@@ -281,25 +280,28 @@ export function MonitorBody({ id, view, folds = true }: { id: number; view: Inst
     {
       id: 'imLog', title: t('im.history'), parts: [
         {
-          id: 'recent', title: t('rq.recent'), boxed: true, body: requests.length ? (
-            <Overlay strip card tools={<><CopyButton text={requestsText} /><ClearButton onClear={() => clearRequests(id, Math.max(...recent.map((r) => r.ts)))} /></>}>
-              <div className="rqw"><table className="rq"><tbody>
-                <tr><th>{t('rq.time')}</th><th>{t('rq.path')}</th><th className="r">{t('rq.status')}</th><th className="r">{t('rq.dur')}</th><th className="r">{t('rq.tok')}</th></tr>
-                {requests.map((r) => <RequestRow key={r.id} iid={id} r={r} />)}
-              </tbody></table></div>
-            </Overlay>
+          id: 'recent', title: t('rq.recent'), boxed: true,
+          tools: <><CopyButton text={requestsText} disabled={!requests.length} /><ClearButton onClear={() => clearRequests(id, Math.max(...recent.map((r) => r.ts)))} disabled={!requests.length} /></>,
+          body: requests.length ? (
+            <div className="rqw"><table className="rq"><tbody>
+              <tr><th>{t('rq.time')}</th><th>{t('rq.path')}</th><th className="r">{t('rq.status')}</th><th className="r">{t('rq.dur')}</th><th className="r">{t('rq.tok')}</th></tr>
+              {requests.map((r) => <RequestRow key={r.id} iid={id} r={r} />)}
+            </tbody></table></div>
           ) : <div className="sub">{t('rq.none')}</div>,
         },
-        { id: 'ilog', title: t('im.log'), boxed: true, body: <InstanceLog name={view.name} /> },
+        {
+          id: 'ilog', title: t('im.log'), boxed: true, body: <InstanceLog mine={mine} />,
+          tools: <><CopyButton text={logText} disabled={!mine.length} /><ClearButton onClear={() => clearLog(view.name)} disabled={!mine.length} /></>,
+        },
       ],
     },
   ];
 
   // the dialog's parts fold; the window's do not: a title, then what it shows (in a box of its own where `boxed`)
-  const part = (x: Part) => <Collapse key={x.id} id={x.id} title={x.title}>{x.body}</Collapse>;
+  const part = (x: Part) => <Collapse key={x.id} id={x.id} title={x.title} tools={x.tools}>{x.body}</Collapse>;
   const plainPart = (x: Part) => (
     <div className="mpart" key={x.id}>
-      <div className="mpart__title">{x.title}</div>
+      <div className="mpart__title"><span>{x.title}</span>{x.tools && <span className="mpart__tools">{x.tools}</span>}</div>
       {x.boxed ? <div className="card">{x.body}</div> : x.body}
     </div>
   );

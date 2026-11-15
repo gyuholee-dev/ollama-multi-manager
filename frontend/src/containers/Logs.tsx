@@ -1,5 +1,5 @@
 import { useEffect, useLayoutEffect, useRef } from 'react';
-import { ClearButton, CopyButton, Overlay } from '@/components/common/ListTools';
+import { ClearButton, CopyButton } from '@/components/common/ListTools';
 import { Section } from '@/components/common/Section';
 import { hms } from '@/lib/format';
 import { useT } from '@/locales/useT';
@@ -42,11 +42,9 @@ export function Logs() {
   );
 
   return (
-    <Section id="logs" tabs={tabs}>
-      <Overlay id="lbox" tools={<><CopyButton text={() => text} disabled={!text} /><ClearButton onClear={() => clear(active)} disabled={!text} /></>}>
-        {/* a line is an element of its own: a selection in it survives new lines (and is what the shell's "Copy" menu takes) */}
-        <div id="logs" ref={box} data-copy-area="">{shown.map((l) => <div className="logl" key={l.id}>{lineText(l)}</div>)}</div>
-      </Overlay>
+    <Section id="logs" tabs={tabs} tools={<><CopyButton text={() => text} disabled={!text} /><ClearButton onClear={() => clear(active)} disabled={!text} /></>}>
+      {/* a line is an element of its own: a selection in it survives new lines (and is what the shell's "Copy" menu takes) */}
+      <div id="lbox"><div id="logs" ref={box} data-copy-area="">{shown.map((l) => <div className="logl" key={l.id}>{lineText(l)}</div>)}</div></div>
     </Section>
   );
 }

@@ -15,6 +15,16 @@
     cursor: pointer;
   }
 
+  // the title takes the room that is left, which pushes the buttons and the arrow to the right
+  &__title {
+    flex: 1;
+    min-width: 0;
+  }
+
+  &__tools {
+    margin-right: 8px;
+  }
+
   &__check {
     position: absolute;
     opacity: 0;

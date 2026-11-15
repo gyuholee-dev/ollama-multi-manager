@@ -9,11 +9,13 @@ interface Props {
   title?: string;
   /** Buttons shown in the section's header, before the collapse button. */
   tabs?: ReactNode;
+  /** Icon buttons at the right end of the header, between the tabs and the collapse button (hidden with the tabs while the section is collapsed). */
+  tools?: ReactNode;
   children: ReactNode;
 }
 
 /** A collapsible block of the page: title, optional tab buttons, and a collapse button. */
-export function Section({ id, title, tabs, children }: Props) {
+export function Section({ id, title, tabs, tools, children }: Props) {
   const t = useT();
   const collapsed = useUiStore((s) => s.collapsed.includes(id));
   const toggle = useUiStore((s) => s.toggleSection);
@@ -24,6 +26,7 @@ export function Section({ id, title, tabs, children }: Props) {
       <div className="sh">
         <h3>{name}</h3>
         {tabs}
+        {tools && <div className="sh__tools">{tools}</div>}
         <button className="tog" title={hint} aria-label={`${name} ${hint}`} onClick={() => toggle(id)}>
           <Icon name="expand_more" />
         </button>
