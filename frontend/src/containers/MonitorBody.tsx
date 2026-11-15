@@ -283,7 +283,7 @@ export function MonitorBody({ id, view, folds = true }: { id: number; view: Inst
           id: 'recent', title: t('rq.recent'), boxed: true,
           tools: <><CopyButton text={requestsText} disabled={!requests.length} /><ClearButton onClear={() => clearRequests(id, Math.max(...recent.map((r) => r.ts)))} disabled={!requests.length} /></>,
           body: requests.length ? (
-            <div className="rqw"><table className="rq"><tbody>
+            <div className="rqw rqw--recent"><table className="rq"><tbody>
               <tr><th>{t('rq.time')}</th><th>{t('rq.path')}</th><th className="r">{t('rq.status')}</th><th className="r">{t('rq.dur')}</th><th className="r">{t('rq.tok')}</th></tr>
               {requests.map((r) => <RequestRow key={r.id} iid={id} r={r} />)}
             </tbody></table></div>

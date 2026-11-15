@@ -12,8 +12,12 @@
   min-height: 20px;
 }
 
+// the log areas (main view, instance): one height (--log-h), and the scrollbar at the edge of the box like the recent requests' (the text keeps its place)
 #logs {
-  height: 180px;
+  height: var(--log-h);
+  margin: 0 -14px;
+  padding: 0 14px;
+  scrollbar-gutter: stable;
   overflow-x: hidden;
   overflow-y: auto;
   white-space: pre-wrap;

@@ -105,7 +105,10 @@ dialog:not(#pop) > .dh {
 
 // the instance's own log in the monitor window
 .ilog {
-  max-height: 180px;
+  max-height: var(--log-h);
+  margin: 0 -14px;
+  padding: 0 14px;
+  scrollbar-gutter: stable;
   overflow-x: hidden;
   overflow-y: auto;
   white-space: pre-wrap;

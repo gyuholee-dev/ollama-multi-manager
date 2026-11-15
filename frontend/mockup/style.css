@@ -33,6 +33,7 @@ html:is([data-platform=win], [data-platform=linux]) body {
   --box: light-dark(#fff,#262626);
   --fold: light-dark(#ebebeb,#1c1c1c);
   --line: light-dark(#c8c8c8,#393939);
+  --log-h: 180px;
   --text: light-dark(#222,#eee);
   --sub: light-dark(#5a5a5a,#a1a1a1);
   --ok: light-dark(#2e7d32,#7fd085);
@@ -688,7 +689,7 @@ section.off .body > div {
 }
 
 .top > .ti.named > .name {
-  font-size: 0.875rem;
+  font-size: 0.75rem;
   font-weight: 400;
   color: var(--sub);
 }
@@ -1032,6 +1033,9 @@ section.off .body > div {
   margin: 4px -14px 0 -14px;
   scrollbar-gutter: stable;
   overflow: auto;
+}
+.rqw--recent {
+  max-height: var(--log-h);
 }
 
 .rq {
@@ -1644,7 +1648,10 @@ input[type=number]::-webkit-inner-spin-button, input[type=number]::-webkit-outer
 }
 
 #logs {
-  height: 180px;
+  height: var(--log-h);
+  margin: 0 -14px;
+  padding: 0 14px;
+  scrollbar-gutter: stable;
   overflow-x: hidden;
   overflow-y: auto;
   white-space: pre-wrap;
@@ -2093,7 +2100,10 @@ dialog:not(#pop) > .dh > .btns {
 }
 
 .ilog {
-  max-height: 180px;
+  max-height: var(--log-h);
+  margin: 0 -14px;
+  padding: 0 14px;
+  scrollbar-gutter: stable;
   overflow-x: hidden;
   overflow-y: auto;
   white-space: pre-wrap;

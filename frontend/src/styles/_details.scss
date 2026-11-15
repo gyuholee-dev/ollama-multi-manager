@@ -59,6 +59,11 @@
   margin: 4px -14px 0 -14px;
   scrollbar-gutter: stable;
   overflow: auto;
+
+  // the recent requests: no taller than the log beside it
+  &--recent {
+    max-height: var(--log-h);
+  }
 }
 
 .rq {

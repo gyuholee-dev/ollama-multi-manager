@@ -7,6 +7,7 @@
   --box: light-dark(#fff,#262626); // the boxes on the surface of a dialog or of a page (the surface itself is --bg)
   --fold: light-dark(#ebebeb,#1c1c1c); // the fold panels inside a box (the shade of the surface, but a colour of its own)
   --line: light-dark(#c8c8c8,#393939);
+  --log-h: 180px; // the height of a log area, and the most the recent requests grow to
   --text: light-dark(#222,#eee);
   --sub: light-dark(#5a5a5a,#a1a1a1);
   --ok: light-dark(#2e7d32,#7fd085);
