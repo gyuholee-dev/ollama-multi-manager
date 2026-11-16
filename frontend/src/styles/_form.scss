@@ -251,6 +251,12 @@
   margin-bottom: calc(var(--row-trim) * -1);
 }
 
+// a row with a note at the end of a group: the note's text is the last thing, so no padding below it
+.fgroup > .fld--note:last-child,
+.fold__card > .fld--note:last-child {
+  padding-bottom: 0;
+}
+
 .fold__card > .fld:first-child:not(.fld--stack, .fld--note, .fld--btn) {
   margin-top: calc(var(--row-trim) * -1);
 }
