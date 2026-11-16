@@ -4,7 +4,7 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
-const { shotName, screenshotDir, screenshotDepth, DEFAULT_DEPTH, focusWindow, putOnClipboard, takeScreenshot } = require('../../electron/screenshot');
+const { failureText, shotName, screenshotDir, screenshotDepth, DEFAULT_DEPTH, focusWindow, putOnClipboard, takeScreenshot } = require('../../electron/screenshot');
 
 const PNG = Buffer.from('fake-png-bytes');
 const PICTURE = { bytes: new Uint8Array(PNG), mime: 'image/png', width: 10, height: 10 };
@@ -228,4 +228,16 @@ test('focus: a window that is gone is an error, and the focus waits a moment for
   const started = Date.now();
   await focusWindow(fakeWindow(), { platform: 'win32', waitMs: 60 });
   assert.ok(Date.now() - started >= 50);
+});
+
+test('failure text: by the error code and the language, with the package\'s values; an unknown code shows the message', () => {
+  const big = Object.assign(new Error('Image too large'), { code: 'TOO_LARGE', details: { maxSide: 16384 } });
+  assert.equal(failureText(big, 'ko'), '이미지가 너무 큽니다 (한 변 최대 16384px)');
+  assert.equal(failureText(big, 'en'), 'The image is too large (at most 16384px on a side)');
+  assert.equal(failureText(big, 'ja'), 'The image is too large (at most 16384px on a side)', 'a language without texts falls back to English');
+  const late = Object.assign(new Error('timed out'), { code: 'TIMEOUT', details: { pickTimeoutMs: 60000 } });
+  assert.match(failureText(late, 'ko'), /\(60초\)/);
+  assert.equal(failureText(Object.assign(new Error('x'), { code: 'NO_ELEMENT' }), 'en'), 'The chosen element was not found');
+  assert.equal(failureText(Object.assign(new Error('x'), { code: 'TOO_LARGE' }), 'ko'), '이미지가 너무 큽니다', 'without details: no number');
+  assert.equal(failureText(new Error('the window is gone'), 'ko'), 'the window is gone');
 });

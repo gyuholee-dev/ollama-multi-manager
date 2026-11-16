@@ -127,4 +127,33 @@ async function takeScreenshot(webContents, kind, { dir, label, now = new Date(),
   return { file, png };
 }
 
-module.exports = { shotName, screenshotDir, screenshotDepth, focusWindow, putOnClipboard, takeScreenshot, DEFAULT_DEPTH };
+// The package's messages are English and for developers (they go to the log). What the page shows is written here, by the error's code.
+const FAILURE_TEXT = {
+  ko: {
+    TOO_LARGE: e => `이미지가 너무 큽니다${e.details?.maxSide ? ` (한 변 최대 ${e.details.maxSide}px)` : ''}`,
+    NO_ELEMENT: () => '선택한 엘리먼트를 찾을 수 없습니다',
+    TIMEOUT: e => `엘리먼트를 고르지 않아 취소되었습니다${e.details?.pickTimeoutMs ? ` (${Math.round(e.details.pickTimeoutMs / 1000)}초)` : ''}`,
+    DETACHED: () => '촬영 중 디버거 연결이 끊어졌습니다',
+    NOT_ATTACHABLE: () => '다른 디버거(개발자 도구 등)가 붙어 있어 촬영할 수 없습니다',
+    INVALID_OPTION: () => '촬영 옵션이 올바르지 않습니다',
+    CDP_ERROR: () => '화면을 캡처하는 중 오류가 났습니다',
+  },
+  en: {
+    TOO_LARGE: e => `The image is too large${e.details?.maxSide ? ` (at most ${e.details.maxSide}px on a side)` : ''}`,
+    NO_ELEMENT: () => 'The chosen element was not found',
+    TIMEOUT: e => `No element was chosen in time${e.details?.pickTimeoutMs ? ` (${Math.round(e.details.pickTimeoutMs / 1000)} s)` : ''}`,
+    DETACHED: () => 'The debugger was detached during the capture',
+    NOT_ATTACHABLE: () => 'Another debugger (such as the developer tools) is attached, so the page cannot be captured',
+    INVALID_OPTION: () => 'The capture options are not valid',
+    CDP_ERROR: () => 'The capture failed inside the page',
+  },
+};
+
+/** The text for the page of a failed screenshot: by the error's code and the language ('ko' or else English); an error without a known
+ * code (the app's own, such as "the window is gone") shows its message. */
+function failureText(error, language = 'en') {
+  const texts = FAILURE_TEXT[language] || FAILURE_TEXT.en;
+  return texts[error?.code]?.(error) ?? error?.message ?? String(error);
+}
+
+module.exports = { failureText, shotName, screenshotDir, screenshotDepth, focusWindow, putOnClipboard, takeScreenshot, DEFAULT_DEPTH };

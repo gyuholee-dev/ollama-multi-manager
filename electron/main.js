@@ -15,7 +15,7 @@ const { Backend } = require('./backend-launcher');
 const { AppTray } = require('./tray');
 const { startMockupServer } = require('./dev-mockup');
 const { overlay } = require('./overlay');
-const { focusWindow, putOnClipboard, screenshotDir, takeScreenshot } = require('./screenshot');
+const { failureText, focusWindow, putOnClipboard, screenshotDir, takeScreenshot } = require('./screenshot');
 
 const log = (...a) => console.log(new Date().toISOString(), '[shell]', ...a);
 
@@ -211,7 +211,8 @@ if (!app.requestSingleInstanceLock()) {
   // The page shows what is going on (overlay.js: a note while an element is chosen, a flash and a note when it is done); the result is also
   // told in the console and in the page's footer, with the whole path.
   async function shoot(w, kind, label) {
-    const l = MENU_LABEL[String(settings.language || app.getLocale()).slice(0, 2)] || MENU_LABEL.en;
+    const lang = String(settings.language || app.getLocale()).slice(0, 2);
+    const l = MENU_LABEL[lang] || MENU_LABEL.en;
     const ui = overlay(w.webContents);
     const tell = text => {
       log(text);
@@ -236,7 +237,7 @@ if (!app.requestSingleInstanceLock()) {
         await ui.canceled(l.canceledNote);
       } else {
         tell(`Screenshot (${kind}) failed: ${e.message}`);
-        await ui.failed(`${l.failedNote}: ${e.message}`);
+        await ui.failed(`${l.failedNote}: ${failureText(e, lang)}`);
       }
     }
   }
