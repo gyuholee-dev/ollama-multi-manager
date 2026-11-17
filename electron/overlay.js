@@ -1,4 +1,3 @@
-'use strict';
 // What the developer screenshots show on the page itself: a note while an element is being chosen, a flash and a note when a picture
 // is taken (or has failed or was cancelled). The elements are laid over the page by the shell (no part of the app's own UI), do not take
 // pointer events (so that the choosing of an element goes through them: inspect mode does not pick them either), and are taken away
@@ -63,4 +62,4 @@ function overlay(webContents, { settleMs = SETTLE_MS } = {}) {
   };
 }
 
-module.exports = { overlay, noteScript, flashScript, clearScript, ID };
+export { overlay, noteScript, flashScript, clearScript, ID };

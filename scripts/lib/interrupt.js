@@ -1,4 +1,3 @@
-'use strict';
 // Ctrl+C for a launcher script (yarn start, yarn start:dev).
 //
 // A terminal sends Ctrl+C as SIGINT to the whole foreground group. yarn dies on the spot, so the shell shows its prompt
@@ -30,4 +29,4 @@ function onInterrupt(stop) {
   }
 }
 
-module.exports = { onInterrupt };
+export { onInterrupt };

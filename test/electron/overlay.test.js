@@ -1,8 +1,7 @@
-'use strict';
-const test = require('node:test');
-const assert = require('node:assert/strict');
-const vm = require('node:vm');
-const { overlay, noteScript, flashScript, clearScript, ID } = require('../../electron/overlay');
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import vm from 'node:vm';
+import { overlay, noteScript, flashScript, clearScript, ID } from '../../electron/overlay.js';
 
 test('the scripts laid over the page are valid scripts, whatever text they carry', () => {
   const nasty = 'it\'s "quoted"\n</script> ${x} `tick` \\ back';

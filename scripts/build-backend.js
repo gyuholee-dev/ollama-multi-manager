@@ -1,13 +1,12 @@
-'use strict';
 // Builds the backend into build/backend/ollama-multi-manager-backend/ with PyInstaller (one folder, not one file:
 // it starts faster, does not unpack to a temp directory on every launch, and trips antivirus heuristics less).
 // Needs backend/.venv with backend/requirements-build.txt installed. Builds for the OS it runs on only.
 
-const { spawnSync } = require('node:child_process');
-const fs = require('node:fs');
-const path = require('node:path');
+import { spawnSync } from 'node:child_process';
+import fs from 'node:fs';
+import path from 'node:path';
 
-const root = path.resolve(__dirname, '..');
+const root = path.resolve(import.meta.dirname, '..');
 const backend = path.join(root, 'backend');
 const win = process.platform === 'win32';
 const python = process.env.OMM_PYTHON || path.join(backend, '.venv', win ? 'Scripts' : 'bin', win ? 'python.exe' : 'python');

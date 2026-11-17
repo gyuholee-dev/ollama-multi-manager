@@ -4,7 +4,7 @@
 // ours   = the options the app uses (hidden until ready, background colour, minimum size)
 // hidden = no native title bar: traffic lights inset into the page, and the page's own header is the drag region
 //          (the way many Electron apps do it; the window is then dragged by Chromium's drag region, not by the system title bar)
-const { app, BrowserWindow, screen } = require('electron');
+import { app, BrowserWindow, screen } from 'electron';
 const variant = process.argv.find(a => ['plain', 'ours', 'hidden'].includes(a)) || 'plain';
 const t0 = Date.now(), ts = () => String(Date.now() - t0).padStart(6) + ' ms';
 const show = d => `display ${d.id} bounds ${JSON.stringify(d.bounds)} scale ${d.scaleFactor}`;

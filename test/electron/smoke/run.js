@@ -1,14 +1,13 @@
-'use strict';
 // Smoke test of the developer screenshots in a real Electron (needs the electron binary; no app window is shown):
 //   yarn test:electron:smoke
 // The pages have the app's shape: a header and a footer that stay and a main view that scrolls inside, with a log box that scrolls
 // inside the main view. What the unit tests cannot say is checked here: the sizes of the pictures and the state the page is left in.
-const { app, BrowserWindow, nativeImage } = require('electron');
-const fs = require('node:fs');
-const os = require('node:os');
-const path = require('node:path');
-const { takeScreenshot } = require('../../../electron/screenshot');
-const { overlay } = require('../../../electron/overlay');
+import { app, BrowserWindow, nativeImage } from 'electron';
+import fs from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
+import { takeScreenshot } from '../../../electron/screenshot.js';
+import { overlay } from '../../../electron/overlay.js';
 
 const failures = [];
 const check = (name, actual, expected) => {
@@ -20,7 +19,7 @@ const size = file => { const b = fs.readFileSync(file); return [b.readUInt32BE(1
 
 async function open(page) {
   const w = new BrowserWindow({ width: 800, height: 600, show: false, webPreferences: { backgroundThrottling: false } });
-  await w.loadFile(path.join(__dirname, page));
+  await w.loadFile(path.join(import.meta.dirname, page));
   await new Promise(r => setTimeout(r, 300));
   return w;
 }

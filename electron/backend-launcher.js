@@ -1,4 +1,3 @@
-'use strict';
 // Starts, watches and stops the Python backend.
 //
 //  * dev:       backend/.venv python  -m app --port N
@@ -7,13 +6,13 @@
 // The backend's output goes to a log file, not a pipe, so it can never block or die because Electron went away.
 // A pid file lets the next launch clean up a backend that survived an Electron crash.
 
-const { spawn, execFileSync } = require('node:child_process');
-const crypto = require('node:crypto');
-const fs = require('node:fs');
-const net = require('node:net');
-const path = require('node:path');
+import { spawn, execFileSync } from 'node:child_process';
+import crypto from 'node:crypto';
+import fs from 'node:fs';
+import net from 'node:net';
+import path from 'node:path';
 
-const ROOT = path.resolve(__dirname, '..');
+const ROOT = path.resolve(import.meta.dirname, '..');
 const WIN = process.platform === 'win32';
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 
@@ -153,4 +152,4 @@ class Backend {
   }
 }
 
-module.exports = { Backend };
+export { Backend };

@@ -1,6 +1,5 @@
-'use strict';
-const path = require('node:path');
-const { Menu, Tray, nativeImage } = require('electron');
+import path from 'node:path';
+import { Menu, Tray, nativeImage } from 'electron';
 
 const LABELS = {
   en: { open: 'Open Ollama Multi Manager', quit: 'Quit' },
@@ -9,7 +8,7 @@ const LABELS = {
 const labelsFor = lang => LABELS[String(lang || '').split('-')[0]] || LABELS.en;
 
 function icon() {
-  const dir = path.join(__dirname, 'assets');
+  const dir = path.join(import.meta.dirname, 'assets');
   if (process.platform === 'darwin') {
     const img = nativeImage.createFromPath(path.join(dir, 'trayTemplate.png'));
     img.setTemplateImage(true);  // adapts to the light/dark menu bar; picks up trayTemplate@2x.png on retina
@@ -40,4 +39,4 @@ class AppTray {
   destroy() { this.tray.destroy(); }
 }
 
-module.exports = { AppTray };
+export { AppTray };

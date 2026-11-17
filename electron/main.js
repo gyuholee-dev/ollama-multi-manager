@@ -1,4 +1,3 @@
-'use strict';
 // Desktop shell: starts the backend, shows the UI the backend serves, and applies the settings that only
 // the shell can apply (tray, launch at login, native theme).
 //
@@ -6,16 +5,16 @@
 // backend, which saves each instance's state and stops them; the next launch brings them back.
 // "Minimize to tray" is how to keep instances running with the window closed.
 
-const fs = require('node:fs');
-const os = require('node:os');
-const path = require('node:path');
-const electron = require('electron');
+import fs from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
+import electron from 'electron';
 const { app, BrowserWindow, Menu, dialog, ipcMain, nativeTheme, screen, session, shell } = electron;
-const { Backend } = require('./backend-launcher');
-const { AppTray } = require('./tray');
-const { startMockupServer } = require('./dev-mockup');
-const { overlay } = require('./overlay');
-const { failureText, focusWindow, putOnClipboard, screenshotDir, takeScreenshot } = require('./screenshot');
+import { Backend } from './backend-launcher.js';
+import { AppTray } from './tray.js';
+import { startMockupServer } from './dev-mockup.js';
+import { overlay } from './overlay.js';
+import { failureText, focusWindow, putOnClipboard, screenshotDir, takeScreenshot } from './screenshot.js';
 
 const log = (...a) => console.log(new Date().toISOString(), '[shell]', ...a);
 
@@ -75,7 +74,7 @@ if (!app.requestSingleInstanceLock()) {
     return {};
   };
   const webPrefs = () => ({
-    preload: path.join(__dirname, 'preload.js'), contextIsolation: true, nodeIntegration: false, sandbox: true, spellcheck: false,
+    preload: path.join(import.meta.dirname, 'preload.cjs'), contextIsolation: true, nodeIntegration: false, sandbox: true, spellcheck: false,
     additionalArguments: [`--omm-header-height=${HEADER_HEIGHT}`, ...(CUSTOM_TITLEBAR ? ['--omm-custom-titlebar'] : []), ...(OVERLAY_TITLEBAR ? ['--omm-titlebar-overlay'] : [])],
   });
   if (OVERLAY_TITLEBAR) {
@@ -399,7 +398,7 @@ if (!app.requestSingleInstanceLock()) {
     if (DEV) {
       log('Developer mode is on (OMM_DEV)');
     }
-    if (MOCKUP) mockup = await startMockupServer({ dir: path.join(__dirname, '..', 'frontend', 'mockup'), log });
+    if (MOCKUP) mockup = await startMockupServer({ dir: path.join(import.meta.dirname, '..', 'frontend', 'mockup'), log });
     await refreshSettings();
     createWindow();
   });

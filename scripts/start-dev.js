@@ -1,4 +1,3 @@
-'use strict';
 // `yarn start:dev`: the app in developer mode.
 //   1. reads the environment variables of the mode from .env.dev (see .env.example for what can be set there),
 //   2. keeps frontend/dist rebuilt while the sources change (`vite build --watch`),
@@ -6,13 +5,14 @@
 // Save a source file, then use the menu's Reload in the app. Backend (Python) changes need a restart of the app.
 // A variable that is already set in the shell wins over the file. OMM_DEV=1 is always set (the file does not have to exist, and neither it nor the shell can turn it off).
 
-const fs = require('node:fs');
-const path = require('node:path');
-const { spawn } = require('node:child_process');
-const { parseEnv } = require('node:util');
-const { onInterrupt } = require('./lib/interrupt');
+import fs from 'node:fs';
+import path from 'node:path';
+import electronPath from 'electron'; // (outside Electron the package is the path of the executable)
+import { spawn } from 'node:child_process';
+import { parseEnv } from 'node:util';
+import { onInterrupt } from './lib/interrupt.js';
 
-const root = path.join(__dirname, '..');
+const root = path.join(import.meta.dirname, '..');
 const envFile = path.join(root, '.env.dev');
 
 function loadEnv(file) {
@@ -52,7 +52,7 @@ vite.stdout.on('data', chunk => {
   process.stdout.write(chunk);
   if (started || !/built in/.test(chunk.toString())) return;
   started = true;
-  const electron = spawn(require('electron'), ['.'], { cwd: root, env, stdio: ['ignore', 'inherit', 'inherit'] }); // (stdin is ours: Ctrl+C)
+  const electron = spawn(electronPath, ['.'], { cwd: root, env, stdio: ['ignore', 'inherit', 'inherit'] }); // (stdin is ours: Ctrl+C)
   children.push(electron);
   electron.on('exit', code => stop(code ?? 0)); // closing the app ends the watcher too
 });

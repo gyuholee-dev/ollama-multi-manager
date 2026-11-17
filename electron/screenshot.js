@@ -1,16 +1,16 @@
-'use strict';
 // Developer screenshots (developer mode only; see the right-click menu in main.js): the page as it is on screen, the whole main view
 // with header and footer, or one element, saved as PNG files in <data folder>/screenshots.
 //
 // The taking of the picture is not done here: it is the job of the cdp-screenshot-extension package (its `core` for what is done through the
-// DevTools protocol, its `adapter-electron` for talking to webContents.debugger). Both are ES modules, so they are loaded with a dynamic
-// import() the first time a picture is taken. This file keeps what is the app's own: which window, the focus, holding the live updates
-// still, the note on the page, the file and the clipboard.
+// DevTools protocol, its `adapter-electron` for talking to webContents.debugger). Both are imported statically, like every module of the app.
+// This file keeps what is the app's own: which window, the focus, holding the live updates still, the note on the page, the file and the
+// clipboard.
 
-const fs = require('node:fs');
-const path = require('node:path');
+import fs from 'node:fs';
+import path from 'node:path';
+import * as core from 'cdp-screenshot-extension/core';
+import * as adapter from 'cdp-screenshot-extension/adapter-electron';
 
-const PACKAGE = 'cdp-screenshot-extension';
 // How deep below the page's <body> (or below the chosen element) a scrolling box is unfolded; see the package's `depth` option (<body> is 0,
 // its children 1 ...). 5 reaches the main view (#root, .views, .views__track, .view, <main>) and so does what the pictures were before the
 // package: the main view unfolds, and the boxes inside it (the log, the request lists: 10 below <body> for the log) stay as they are.
@@ -18,15 +18,6 @@ const DEFAULT_DEPTH = 5;
 // How long the page gets to draw once the note about choosing an element is taken away.
 const SETTLE_MS = 1500;
 const SETTLE = 'new Promise(r => requestAnimationFrame(() => requestAnimationFrame(() => r(true))))';
-
-let loading = null;
-/** The package's core and Electron adapter (loaded once; a failure is not kept, so that installing the package is enough to try again). */
-function loadCapture() {
-  loading ??= Promise.all([import(`${PACKAGE}/core`), import(`${PACKAGE}/adapter-electron`)])
-    .then(([core, adapter]) => ({ core, adapter }))
-    .catch(e => { loading = null; throw new Error(`the screenshot module (${PACKAGE}) cannot be loaded: ${e.message}`); });
-  return loading;
-}
 
 /** The depth the unfolding goes to: OMM_SCREENSHOT_DEPTH (a whole number, 0 or more) or the default. */
 function screenshotDepth(env = process.env) {
@@ -106,7 +97,7 @@ async function captureChosenElement(webContents, capture, options, feedback) {
  * A failure is an Error with the package's `code` (CANCELED when the user pressed Escape, TOO_LARGE ...). */
 async function takeScreenshot(webContents, kind, { dir, label, now = new Date(), pickTimeoutMs, depth = screenshotDepth(), feedback, capture }) {
   if (!['viewport', 'full', 'element'].includes(kind)) throw new Error(`unknown screenshot kind: ${kind}`);
-  const loaded = capture || await loadCapture();
+  const loaded = capture || { core, adapter };
   const options = { depth, format: 'png', pickTimeoutMs };
   let picture;
   if (kind === 'viewport') {
@@ -156,4 +147,4 @@ function failureText(error, language = 'en') {
   return texts[error?.code]?.(error) ?? error?.message ?? String(error);
 }
 
-module.exports = { failureText, shotName, screenshotDir, screenshotDepth, focusWindow, putOnClipboard, takeScreenshot, DEFAULT_DEPTH };
+export { failureText, shotName, screenshotDir, screenshotDepth, focusWindow, putOnClipboard, takeScreenshot, DEFAULT_DEPTH };

@@ -1,10 +1,9 @@
-'use strict';
 // Only with OMM_MOCKUP=1: serves the design mockup (frontend/mockup) on a fixed local port, so it is always at the
 // same address next to the app. It listens on this PC only and is not started otherwise.
 
-const fs = require('node:fs');
-const http = require('node:http');
-const path = require('node:path');
+import fs from 'node:fs';
+import http from 'node:http';
+import path from 'node:path';
 
 const DEFAULT_PORT = 5175;
 const TYPES = {
@@ -35,4 +34,4 @@ function startMockupServer({ dir, port = Number(process.env.OMM_MOCKUP_PORT) || 
   });
 }
 
-module.exports = { startMockupServer, DEFAULT_PORT };
+export { startMockupServer, DEFAULT_PORT };

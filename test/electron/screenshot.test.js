@@ -1,10 +1,9 @@
-'use strict';
-const test = require('node:test');
-const assert = require('node:assert/strict');
-const fs = require('node:fs');
-const os = require('node:os');
-const path = require('node:path');
-const { failureText, shotName, screenshotDir, screenshotDepth, DEFAULT_DEPTH, focusWindow, putOnClipboard, takeScreenshot } = require('../../electron/screenshot');
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import fs from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
+import { failureText, shotName, screenshotDir, screenshotDepth, DEFAULT_DEPTH, focusWindow, putOnClipboard, takeScreenshot } from '../../electron/screenshot.js';
 
 const PNG = Buffer.from('fake-png-bytes');
 const PICTURE = { bytes: new Uint8Array(PNG), mime: 'image/png', width: 10, height: 10 };
