@@ -231,9 +231,11 @@ if (!app.requestSingleInstanceLock()) {
       tell(`Screenshot (${kind}) saved: ${file}${note}`);
       await ui.done(`${l.savedNote}: ${path.basename(file)}`);
     } catch (e) {
-      if (e.code === 'CANCELED') {
+      // Hiding the window (to the tray, say) or closing it while a picture is taken is a cancel, as the package regards it: it ends with DETACHED.
+      const windowGone = e.code === 'DETACHED' && (w.isDestroyed() || !w.isVisible());
+      if (e.code === 'CANCELED' || windowGone) {
         tell(`Screenshot (${kind}) canceled`);
-        await ui.canceled(l.canceledNote);
+        if (!w.isDestroyed()) await ui.canceled(l.canceledNote); // (a closed window has no page to tell)
       } else {
         tell(`Screenshot (${kind}) failed: ${e.message}`);
         await ui.failed(`${l.failedNote}: ${failureText(e, lang)}`);
