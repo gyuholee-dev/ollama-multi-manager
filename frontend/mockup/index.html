@@ -206,6 +206,7 @@ function openCfg(){monOk=cfg.monPort;monWas=cfg.extMon;pathWas={exe:cfg.exe,mode
  <div class="fld fld--note"><label class="fld__label">${t('set.mcpOn')}</label><input id="mcpon" class="sw" type="checkbox" role="switch"><span class="fld__note sub">${t('set.mcpHint')}</span></div>
  <div class="fld"><label class="fld__label">${t('set.mcpPort')}</label><input class="fld__text" id="mcpport" type="number" min="1024" max="65535" value="9101"></div>
  <div class="fld fld--note"><label class="fld__label">${t('set.mcpLan')}</label><input id="mcplan" class="sw" type="checkbox" role="switch"><span class="fld__note sub">${t('set.mcpLanHint')}</span></div>
+ <div class="fld fld--note"><label class="fld__label">${t('set.mcpControl')}</label><input id="mcpctl" class="sw" type="checkbox" role="switch"><span class="fld__note sub">${t('set.mcpControlHint')}</span></div>
  <div class="fld fld--note"><label class="fld__label" for="mcptoken">${t('set.mcpToken')}</label><input id="mcptoken" class="fld__text fld__text--grow" type="text" autocomplete="off" spellcheck="false" placeholder="${t('set.extPwUnset')}"><button type="button" class="inline" aria-label="${t('btn.genKey')}" title="${t('btn.genKey')}">${mi('autorenew')}</button><span class="fld__note sub">${t('set.mcpTokenHint')}</span></div>
  <div class="fld"><label class="fld__label">${t('set.mcpAddr')}</label><span class="fld__static">${t('set.mcpOff')}</span></div>
  </div><div class="box fgroup"><div class="fgroup__head"><h4 class="fgroup__title">${t('set.monitor')}</h4></div>

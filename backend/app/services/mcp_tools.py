@@ -3,7 +3,8 @@
 What is offered: the instances, the machine's readings, the models and their downloads, the logs, the request journal's numbers and the
 history of the readings. What is left out on purpose: anything that changes the app (start, stop, create, delete, settings), the content of
 requests (what was asked and answered: prompts and model output would reach the connected model as if they were instructions) and every
-secret (an instance's API key, the tokens). Control tools come later and are meant to sit behind a setting that is off by default.
+secret (an instance's API key, the tokens). The control tools (start, stop, restart an instance) are only registered when the "control" setting
+is on, which it is not by default; a client that was connected before the switch is changed sees the new tool list at its next session.
 """
 from __future__ import annotations
 
@@ -23,12 +24,28 @@ MAX_LOG_LINES = 300
 MAX_REQUESTS = 50
 MAX_HISTORY = 240
 
-INSTRUCTIONS = (
-    "Read-only view of the Ollama Multi Manager desktop app: its Ollama instances, the machine's CPU/RAM/GPU readings, installed models "
-    "and downloads, logs, and request statistics. Nothing here changes the app. Request contents (prompts and answers) are not offered."
+MAX_DRAIN_SECONDS = 120
+
+_BASE_INSTRUCTIONS = (
+    "View of the Ollama Multi Manager desktop app: its Ollama instances, the machine's CPU/RAM/GPU readings, installed models "
+    "and downloads, logs, and request statistics. Request contents (prompts and answers) are not offered."
 )
 
+
+def instructions(control: bool = False) -> str:
+    """What the server tells a client about itself: read-only, unless the control tools are switched on."""
+    if control:
+        return (_BASE_INSTRUCTIONS + " The reading tools change nothing. start_instance, stop_instance and restart_instance do change the app: "
+                "they act on the instances the user has set up, and stopping or restarting one interrupts what it is answering unless drain_seconds "
+                "gives it time to finish. Use them only when the user asked for it.")
+    return _BASE_INSTRUCTIONS + " Nothing here changes the app."
+
+
+INSTRUCTIONS = instructions(False)
+
 READ_ONLY = ToolAnnotations(read_only_hint=True, destructive_hint=False, idempotent_hint=True, open_world_hint=False)
+START = ToolAnnotations(read_only_hint=False, destructive_hint=False, idempotent_hint=False, open_world_hint=False)
+STOP = ToolAnnotations(read_only_hint=False, destructive_hint=True, idempotent_hint=True, open_world_hint=False)
 
 
 def masked(instance: dict[str, Any]) -> dict[str, Any]:
@@ -118,3 +135,26 @@ def register_tools(server: MCPServer, manager: InstanceManager, collector: Colle
         """The newest requests an instance relayed (time, path, model, status, duration, tokens, client), at most 50, and the numbers per
         model over the last 5 minutes. What was asked and answered is not part of it."""
         return manager.requests(instance_id, clamp(limit, 1, MAX_REQUESTS))
+
+
+def register_control_tools(server: MCPServer, manager: InstanceManager) -> None:
+    """The tools that change something. Registered only when the user switched the control setting on."""
+    def tool(annotations: ToolAnnotations) -> Callable[[Callable[..., Awaitable[Any]]], Callable[..., Awaitable[Any]]]:
+        return lambda job: server.tool(annotations=annotations)(_failing(job))
+
+    @tool(START)
+    async def start_instance(instance_id: int) -> dict[str, Any]:
+        """Start a stopped instance and return it (the state shows `starting` or `running`). An instance that is already running is an error."""
+        return masked(await manager.start(instance_id))
+
+    @tool(STOP)
+    async def stop_instance(instance_id: int, drain_seconds: int = 0) -> dict[str, Any]:
+        """Stop an instance (it stays stopped after an app restart). Requests it is answering are cut off, unless drain_seconds (at most 120)
+        gives them that long to finish first. Stopping an instance that is not running is not an error."""
+        return masked(await manager.stop(instance_id, drain=clamp(drain_seconds, 0, MAX_DRAIN_SECONDS)))
+
+    @tool(STOP)
+    async def restart_instance(instance_id: int, drain_seconds: int = 0) -> dict[str, Any]:
+        """Stop an instance and start it again (to apply changed options, or to free its memory). Requests it is answering are cut off, unless
+        drain_seconds (at most 120) gives them that long to finish first."""
+        return masked(await manager.restart(instance_id, drain=clamp(drain_seconds, 0, MAX_DRAIN_SECONDS)))

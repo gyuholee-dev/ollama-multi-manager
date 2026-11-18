@@ -18,6 +18,7 @@ export interface Cfg {
   mcpOn: boolean; // the MCP server
   mcpPort: number;
   mcpLan: boolean; // other machines may connect
+  mcpControl: boolean; // the client may start and stop instances
   exe: string;
   modelsPath: string;
 }
@@ -26,18 +27,18 @@ export interface Cfg {
 export const KEYMAP: Record<keyof Cfg, keyof Settings> = {
   defOllama: 'monitor_default_ollama', keepDays: 'history_keep_days', vramWarn: 'vram_warn_percent',
   lang: 'language', theme: 'theme', login: 'launch_at_login', tray: 'minimize_to_tray', interval: 'refresh_interval_seconds',
-  extMon: 'external_monitoring_enabled', monPort: 'external_monitoring_port', mcpOn: 'mcp_enabled', mcpPort: 'mcp_port', mcpLan: 'mcp_lan', exe: 'ollama_executable_path', modelsPath: 'default_models_path',
+  extMon: 'external_monitoring_enabled', monPort: 'external_monitoring_port', mcpOn: 'mcp_enabled', mcpPort: 'mcp_port', mcpLan: 'mcp_lan', mcpControl: 'mcp_control', exe: 'ollama_executable_path', modelsPath: 'default_models_path',
 };
 
 export const DEFAULT_PORT = 9100;
 export const DEFAULT_MCP_PORT = 9101;
-const DEFAULTS: Cfg = { lang: '', theme: 'system', login: false, tray: false, interval: 3, defOllama: true, keepDays: 7, vramWarn: 85, extMon: false, monPort: DEFAULT_PORT, mcpOn: false, mcpPort: DEFAULT_MCP_PORT, mcpLan: false, exe: '', modelsPath: '' };
+const DEFAULTS: Cfg = { lang: '', theme: 'system', login: false, tray: false, interval: 3, defOllama: true, keepDays: 7, vramWarn: 85, extMon: false, monPort: DEFAULT_PORT, mcpOn: false, mcpPort: DEFAULT_MCP_PORT, mcpLan: false, mcpControl: false, exe: '', modelsPath: '' };
 
 export const defaultCfg = (): Cfg => ({ ...DEFAULTS, lang: detectLang() });
 
 export const cfgFromApi = (s: Settings): Cfg => ({
   lang: s.language || detectLang(), theme: s.theme, login: s.launch_at_login, tray: s.minimize_to_tray,
-  interval: s.refresh_interval_seconds, defOllama: s.monitor_default_ollama, keepDays: s.history_keep_days, vramWarn: s.vram_warn_percent, extMon: s.external_monitoring_enabled, monPort: s.external_monitoring_port, mcpOn: s.mcp_enabled, mcpPort: s.mcp_port, mcpLan: s.mcp_lan,
+  interval: s.refresh_interval_seconds, defOllama: s.monitor_default_ollama, keepDays: s.history_keep_days, vramWarn: s.vram_warn_percent, extMon: s.external_monitoring_enabled, monPort: s.external_monitoring_port, mcpOn: s.mcp_enabled, mcpPort: s.mcp_port, mcpLan: s.mcp_lan, mcpControl: s.mcp_control,
   exe: s.ollama_executable_path || '', modelsPath: s.default_models_path || '',
 });
 

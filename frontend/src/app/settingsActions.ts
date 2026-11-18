@@ -54,7 +54,7 @@ export async function commitSetting(field: keyof Cfg): Promise<void> {
     const x = useMonitorStore.getState().info?.external_monitoring;
     if (x?.enabled && !x.active) void notify('warn', t('ext.title'), x.error ?? '');
   }
-  if (field === 'mcpPort' || field === 'mcpOn' || field === 'mcpLan') {
+  if (field === 'mcpPort' || field === 'mcpOn' || field === 'mcpLan' || field === 'mcpControl') {
     try { useMonitorStore.getState().setInfo(await api.get<Info>('/info')); } catch { /* keep the old info */ }
     const m = useMonitorStore.getState().info?.mcp;
     if (m?.enabled && m.token_set && !m.active) void notify('warn', t('mcp.title'), m.error ?? '');

@@ -160,6 +160,7 @@ export function SettingsPage() {
             <input id="mcpport" className="fld__text" type="number" min={1024} max={65535} value={cfg.mcpPort} onChange={(e) => edit({ mcpPort: +e.target.value })}
               onBlur={() => void commitSetting('mcpPort')} onKeyDown={onEnter('mcpPort')} /></div>
           <Switch id="mcplan" label={t('set.mcpLan')} hint={t('set.mcpLanHint')} checked={cfg.mcpLan} onChange={(v) => apply({ mcpLan: v }, 'mcpLan')} />
+          <Switch id="mcpctl" label={t('set.mcpControl')} hint={t('set.mcpControlHint')} checked={cfg.mcpControl} onChange={(v) => apply({ mcpControl: v }, 'mcpControl')} />
           <div className="fld fld--note"><label className="fld__label" htmlFor="mcptoken">{t('set.mcpToken')}</label>
             <input id="mcptoken" className="fld__text fld__text--grow" type="text" autoComplete="off" spellCheck={false} value={mcpToken} placeholder={t('set.extPwUnset')}
               onChange={(e) => setMcpToken(e.target.value)} onBlur={() => void saveMcpToken()} onKeyDown={(e) => { if (e.key === 'Enter') void saveMcpToken(); }} />

@@ -55,6 +55,7 @@ export interface Settings {
   mcp_enabled: boolean; // the MCP server (read-only tools for an MCP client)
   mcp_port: number;
   mcp_lan: boolean; // other machines may connect too (otherwise this PC only)
+  mcp_control: boolean; // the client may also start, stop and restart instances (otherwise read-only)
   mcp_token_set: boolean;
   mcp_token?: string; // the MCP token itself, shown to be copied; left out for guests
   refresh_interval_seconds: number;
@@ -80,6 +81,7 @@ export interface McpStatus {
   enabled: boolean;
   port: number;
   lan: boolean;
+  control: boolean;
   token_set: boolean;
   path: string; // "/mcp"
   active: boolean;

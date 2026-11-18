@@ -6,7 +6,7 @@ from mcp import Client
 from mcp.client.streamable_http import streamable_http_client
 
 from app.services.mcp import RateLimiter
-from app.services.mcp_tools import clamp, masked
+from app.services.mcp_tools import clamp, instructions, masked
 from tests.conftest import free_port, wait_for
 
 TOKEN = "t" * 32
@@ -200,6 +200,61 @@ async def test_models_and_downloads(env):
         assert not downloads.is_error and downloads.structured_content["result"] == []
 
 
+# ---- the control tools (off unless switched on)
+
+CONTROL = {"start_instance", "stop_instance", "restart_instance"}
+
+
+async def test_the_control_tools_are_not_offered_until_the_control_switch_is_on(env):
+    port = await start_mcp(env)
+    assert (await env.client.get("/info")).json()["mcp"]["control"] is False
+    async with connect(port) as client:
+        init = await client.list_tools()
+        assert not CONTROL & {t.name for t in init.tools}
+    await env.client.put("/settings", json={"mcp_control": True})  # the tools are registered when the server is built: it is rebuilt
+    await wait_for(lambda: env.app.state.mcp.active and env.app.state.mcp._bound[2] is True)
+    assert (await env.client.get("/info")).json()["mcp"]["control"] is True
+    async with connect(port) as client:
+        tools = {t.name: t for t in (await client.list_tools()).tools}
+        assert CONTROL <= set(tools)
+        assert tools["start_instance"].annotations.read_only_hint is False and tools["start_instance"].annotations.destructive_hint is False
+        assert tools["stop_instance"].annotations.destructive_hint is True and tools["restart_instance"].annotations.destructive_hint is True
+        assert not {"delete_instance", "create_instance", "put_settings", "shutdown"} & set(tools)  # nothing else changes the app
+    await env.client.put("/settings", json={"mcp_control": False})
+    await wait_for(lambda: env.app.state.mcp.active and env.app.state.mcp._bound[2] is False)
+    async with connect(port) as client:
+        assert not CONTROL & {t.name for t in (await client.list_tools()).tools}
+
+
+async def test_an_instance_is_started_stopped_and_restarted_through_the_tools(env):
+    inst = (await env.client.post("/instances", json={"name": "ctl", "port": free_port()})).json()
+    port = await start_mcp(env, mcp_control=True)
+    state = lambda: env.app.state.manager.status(inst["id"])["state"]
+    async with connect(port) as client:
+        started = await client.call_tool("start_instance", {"instance_id": inst["id"]})
+        assert not started.is_error and started.structured_content["name"] == "ctl"
+        await wait_for(lambda: state() == "running")
+        again = await client.call_tool("start_instance", {"instance_id": inst["id"]})
+        assert again.is_error and "already" in again.content[0].text.lower()  # a refusal the model can read
+        restarted = await client.call_tool("restart_instance", {"instance_id": inst["id"], "drain_seconds": 1000})  # more than the most: cut, not refused
+        assert not restarted.is_error
+        await wait_for(lambda: state() == "running")
+        stopped = await client.call_tool("stop_instance", {"instance_id": inst["id"]})
+        assert not stopped.is_error
+        await wait_for(lambda: state() == "stopped")
+        assert env.app.state.manager.get(inst["id"])["desired_state"] == "stopped"  # it stays stopped across an app restart
+        missing = await client.call_tool("stop_instance", {"instance_id": 999})
+        assert missing.is_error and "not" in missing.content[0].text.lower()
+
+
+async def test_an_instance_returned_by_a_control_tool_has_no_api_key(env):
+    inst = (await env.client.post("/instances", json={"name": "keyed2", "port": free_port(), "options": {"api_key": "super-secret-key-5678"}})).json()
+    port = await start_mcp(env, mcp_control=True)
+    async with connect(port) as client:
+        result = await client.call_tool("stop_instance", {"instance_id": inst["id"]})
+    assert "super-secret-key-5678" not in str(result.content) + str(result.structured_content)
+
+
 # ---- the settings that belong to it
 
 async def test_the_token_has_a_least_length_and_guests_never_see_it(env):
@@ -235,3 +290,8 @@ def test_what_the_tools_show_of_an_instance_and_how_much_they_return():
     assert masked({"options": {"api_key": "k", "num_ctx": 1}})["options"] == {"api_key": "********", "num_ctx": 1}
     assert masked({"options": {"num_ctx": 1}})["options"] == {"num_ctx": 1}
     assert [clamp(v, 1, 300) for v in (-5, 0, 100, 5000)] == [1, 1, 100, 300]
+
+
+def test_what_the_server_tells_a_client_about_itself_follows_the_control_switch():
+    assert "start_instance" not in instructions(False) and "Nothing here changes the app" in instructions(False)
+    assert "start_instance" in instructions(True) and "only when the user asked" in instructions(True)

@@ -1,4 +1,4 @@
-"""The MCP server: lets an MCP client (Claude Desktop, Claude Code ...) look at the app. Streamable HTTP, read-only tools (see mcp_tools.py).
+"""The MCP server: lets an MCP client (Claude Code ...) look at the app, and when switched on also start and stop its instances. Streamable HTTP (see mcp_tools.py).
 
 It has a listener of its own, apart from the main API (whose port and token change at every start) and from the web access port (whose guest
 page is not meant to open just because a client wants the tools):
@@ -25,7 +25,7 @@ from mcp.server.transport_security import TransportSecuritySettings
 from starlette.responses import JSONResponse
 
 from app.services.instances import InstanceManager, port_free
-from app.services.mcp_tools import INSTRUCTIONS, register_tools
+from app.services.mcp_tools import instructions, register_control_tools, register_tools
 from app.services.models import ModelService
 from app.services.monitor.collector import Collector
 from app.services.settings import MCP_TOKEN_KEY, SettingsService
@@ -98,10 +98,13 @@ class McpGate:
         await self.app(scope, receive, send)
 
 
-def build_app(manager: InstanceManager, collector: Collector, models: ModelService, settings: SettingsService, version: str, lan: bool) -> Any:
+def build_app(manager: InstanceManager, collector: Collector, models: ModelService, settings: SettingsService, version: str, lan: bool,
+              control: bool = False) -> Any:
     """A new MCP server and its ASGI app behind the gate (a session manager runs once, so every start builds its own)."""
-    server = MCPServer("ollama-multi-manager", title="Ollama Multi Manager", version=version, instructions=INSTRUCTIONS)
+    server = MCPServer("ollama-multi-manager", title="Ollama Multi Manager", version=version, instructions=instructions(control))
     register_tools(server, manager, collector, models)
+    if control:
+        register_control_tools(server, manager)
     # Host and Origin checks keep a web page from reaching a loopback server by way of DNS rebinding; with other machines allowed the
     # address is not known in advance, and the token is what stands guard.
     security = TransportSecuritySettings(enable_dns_rebinding_protection=False) if lan else TransportSecuritySettings(
@@ -116,23 +119,25 @@ class McpService:
         self.error: str | None = None
         self._server: uvicorn.Server | None = None
         self._task: asyncio.Task | None = None
-        self._bound: tuple[int, bool] | None = None  # (port, lan) the running listener was started with
+        self._bound: tuple[int, bool, bool] | None = None  # (port, lan, control) the running listener was started with
 
     @property
     def active(self) -> bool:
         return self._server is not None and self._server.started
 
-    def _wanted(self) -> tuple[int, bool] | None:
-        """(port, lan) when the server should run, None when it should not."""
+    def _wanted(self) -> tuple[int, bool, bool] | None:
+        """(port, lan, control) when the server should run, None when it should not. The tools are registered when the server is built, so a
+        change of the control switch is a rebind like a change of the port."""
         if not self.settings.get("mcp_enabled") or not self.settings.get(MCP_TOKEN_KEY):
             return None
-        return int(self.settings.get("mcp_port")), bool(self.settings.get("mcp_lan"))
+        return int(self.settings.get("mcp_port")), bool(self.settings.get("mcp_lan")), bool(self.settings.get("mcp_control"))
 
     def status(self) -> dict[str, Any]:
         return {
             "enabled": bool(self.settings.get("mcp_enabled")),
             "port": self.settings.get("mcp_port"),
             "lan": bool(self.settings.get("mcp_lan")),
+            "control": bool(self.settings.get("mcp_control")),
             "token_set": bool(self.settings.get(MCP_TOKEN_KEY)),
             "path": PATH,
             "active": self.active, "error": self.error,
@@ -148,17 +153,17 @@ class McpService:
         elif not want:
             self.error = None
 
-    async def _start(self, port: int, lan: bool) -> None:
+    async def _start(self, port: int, lan: bool, control: bool) -> None:
         self.error = None
         if not port_free(port):
             self.error = f"Port {port} is already in use"
             log.warning("MCP server not started: %s", self.error)
             return
         host = os.environ.get("OMM_MCP_HOST") or ("0.0.0.0" if lan else "127.0.0.1")
-        app = build_app(self.manager, self.collector, self.models, self.settings, self.version, lan)
+        app = build_app(self.manager, self.collector, self.models, self.settings, self.version, lan, control)
         server = uvicorn.Server(uvicorn.Config(app, host=host, port=port, log_level="warning", lifespan="on", timeout_graceful_shutdown=2))
         server.install_signal_handlers = lambda: None  # the main server owns signal handling
-        self._server, self._bound = server, (port, lan)
+        self._server, self._bound = server, (port, lan, control)
         self._task = asyncio.create_task(self._serve(server))
         for _ in range(100):
             if server.started or self._task.done():

@@ -17,6 +17,7 @@ INSERT OR IGNORE INTO settings (key, value) VALUES
     ('mcp_enabled',                'false'),      -- MCP 서버(조회 전용). 토큰이 있어야 시작한다
     ('mcp_port',                   '9101'),
     ('mcp_lan',                    'false'),      -- false = 이 PC(루프백)에서만, true = 다른 PC에서도 접속
+    ('mcp_control',                'false'),      -- 제어 도구(인스턴스 시작·중지·재시작). 기본 꺼짐: 조회 전용
     ('refresh_interval_seconds',   '3'),
     ('monitor_default_ollama',     'true'),       -- 기본 Ollama(11434)가 돌고 있으면 카드로 보여 준다
     ('history_keep_days',          '7'),          -- 분 단위 요청 집계를 보관하는 기간
