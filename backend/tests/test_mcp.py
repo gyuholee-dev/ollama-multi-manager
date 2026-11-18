@@ -1,8 +1,11 @@
 """The MCP server: its listener, its token, and the read-only tools, tried with the MCP SDK's own client over real HTTP."""
+import sys
+
 import httpx
 import httpx2
 import pytest
 from mcp import Client
+from mcp.client.stdio import StdioServerParameters
 from mcp.client.streamable_http import streamable_http_client
 
 from app.services.mcp import RateLimiter
@@ -354,6 +357,41 @@ def test_the_bridge_is_there_only_with_an_address_and_a_token():
     assert ShotBridge.from_env({}).available is False
     assert ShotBridge.from_env({"OMM_SHOT_URL": "http://127.0.0.1:5"}).available is False
     assert ShotBridge.from_env({"OMM_SHOT_URL": "http://127.0.0.1:5", "OMM_SHOT_TOKEN": "t"}).available is True
+
+
+# ---- stdio: a bridge to the running server
+
+def stdio_client_for(args, port, token=TOKEN, **extra_env):
+    import os
+    env = {k: v for k, v in os.environ.items() if k in ("PATH", "HOME", "SYSTEMROOT", "PYTHONPATH")}
+    env.update({"OMM_MCP_TOKEN": token, "OMM_MCP_URL": f"http://127.0.0.1:{port}/mcp", **extra_env})
+    return Client(StdioServerParameters(command=sys.executable, args=args, env=env))
+
+
+async def test_a_client_that_starts_the_server_as_a_program_gets_the_same_tools_over_stdio(env):
+    inst = (await env.client.post("/instances", json={"name": "stdio-one", "port": free_port()})).json()
+    port = await start_mcp(env)
+    async with stdio_client_for(["-m", "app.mcp_stdio"], port) as client:
+        names = {t.name for t in (await client.list_tools()).tools}
+        assert "list_instances" in names and not {"start_instance", "stop_instance", "take_screenshot"} & names  # what the settings allow, no more
+        result = await client.call_tool("get_instance", {"instance_id": inst["id"]})
+        assert not result.is_error and result.structured_content["name"] == "stdio-one"
+
+
+async def test_the_bridge_is_also_reached_through_the_backends_own_command_and_follows_the_switches(env):
+    port = await start_mcp(env, mcp_control=True)
+    async with stdio_client_for(["-m", "app", "mcp-stdio"], port) as client:
+        assert {"start_instance", "stop_instance", "restart_instance"} <= {t.name for t in (await client.list_tools()).tools}
+
+
+async def test_the_bridge_with_a_wrong_token_gets_no_tools_and_without_one_it_says_so(env):
+    port = await start_mcp(env)
+    with pytest.raises(Exception):  # the server refuses the session: the client does not get as far as the tools
+        async with stdio_client_for(["-m", "app.mcp_stdio"], port, token="wrong" * 8) as client:
+            await client.list_tools()
+    import subprocess
+    r = subprocess.run([sys.executable, "-m", "app.mcp_stdio"], capture_output=True, text=True, timeout=30, env={"PATH": "/usr/bin:/bin"}, cwd=str(__import__("pathlib").Path(__file__).parents[1]))
+    assert r.returncode == 2 and "OMM_MCP_TOKEN" in r.stderr
 
 
 # ---- the settings that belong to it

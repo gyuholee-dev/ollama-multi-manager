@@ -1,6 +1,7 @@
 """`python -m app --port 8765` -- how Electron (or a developer) launches the backend."""
 import argparse
 import logging
+import sys
 
 import uvicorn
 
@@ -8,6 +9,10 @@ from app.main import create_app
 
 
 def main() -> None:
+    if len(sys.argv) > 1 and sys.argv[1] == "mcp-stdio":  # the MCP server over stdio (a bridge to the running app), also from the packaged build
+        from app.mcp_stdio import main as stdio
+
+        return stdio(sys.argv[2:])
     parser = argparse.ArgumentParser(prog="ollama-multi-manager-backend")
     parser.add_argument("--host", default="127.0.0.1")
     parser.add_argument("--port", type=int, default=8765)
