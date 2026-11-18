@@ -8,7 +8,11 @@ page is not meant to open just because a client wants the tools):
   sender's address for a while. The token is the one the settings keep for this (kept as it is, like the metrics token, so the settings
   window can show it again to be copied).
 - Requests are counted per sender: more than RATE_LIMIT in RATE_WINDOW seconds are refused (429).
-Started, stopped and rebound whenever the mcp_* settings change.
+- What a client may do is what the settings allow: the reading tools always; start/stop/restart only with "control" (mcp_control, off by default);
+  take_screenshot only with its own switch (mcp_screenshot, off by default), in developer mode (the app hands the backend the way to Electron's
+  screenshot listener, see shot_bridge.py) and while only this PC may connect.
+- A client that starts its servers as programs can use app/mcp_stdio.py, a bridge to this listener (`python -m app mcp-stdio`).
+Started, stopped and rebound whenever the mcp_* settings change (the tools are registered when the server is built, so a switch is a rebind).
 """
 from __future__ import annotations
 
