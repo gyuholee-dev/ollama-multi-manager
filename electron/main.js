@@ -23,10 +23,10 @@ const DEV = /^(1|true|yes|on)$/i.test(process.env.OMM_DEV || '');
 // OMM_MOCKUP=1: also serves the design mockup (frontend/mockup) on this PC, independent of developer mode.
 const MOCKUP = /^(1|true|yes|on)$/i.test(process.env.OMM_MOCKUP || '');
 const MENU_LABEL = {
-  ko: { copy: '복사', reload: '새로고침', freeze: '화면 갱신 중지', resume: '화면 갱신 재개', inspect: '검사', shot: '스크린샷', fullShot: '전체 스크린샷', elementShot: '엘리먼트 스크린샷',
-         pickNote: '찍을 엘리먼트를 클릭하세요 (Esc: 취소)', savedNote: '스크린샷 저장됨', canceledNote: '스크린샷 취소됨', failedNote: '스크린샷 실패' },
-  en: { copy: 'Copy', reload: 'Reload', freeze: 'Pause updates', resume: 'Resume updates', inspect: 'Inspect', shot: 'Screenshot', fullShot: 'Full screenshot', elementShot: 'Element screenshot',
-         pickNote: 'Click the element to photograph (Esc cancels)', savedNote: 'Screenshot saved', canceledNote: 'Screenshot canceled', failedNote: 'Screenshot failed' },
+  ko: { copy: '복사', reload: '새로고침', freeze: '화면 갱신 중지', resume: '화면 갱신 재개', inspect: '검사', captureMenu: 'CDP Screenshot', shot: '화면 캡처', fullShot: '전체 캡처', elementShot: '요소 캡처',
+         pickNote: '캡처할 요소를 클릭하세요 (Esc: 취소)', savedNote: '캡처 저장됨', canceledNote: '캡처 취소됨', failedNote: '캡처 실패' },
+  en: { copy: 'Copy', reload: 'Reload', freeze: 'Pause updates', resume: 'Resume updates', inspect: 'Inspect', captureMenu: 'CDP Screenshot', shot: 'Screen capture', fullShot: 'Full capture', elementShot: 'Element capture',
+         pickNote: 'Click the element to capture (Esc cancels)', savedNote: 'Capture saved', canceledNote: 'Capture canceled', failedNote: 'Capture failed' },
 };
 
 if (!app.requestSingleInstanceLock()) {
@@ -228,16 +228,16 @@ if (!app.requestSingleInstanceLock()) {
       } catch (e) {
         note = ` (not put on the clipboard: ${e.message})`; // the file is saved all the same
       }
-      tell(`Screenshot (${kind}) saved: ${file}${note}`);
+      tell(`Capture (${kind}) saved: ${file}${note}`);
       await ui.done(`${l.savedNote}: ${path.basename(file)}`);
     } catch (e) {
       // Hiding the window (to the tray, say) or closing it while a picture is taken is a cancel, as the package regards it: it ends with DETACHED.
       const windowGone = e.code === 'DETACHED' && (w.isDestroyed() || !w.isVisible());
       if (e.code === 'CANCELED' || windowGone) {
-        tell(`Screenshot (${kind}) canceled`);
+        tell(`Capture (${kind}) canceled`);
         if (!w.isDestroyed()) await ui.canceled(l.canceledNote); // (a closed window has no page to tell)
       } else {
-        tell(`Screenshot (${kind}) failed: ${e.message}`);
+        tell(`Capture (${kind}) failed: ${e.message}`);
         await ui.failed(`${l.failedNote}: ${failureText(e, lang)}`);
       }
     }
@@ -263,11 +263,16 @@ if (!app.requestSingleInstanceLock()) {
       if (DEV) {
         const frozen = await w.webContents.executeJavaScript('window.__omm?.isFrozen() === true').catch(() => false);
         if (items.length) items.push({ type: 'separator' });
-        // the screenshots first; reload, freeze and inspect always last
+        // the captures (a submenu, like the browser extension's) first; reload, freeze and inspect always last
         items.push(
-          { label: l.shot, click: () => shoot(w, 'viewport', label) },
-          { label: l.fullShot, click: () => shoot(w, 'full', label) },
-          { label: l.elementShot, click: () => shoot(w, 'element', label) },
+          {
+            label: l.captureMenu,
+            submenu: [
+              { label: l.shot, click: () => shoot(w, 'viewport', label) },
+              { label: l.fullShot, click: () => shoot(w, 'full', label) },
+              { label: l.elementShot, click: () => shoot(w, 'element', label) },
+            ],
+          },
           { type: 'separator' },
           { label: l.reload, click: () => w.webContents.reload() },
           { label: frozen ? l.resume : l.freeze, click: () => w.webContents.executeJavaScript(`window.__omm?.setFrozen(${!frozen})`) },
