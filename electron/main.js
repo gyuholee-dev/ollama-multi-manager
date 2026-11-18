@@ -9,12 +9,13 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import electron from 'electron';
-const { app, BrowserWindow, Menu, dialog, ipcMain, nativeTheme, screen, session, shell } = electron;
+const { app, BrowserWindow, Menu, dialog, ipcMain, nativeImage, nativeTheme, screen, session, shell } = electron;
 import { Backend } from './backend-launcher.js';
 import { AppTray } from './tray.js';
 import { startMockupServer } from './dev-mockup.js';
 import { overlay } from './overlay.js';
-import { failureText, focusWindow, putOnClipboard, screenshotDir, takeScreenshot } from './screenshot.js';
+import { failureText, fitPicture, focusWindow, putOnClipboard, screenshotDir, takeScreenshot } from './screenshot.js';
+import { ShotRequestError, startShotServer } from './mcp-shot.js';
 
 const log = (...a) => console.log(new Date().toISOString(), '[shell]', ...a);
 
@@ -32,7 +33,7 @@ const MENU_LABEL = {
 if (!app.requestSingleInstanceLock()) {
   app.quit();
 } else {
-  let win = null, backend = null, tray = null, settings = {}, quitting = false, mockup = null;
+  let win = null, backend = null, tray = null, settings = {}, quitting = false, mockup = null, shotServer = null;
   const monitors = new Map(); // instance id -> its monitor window (one per instance)
 
   // macOS: no system title bar. With macOS 27.2 a window dragged by the system title bar from one display to another
@@ -243,6 +244,25 @@ if (!app.requestSingleInstanceLock()) {
     }
   }
 
+  // Developer mode: a screenshot an MCP client asked for (the MCP server in the backend calls the listener of mcp-shot.js). The window is the main one, or the monitor
+  // window of an instance; the element is named by a selector (nobody can click it); the picture handed back is scaled to at most `maxSide` on its longer
+  // side, the whole one is saved as a file. The page says that it was taken, as it does for the developer's own screenshots.
+  async function mcpCapture({ kind, selector, instanceId, depth, maxSide }) {
+    const w = instanceId ? monitors.get(instanceId) : win;
+    if (!w || w.isDestroyed()) {
+      throw new ShotRequestError('NO_WINDOW', instanceId ? `The monitor window of instance ${instanceId} is not open` : 'The main window is not open', 404);
+    }
+    const l = MENU_LABEL[String(settings.language || app.getLocale()).slice(0, 2)] || MENU_LABEL.en;
+    const ui = overlay(w.webContents);
+    const shot = await takeScreenshot(w.webContents, kind, {
+      dir: screenshotDir(app.getPath('userData')), label: instanceId ? `monitor-${instanceId}` : 'main', selector, depth, feedback: { clear: ui.clear },
+    }).catch(async e => { if (!w.isDestroyed()) await ui.failed(`${l.failedNote}: ${failureText(e, 'en')}`); throw e; });
+    const fit = fitPicture(shot.png, maxSide, nativeImage);
+    log(`Capture (${kind}) for an MCP client saved: ${shot.file}`);
+    if (!w.isDestroyed()) await ui.done(`${l.savedNote} (MCP): ${path.basename(shot.file)}`);
+    return { file: shot.file, png: fit.png, width: fit.width, height: fit.height, fullWidth: shot.width, fullHeight: shot.height };
+  }
+
   // The page may only ever be the backend's own UI; everything else opens in the system browser.
   // Right-click on text selected in a log area offers "Copy" (an Electron window has no menu of its own); in developer mode
   // the menu also offers reload, pausing the page's live updates, and inspect.
@@ -370,6 +390,7 @@ if (!app.requestSingleInstanceLock()) {
     e.preventDefault();
     quitting = true;
     mockup?.close();
+    shotServer?.close();
     log('Quitting: stopping the backend (this stops the instances)');
     backend.stop().catch(err => log('Backend stop failed:', err.message)).finally(() => app.quit());
   });
@@ -380,7 +401,13 @@ if (!app.requestSingleInstanceLock()) {
 
   app.whenReady().then(async () => {
     if (OVERLAY_TITLEBAR) Menu.setApplicationMenu(null);
-    backend = new Backend({ dataDir: app.getPath('userData'), isPackaged: app.isPackaged, log });
+    if (DEV) {
+      try { shotServer = await startShotServer({ capture: mcpCapture, log }); } catch (e) { log('The screenshot listener for MCP did not start:', e.message); }
+    }
+    backend = new Backend({
+      dataDir: app.getPath('userData'), isPackaged: app.isPackaged, log,
+      env: shotServer ? { OMM_SHOT_URL: shotServer.url, OMM_SHOT_TOKEN: shotServer.token } : {},
+    });
     backend.onCrash = (code, sig) => {
       if (quitting) return;
       dialog.showErrorBox('Ollama Multi Manager', `The backend stopped unexpectedly (code ${code}, signal ${sig}).\n\n${backend.tailLog()}`);

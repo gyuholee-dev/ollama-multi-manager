@@ -56,6 +56,7 @@ export interface Settings {
   mcp_port: number;
   mcp_lan: boolean; // other machines may connect too (otherwise this PC only)
   mcp_control: boolean; // the client may also start, stop and restart instances (otherwise read-only)
+  mcp_screenshot: boolean; // the client may ask for screenshots (developer mode only)
   mcp_token_set: boolean;
   mcp_token?: string; // the MCP token itself, shown to be copied; left out for guests
   refresh_interval_seconds: number;
@@ -82,6 +83,9 @@ export interface McpStatus {
   port: number;
   lan: boolean;
   control: boolean;
+  screenshot: boolean; // the switch
+  screenshot_available: boolean; // the app is in developer mode, so there is a way to a screenshot
+  screenshot_active: boolean; // the tool is offered now (also needs this PC only)
   token_set: boolean;
   path: string; // "/mcp"
   active: boolean;

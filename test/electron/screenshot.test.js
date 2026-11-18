@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import { failureText, shotName, screenshotDir, screenshotDepth, DEFAULT_DEPTH, focusWindow, putOnClipboard, takeScreenshot } from '../../electron/screenshot.js';
+import { failureText, fitPicture, shotName, screenshotDir, screenshotDepth, DEFAULT_DEPTH, focusWindow, putOnClipboard, takeScreenshot } from '../../electron/screenshot.js';
 
 const PNG = Buffer.from('fake-png-bytes');
 const PICTURE = { bytes: new Uint8Array(PNG), mime: 'image/png', width: 10, height: 10 };
@@ -239,4 +239,35 @@ test('failure text: by the error code and the language, with the package\'s valu
   assert.equal(failureText(Object.assign(new Error('x'), { code: 'NO_ELEMENT' }), 'en'), 'The chosen element was not found');
   assert.equal(failureText(Object.assign(new Error('x'), { code: 'TOO_LARGE' }), 'ko'), '이미지가 너무 큽니다', 'without details: no number');
   assert.equal(failureText(new Error('the window is gone'), 'ko'), 'the window is gone');
+});
+
+test('fitPicture: a picture longer than the limit is scaled down in proportion, a smaller one is left as it is', () => {
+  const resized = [];
+  const nativeImage = {
+    createFromBuffer: png => ({
+      getSize: () => ({ width: 2000, height: 8000 }),
+      resize: options => { resized.push(options); return { toPNG: () => Buffer.from('small') }; },
+    }),
+  };
+  const big = Buffer.from('big');
+  const down = fitPicture(big, 1000, nativeImage);
+  assert.deepEqual({ ...down, png: down.png.toString() }, { png: 'small', width: 250, height: 1000 });
+  assert.deepEqual(resized, [{ width: 250, height: 1000, quality: 'best' }]);
+  const same = fitPicture(big, 8000, nativeImage);
+  assert.equal(same.png, big);
+  assert.deepEqual([same.width, same.height], [2000, 8000]);
+});
+
+test('takeScreenshot element with a selector: no choosing, the page is held still, and the size comes back', async () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'omm-shot-'));
+  try {
+    const calls = [];
+    const capture = fakeCapture();
+    capture.adapter.runCaptureNode = async (_wc, selector, o) => { calls.push(['node', selector, o.depth]); return PICTURE; };
+    const feedback = { picking: async () => calls.push('picking'), clear: async () => calls.push('clear') };
+    const shot = await takeScreenshot(fakePage(), 'element', { dir, label: 'main', selector: '#logs', depth: 7, feedback, capture });
+    assert.deepEqual(calls, [['node', '#logs', 7]]); // no note asking for a click, no waiting for one
+    assert.deepEqual([shot.width, shot.height], [10, 10]);
+    assert.ok(fs.existsSync(shot.file));
+  } finally { fs.rmSync(dir, { recursive: true, force: true }); }
 });

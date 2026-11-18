@@ -9,15 +9,16 @@ is on, which it is not by default; a client that was connected before the switch
 from __future__ import annotations
 
 import functools
-from typing import Any, Awaitable, Callable
+from typing import Any, Awaitable, Callable, Literal
 
-from mcp.server.mcpserver import MCPServer
+from mcp.server.mcpserver import Image, MCPServer
 from mcp.server.mcpserver.exceptions import ToolError
 from mcp.types import ToolAnnotations
 
 from app.services.instances import InstanceError, InstanceManager
 from app.services.models import ModelService
 from app.services.monitor.collector import Collector
+from app.services.shot_bridge import ShotBridge, ShotError
 
 # the most one call may return: a model reads what comes back, and a long list costs it more than it tells
 MAX_LOG_LINES = 300
@@ -25,6 +26,7 @@ MAX_REQUESTS = 50
 MAX_HISTORY = 240
 
 MAX_DRAIN_SECONDS = 120
+DEFAULT_MAX_SIDE = 1568  # the longer side of the picture handed to the client
 
 _BASE_INSTRUCTIONS = (
     "View of the Ollama Multi Manager desktop app: its Ollama instances, the machine's CPU/RAM/GPU readings, installed models "
@@ -32,13 +34,20 @@ _BASE_INSTRUCTIONS = (
 )
 
 
-def instructions(control: bool = False) -> str:
-    """What the server tells a client about itself: read-only, unless the control tools are switched on."""
+def instructions(control: bool = False, screenshots: bool = False) -> str:
+    """What the server tells a client about itself: read-only, unless the control tools are switched on; and that a screenshot shows what is on
+    screen (which can be what was asked and answered), when that tool is offered."""
+    text = _BASE_INSTRUCTIONS
     if control:
-        return (_BASE_INSTRUCTIONS + " The reading tools change nothing. start_instance, stop_instance and restart_instance do change the app: "
-                "they act on the instances the user has set up, and stopping or restarting one interrupts what it is answering unless drain_seconds "
-                "gives it time to finish. Use them only when the user asked for it.")
-    return _BASE_INSTRUCTIONS + " Nothing here changes the app."
+        text += (" The reading tools change nothing. start_instance, stop_instance and restart_instance do change the app: "
+                 "they act on the instances the user has set up, and stopping or restarting one interrupts what it is answering unless drain_seconds "
+                 "gives it time to finish. Use them only when the user asked for it.")
+    else:
+        text += " Nothing here changes the app."
+    if screenshots:
+        text += (" take_screenshot shows what is on the app's screen as it is, which can include prompts and answers; take one only when the "
+                 "user asked or when you need to see the screen, and prefer a selector for the part you need.")
+    return text
 
 
 INSTRUCTIONS = instructions(False)
@@ -46,6 +55,8 @@ INSTRUCTIONS = instructions(False)
 READ_ONLY = ToolAnnotations(read_only_hint=True, destructive_hint=False, idempotent_hint=True, open_world_hint=False)
 START = ToolAnnotations(read_only_hint=False, destructive_hint=False, idempotent_hint=False, open_world_hint=False)
 STOP = ToolAnnotations(read_only_hint=False, destructive_hint=True, idempotent_hint=True, open_world_hint=False)
+# a screenshot changes nothing in the app (it saves a file of its own and flashes a note on the page)
+SHOT = ToolAnnotations(read_only_hint=False, destructive_hint=False, idempotent_hint=False, open_world_hint=False)
 
 
 def masked(instance: dict[str, Any]) -> dict[str, Any]:
@@ -158,3 +169,26 @@ def register_control_tools(server: MCPServer, manager: InstanceManager) -> None:
         """Stop an instance and start it again (to apply changed options, or to free its memory). Requests it is answering are cut off, unless
         drain_seconds (at most 120) gives them that long to finish first."""
         return masked(await manager.restart(instance_id, drain=clamp(drain_seconds, 0, MAX_DRAIN_SECONDS)))
+
+
+def register_screenshot_tool(server: MCPServer, shots: ShotBridge) -> None:
+    """The screenshot tool. Registered only when the user switched it on, the app is in developer mode and only this PC can connect."""
+
+    @server.tool(annotations=SHOT)
+    async def take_screenshot(
+        kind: Literal["viewport", "full", "element"] = "viewport", selector: str | None = None, instance_id: int | None = None,
+        depth: int | None = None, max_side: int = DEFAULT_MAX_SIDE,
+    ) -> list[Image | str]:
+        """A screenshot of the app's window, as the picture the client can look at (and the file it was saved to, on the machine running the app).
+        kind: viewport = what is on screen now; full = the whole page with its scrolling boxes opened out (the long main view in one picture);
+        element = the part of the page that `selector` (a CSS selector) names, which is required for this kind. instance_id: the monitor window
+        of that instance, which has to be open; without it the main window. depth: how many levels below <body> scrolling boxes are opened out
+        (the default reaches the main view). max_side: the picture is scaled down so that its longer side is at most this many pixels (256 to
+        4096, default 1568); the saved file keeps the full size. The screen can show prompts and answers."""
+        try:
+            shot = await shots.capture(kind, selector, instance_id, depth, clamp(max_side, 256, 4096))
+        except ShotError as e:
+            raise ToolError(str(e)) from e
+        note = f"Saved on the machine running the app: {shot.file}\nShown {shot.width}x{shot.height}px"
+        note += f" (scaled down from {shot.full_width}x{shot.full_height}px)." if (shot.width, shot.height) != (shot.full_width, shot.full_height) else "."
+        return [Image(data=shot.png, format="png"), note]

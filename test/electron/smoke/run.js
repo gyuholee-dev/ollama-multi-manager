@@ -6,7 +6,8 @@ import { app, BrowserWindow, nativeImage } from 'electron';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import { takeScreenshot } from '../../../electron/screenshot.js';
+import { fitPicture, takeScreenshot } from '../../../electron/screenshot.js';
+import { startShotServer } from '../../../electron/mcp-shot.js';
 import { overlay } from '../../../electron/overlay.js';
 
 const failures = [];
@@ -86,6 +87,27 @@ app.whenReady().then(async () => {
     const again = await takeScreenshot(tall.webContents, 'viewport', { dir, label: 'after-note', feedback: { clear: ui.clear } });
     check('tall: neither the flash nor the note is in the next picture (the header is its own colour)', header(again.file, Math.floor(vw * dpr / 2), 24 * dpr), [51, 51, 51]);
     check('tall: and the page has none of it left', await noteText(), null);
+
+    // what an MCP client asks for, through the listener (the element is named by a selector, the picture comes back scaled down, the file is whole)
+    const listener = await startShotServer({
+      capture: async ({ kind, selector, depth, maxSide }) => {
+        const shot = await takeScreenshot(tall.webContents, kind, { dir, label: 'mcp', selector, depth });
+        const fit = fitPicture(shot.png, maxSide, nativeImage);
+        return { file: shot.file, png: fit.png, width: fit.width, height: fit.height, fullWidth: shot.width, fullHeight: shot.height };
+      },
+    });
+    try {
+      const ask = async body => (await fetch(`${listener.url}/capture`, { method: 'POST', headers: { Authorization: `Bearer ${listener.token}` }, body: JSON.stringify(body) })).json();
+      const element = await ask({ kind: 'element', selector: '#target', max_side: 4096 });
+      check('mcp: an element named by a selector is the same picture as the one that was clicked', [element.ok, element.full_width, element.full_height], [true, 420 * dpr, 140 * dpr]);
+      check('mcp: the picture is a PNG', Buffer.from(element.data, 'base64').subarray(1, 4).toString(), 'PNG');
+      const small = await ask({ kind: 'full', max_side: 500 });
+      check('mcp: a long picture is scaled down to the longer side asked for', [small.ok, Math.max(small.width, small.height)], [true, 500]);
+      check('mcp: the file saved is the whole picture', size(small.file), [small.full_width, small.full_height]);
+      check('mcp: the picture handed over is what the file is, scaled', size(small.file)[1] > small.height, true);
+      const missing = await ask({ kind: 'element', selector: '#nothing-here' });
+      check('mcp: an element that is not there is an error with its code', [missing.ok, missing.code], [false, 'NO_ELEMENT']);
+    } finally { await listener.close(); }
 
     // a monitor window: the body scrolls under a header, inside a <main> that has no box of its own (display: contents) but has overflow
     const mon = await open('monitor.html');

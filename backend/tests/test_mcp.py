@@ -7,6 +7,7 @@ from mcp.client.streamable_http import streamable_http_client
 
 from app.services.mcp import RateLimiter
 from app.services.mcp_tools import clamp, instructions, masked
+from app.services.shot_bridge import ShotBridge
 from tests.conftest import free_port, wait_for
 
 TOKEN = "t" * 32
@@ -255,6 +256,106 @@ async def test_an_instance_returned_by_a_control_tool_has_no_api_key(env):
     assert "super-secret-key-5678" not in str(result.content) + str(result.structured_content)
 
 
+# ---- the screenshot tool (developer mode, its own switch, this PC only)
+
+PNG = b"\x89PNG\r\n\x1a\n-fake-picture"
+
+
+def fake_listener(requests, status=200, reply=None):
+    """Stands in for Electron's screenshot listener: records what it is asked, answers with a picture (or with `reply`)."""
+    def handler(request: httpx.Request) -> httpx.Response:
+        import base64
+        import json
+        requests.append((request.url.path, request.headers.get("authorization"), json.loads(request.content)))
+        body = reply or {"ok": True, "mime": "image/png", "file": "/data/screenshots/s.png", "width": 400, "height": 800, "full_width": 800, "full_height": 1600,
+                         "data": base64.b64encode(PNG).decode()}
+        return httpx.Response(status, json=body)
+    return httpx.MockTransport(handler)
+
+
+def with_listener(env, requests, **kwargs):
+    env.app.state.mcp.shots = ShotBridge("http://shots.test", "shot-token", transport=fake_listener(requests, **kwargs))
+
+
+async def test_the_screenshot_tool_is_not_offered_without_developer_mode_or_the_switch(env):
+    port = await start_mcp(env, mcp_screenshot=True)  # the switch is on, but the app has no listener: it is not in developer mode
+    status = (await env.client.get("/info")).json()["mcp"]
+    assert status["screenshot"] is True and status["screenshot_available"] is False and status["screenshot_active"] is False
+    async with connect(port) as client:
+        assert "take_screenshot" not in {t.name for t in (await client.list_tools()).tools}
+    with_listener(env, [])  # developer mode, but the switch is off
+    await env.client.put("/settings", json={"mcp_screenshot": False})
+    await wait_for(lambda: env.app.state.mcp.active and env.app.state.mcp._bound[3] is False)
+    async with connect(port) as client:
+        assert "take_screenshot" not in {t.name for t in (await client.list_tools()).tools}
+
+
+async def test_the_screenshot_tool_hands_over_the_picture_and_where_it_was_saved(env):
+    requests = []
+    with_listener(env, requests)
+    port = await start_mcp(env, mcp_screenshot=True)
+    assert (await env.client.get("/info")).json()["mcp"]["screenshot_active"] is True
+    async with connect(port) as client:
+        tools = {t.name: t for t in (await client.list_tools()).tools}
+        assert tools["take_screenshot"].annotations.read_only_hint is False and tools["take_screenshot"].annotations.destructive_hint is False
+        result = await client.call_tool("take_screenshot", {"kind": "element", "selector": "#logs", "instance_id": 2, "depth": 6, "max_side": 900})
+    assert not result.is_error
+    image = next(c for c in result.content if c.type == "image")
+    assert image.mime_type == "image/png"
+    import base64
+    assert base64.b64decode(image.data) == PNG
+    text = next(c for c in result.content if c.type == "text").text
+    assert "/data/screenshots/s.png" in text and "400x800" in text and "800x1600" in text  # saved where, how large, and that it was scaled down
+    assert requests == [("/capture", "Bearer shot-token", {"kind": "element", "max_side": 900, "selector": "#logs", "instance_id": 2, "depth": 6})]
+
+
+async def test_the_screenshot_tool_defaults_and_limits(env):
+    requests = []
+    with_listener(env, requests)
+    port = await start_mcp(env, mcp_screenshot=True)
+    async with connect(port) as client:
+        await client.call_tool("take_screenshot", {})
+        await client.call_tool("take_screenshot", {"kind": "full", "max_side": 100000})  # more than the most: cut, not refused
+        refused = await client.call_tool("take_screenshot", {"kind": "video"})
+    assert requests[0][2] == {"kind": "viewport", "max_side": 1568}
+    assert requests[1][2] == {"kind": "full", "max_side": 4096}
+    assert refused.is_error and len(requests) == 2  # a kind that does not exist never reaches the app
+
+
+async def test_a_screenshot_that_fails_is_a_tool_error_the_model_can_read(env):
+    requests = []
+    with_listener(env, requests, status=404, reply={"ok": False, "code": "NO_WINDOW", "message": "The monitor window of instance 9 is not open"})
+    port = await start_mcp(env, mcp_screenshot=True)
+    async with connect(port) as client:
+        result = await client.call_tool("take_screenshot", {"instance_id": 9})
+    assert result.is_error and "not open" in result.content[0].text
+
+
+async def test_a_listener_that_cannot_be_reached_is_an_error_not_a_crash(env):
+    env.app.state.mcp.shots = ShotBridge("http://127.0.0.1:1", "shot-token")  # nothing listens there
+    port = await start_mcp(env, mcp_screenshot=True)
+    async with connect(port) as client:
+        result = await client.call_tool("take_screenshot", {})
+    assert result.is_error and "cannot be reached" in result.content[0].text
+
+
+async def test_with_other_machines_allowed_the_screenshot_tool_is_not_offered(env):
+    with_listener(env, [])
+    port = await start_mcp(env, mcp_screenshot=True, mcp_lan=True)  # what a screenshot shows is not meant to leave this PC
+    status = (await env.client.get("/info")).json()["mcp"]
+    assert status["lan"] is True and status["screenshot"] is True and status["screenshot_active"] is False
+    async with connect(port) as client:
+        assert "take_screenshot" not in {t.name for t in (await client.list_tools()).tools}
+    await env.client.put("/settings", json={"mcp_lan": False})  # back to this PC only: the tool comes
+    await wait_for(lambda: env.app.state.mcp.active and env.app.state.mcp._bound[3] is True)
+
+
+def test_the_bridge_is_there_only_with_an_address_and_a_token():
+    assert ShotBridge.from_env({}).available is False
+    assert ShotBridge.from_env({"OMM_SHOT_URL": "http://127.0.0.1:5"}).available is False
+    assert ShotBridge.from_env({"OMM_SHOT_URL": "http://127.0.0.1:5", "OMM_SHOT_TOKEN": "t"}).available is True
+
+
 # ---- the settings that belong to it
 
 async def test_the_token_has_a_least_length_and_guests_never_see_it(env):
@@ -295,3 +396,4 @@ def test_what_the_tools_show_of_an_instance_and_how_much_they_return():
 def test_what_the_server_tells_a_client_about_itself_follows_the_control_switch():
     assert "start_instance" not in instructions(False) and "Nothing here changes the app" in instructions(False)
     assert "start_instance" in instructions(True) and "only when the user asked" in instructions(True)
+    assert "take_screenshot" not in instructions(False) and "prompts and answers" in instructions(False, True)

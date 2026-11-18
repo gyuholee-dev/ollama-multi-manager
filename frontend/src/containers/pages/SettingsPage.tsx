@@ -161,6 +161,9 @@ export function SettingsPage() {
               onBlur={() => void commitSetting('mcpPort')} onKeyDown={onEnter('mcpPort')} /></div>
           <Switch id="mcplan" label={t('set.mcpLan')} hint={t('set.mcpLanHint')} checked={cfg.mcpLan} onChange={(v) => apply({ mcpLan: v }, 'mcpLan')} />
           <Switch id="mcpctl" label={t('set.mcpControl')} hint={t('set.mcpControlHint')} checked={cfg.mcpControl} onChange={(v) => apply({ mcpControl: v }, 'mcpControl')} />
+          {mcp?.screenshot_available && (
+            <Switch id="mcpshot" label={t('set.mcpShot')} hint={cfg.mcpLan ? t('set.mcpShotLan') : t('set.mcpShotHint')} checked={cfg.mcpShot} onChange={(v) => apply({ mcpShot: v }, 'mcpShot')} />
+          )}
           <div className="fld fld--note"><label className="fld__label" htmlFor="mcptoken">{t('set.mcpToken')}</label>
             <input id="mcptoken" className="fld__text fld__text--grow" type="text" autoComplete="off" spellCheck={false} value={mcpToken} placeholder={t('set.extPwUnset')}
               onChange={(e) => setMcpToken(e.target.value)} onBlur={() => void saveMcpToken()} onKeyDown={(e) => { if (e.key === 'Enter') void saveMcpToken(); }} />

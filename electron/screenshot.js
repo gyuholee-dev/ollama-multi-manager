@@ -89,13 +89,26 @@ async function captureChosenElement(webContents, capture, options, feedback) {
   }
 }
 
-/** Takes the picture and saves it. kind: 'viewport' | 'full' | 'element' (the user chooses the element on the page). Resolves { file, png }.
- * `pickTimeoutMs`: how long the choosing of an element may take. `depth`: see screenshotDepth.
+/** The picture scaled down so that its longer side is at most `maxSide` (a picture that is smaller is left as it is). `nativeImage` is Electron's
+ * (or a stand-in in tests). Resolves { png, width, height } of what comes out. */
+function fitPicture(png, maxSide, nativeImage) {
+  const image = nativeImage.createFromBuffer(png);
+  const { width, height } = image.getSize();
+  const scale = maxSide / Math.max(width, height);
+  if (!(scale < 1)) return { png, width, height };
+  const to = { width: Math.max(1, Math.round(width * scale)), height: Math.max(1, Math.round(height * scale)) };
+  return { png: image.resize({ ...to, quality: 'best' }).toPNG(), ...to };
+}
+
+/** Takes the picture and saves it. kind: 'viewport' | 'full' | 'element' (the user chooses the element on the page, or `selector` names it).
+ * Resolves { file, png, width, height }.
+ * `pickTimeoutMs`: how long the choosing of an element may take. `depth`: see screenshotDepth. `selector` (kind 'element'): a CSS selector in place of
+ * the choosing, for a caller that cannot click (the MCP server): no note is shown and nothing is waited for.
  * `feedback` (optional, see overlay.js): `picking()` is called while an element is being chosen, and `clear()` before every picture, so that
  * what the page shows to the user is never in the picture.
  * `capture` (optional): the package's { core, adapter }, for a test that has no package to load.
  * A failure is an Error with the package's `code` (CANCELED when the user pressed Escape, TOO_LARGE ...). */
-async function takeScreenshot(webContents, kind, { dir, label, now = new Date(), pickTimeoutMs, depth = screenshotDepth(), feedback, capture }) {
+async function takeScreenshot(webContents, kind, { dir, label, now = new Date(), pickTimeoutMs, depth = screenshotDepth(), feedback, capture, selector }) {
   if (!['viewport', 'full', 'element'].includes(kind)) throw new Error(`unknown screenshot kind: ${kind}`);
   const loaded = capture || { core, adapter };
   const options = { depth, format: 'png', pickTimeoutMs };
@@ -108,6 +121,8 @@ async function takeScreenshot(webContents, kind, { dir, label, now = new Date(),
       if (feedback) await feedback.clear();
       return loaded.adapter.runCapture(webContents, 'full', options);
     });
+  } else if (selector) {
+    picture = await stillPage(webContents, () => loaded.adapter.runCaptureNode(webContents, selector, options));
   } else {
     picture = await stillPage(webContents, () => captureChosenElement(webContents, loaded, options, feedback));
   }
@@ -115,7 +130,7 @@ async function takeScreenshot(webContents, kind, { dir, label, now = new Date(),
   fs.mkdirSync(dir, { recursive: true });
   const file = path.join(dir, shotName(label, kind, now));
   fs.writeFileSync(file, png);
-  return { file, png };
+  return { file, png, width: picture.width, height: picture.height };
 }
 
 // The package's messages are English and for developers (they go to the log). What the page shows is written here, by the error's code.
@@ -147,4 +162,4 @@ function failureText(error, language = 'en') {
   return texts[error?.code]?.(error) ?? error?.message ?? String(error);
 }
 
-export { failureText, shotName, screenshotDir, screenshotDepth, focusWindow, putOnClipboard, takeScreenshot, DEFAULT_DEPTH };
+export { failureText, fitPicture, shotName, screenshotDir, screenshotDepth, focusWindow, putOnClipboard, takeScreenshot, DEFAULT_DEPTH };

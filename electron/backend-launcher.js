@@ -55,8 +55,10 @@ function looksLikeBackend(pid) {
 }
 
 class Backend {
-  constructor({ dataDir, isPackaged, log = console.log }) {
+  // `env`: more environment variables for the backend (developer mode hands it the address of the screenshot listener)
+  constructor({ dataDir, isPackaged, log = console.log, env = {} }) {
     this.dataDir = dataDir;
+    this.extraEnv = env;
     this.isPackaged = isPackaged;
     this.log = log;
     this.child = null;
@@ -110,7 +112,7 @@ class Backend {
     this.stopping = false;
     this.child = spawn(cmd, [...args, '--port', String(this.port)], {
       cwd, windowsHide: true, stdio: ['ignore', out, out],
-      env: { ...process.env, OMM_TOKEN: this.token, OMM_DATA_DIR: this.dataDir, OMM_FRONTEND_DIR: frontend, PYTHONUNBUFFERED: '1', PYTHONIOENCODING: 'utf-8' },
+      env: { ...process.env, ...this.extraEnv, OMM_TOKEN: this.token, OMM_DATA_DIR: this.dataDir, OMM_FRONTEND_DIR: frontend, PYTHONUNBUFFERED: '1', PYTHONIOENCODING: 'utf-8' },
     });
     fs.closeSync(out);
     this.child.once('error', e => { this.exited = true; this.log(`Backend failed to start: ${e.message}`); });

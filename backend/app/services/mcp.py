@@ -25,10 +25,11 @@ from mcp.server.transport_security import TransportSecuritySettings
 from starlette.responses import JSONResponse
 
 from app.services.instances import InstanceManager, port_free
-from app.services.mcp_tools import instructions, register_control_tools, register_tools
+from app.services.mcp_tools import instructions, register_control_tools, register_screenshot_tool, register_tools
 from app.services.models import ModelService
 from app.services.monitor.collector import Collector
 from app.services.settings import MCP_TOKEN_KEY, SettingsService
+from app.services.shot_bridge import ShotBridge
 from app.services.webauth import LoginLimiter, verify_token
 
 log = logging.getLogger("omm.mcp")
@@ -99,12 +100,14 @@ class McpGate:
 
 
 def build_app(manager: InstanceManager, collector: Collector, models: ModelService, settings: SettingsService, version: str, lan: bool,
-              control: bool = False) -> Any:
+              control: bool = False, shots: ShotBridge | None = None) -> Any:
     """A new MCP server and its ASGI app behind the gate (a session manager runs once, so every start builds its own)."""
-    server = MCPServer("ollama-multi-manager", title="Ollama Multi Manager", version=version, instructions=instructions(control))
+    server = MCPServer("ollama-multi-manager", title="Ollama Multi Manager", version=version, instructions=instructions(control, shots is not None))
     register_tools(server, manager, collector, models)
     if control:
         register_control_tools(server, manager)
+    if shots is not None:
+        register_screenshot_tool(server, shots)
     # Host and Origin checks keep a web page from reaching a loopback server by way of DNS rebinding; with other machines allowed the
     # address is not known in advance, and the token is what stands guard.
     security = TransportSecuritySettings(enable_dns_rebinding_protection=False) if lan else TransportSecuritySettings(
@@ -114,23 +117,28 @@ def build_app(manager: InstanceManager, collector: Collector, models: ModelServi
 
 
 class McpService:
-    def __init__(self, settings: SettingsService, manager: InstanceManager, collector: Collector, models: ModelService, version: str):
+    def __init__(self, settings: SettingsService, manager: InstanceManager, collector: Collector, models: ModelService, version: str,
+                 shots: ShotBridge | None = None):
         self.settings, self.manager, self.collector, self.models, self.version = settings, manager, collector, models, version
+        self.shots = shots or ShotBridge()
         self.error: str | None = None
         self._server: uvicorn.Server | None = None
         self._task: asyncio.Task | None = None
-        self._bound: tuple[int, bool, bool] | None = None  # (port, lan, control) the running listener was started with
+        self._bound: tuple[int, bool, bool, bool] | None = None  # (port, lan, control) the running listener was started with
 
     @property
     def active(self) -> bool:
         return self._server is not None and self._server.started
 
-    def _wanted(self) -> tuple[int, bool, bool] | None:
-        """(port, lan, control) when the server should run, None when it should not. The tools are registered when the server is built, so a
-        change of the control switch is a rebind like a change of the port."""
+    def _wanted(self) -> tuple[int, bool, bool, bool] | None:
+        """(port, lan, control, screenshot) when the server should run, None when it should not. The tools are registered when the server is built, so
+        a change of a switch is a rebind like a change of the port. The screenshot tool is offered only where there is a way to a screenshot (the app
+        in developer mode), the switch is on, and only this PC can connect: what a screenshot shows is not meant to leave the machine."""
         if not self.settings.get("mcp_enabled") or not self.settings.get(MCP_TOKEN_KEY):
             return None
-        return int(self.settings.get("mcp_port")), bool(self.settings.get("mcp_lan")), bool(self.settings.get("mcp_control"))
+        lan = bool(self.settings.get("mcp_lan"))
+        shot = bool(self.shots.available and self.settings.get("mcp_screenshot") and not lan)
+        return int(self.settings.get("mcp_port")), lan, bool(self.settings.get("mcp_control")), shot
 
     def status(self) -> dict[str, Any]:
         return {
@@ -138,6 +146,9 @@ class McpService:
             "port": self.settings.get("mcp_port"),
             "lan": bool(self.settings.get("mcp_lan")),
             "control": bool(self.settings.get("mcp_control")),
+            "screenshot": bool(self.settings.get("mcp_screenshot")),  # the switch
+            "screenshot_available": self.shots.available,  # the app is in developer mode
+            "screenshot_active": bool(self._bound and self._bound[3]),  # the tool is offered now
             "token_set": bool(self.settings.get(MCP_TOKEN_KEY)),
             "path": PATH,
             "active": self.active, "error": self.error,
@@ -153,17 +164,17 @@ class McpService:
         elif not want:
             self.error = None
 
-    async def _start(self, port: int, lan: bool, control: bool) -> None:
+    async def _start(self, port: int, lan: bool, control: bool, shot: bool) -> None:
         self.error = None
         if not port_free(port):
             self.error = f"Port {port} is already in use"
             log.warning("MCP server not started: %s", self.error)
             return
         host = os.environ.get("OMM_MCP_HOST") or ("0.0.0.0" if lan else "127.0.0.1")
-        app = build_app(self.manager, self.collector, self.models, self.settings, self.version, lan, control)
+        app = build_app(self.manager, self.collector, self.models, self.settings, self.version, lan, control, self.shots if shot else None)
         server = uvicorn.Server(uvicorn.Config(app, host=host, port=port, log_level="warning", lifespan="on", timeout_graceful_shutdown=2))
         server.install_signal_handlers = lambda: None  # the main server owns signal handling
-        self._server, self._bound = server, (port, lan, control)
+        self._server, self._bound = server, (port, lan, control, shot)
         self._task = asyncio.create_task(self._serve(server))
         for _ in range(100):
             if server.started or self._task.done():
