@@ -133,15 +133,6 @@ export function SettingsPage() {
           <div className="fld"><label className="fld__label" htmlFor="mport">{t('set.extPort')}</label>
             <input id="mport" className="fld__text" type="number" min={1024} max={65535} value={cfg.monPort} onChange={(e) => edit({ monPort: +e.target.value })}
               onBlur={() => void commitSetting('monPort')} onKeyDown={onEnter('monPort')} /></div>
-          <div className="fld"><label className="fld__label" htmlFor={address ? 'maddr' : undefined}>{t('set.extAddr')}</label>
-            {address ? (
-              <span className="fld__group">
-                <input id="maddr" className="fld__text" readOnly value={address} />
-                <button type="button" className={copied ? 'inline inline--done' : 'inline'} aria-label={t('btn.copy')} title={copied ? t('btn.copied') : t('btn.copy')} onClick={() => void copyAddress()}>
-                  <span className="material-icons">{copied ? 'check' : 'content_copy'}</span>
-                </button>
-              </span>
-            ) : <span className="fld__static">{t('set.extAddrOff')}</span>}</div>
           <div className="fld fld--note"><label className="fld__label" htmlFor="mpw">{t('set.extPw')}</label>
             <input id="mpw" className="fld__text" type="password" autoComplete="new-password" value={pw} placeholder={pwSet ? t('set.extPwSet') : t('set.extPwUnset')}
               onChange={(e) => setPw(e.target.value)} onBlur={() => void savePw()} onKeyDown={(e) => { if (e.key === 'Enter') void savePw(); }} />
@@ -153,6 +144,15 @@ export function SettingsPage() {
               ? <button type="button" className={tokenDone ? 'inline inline--done' : 'inline'} aria-label={t('btn.copy')} title={tokenDone ? t('btn.copied') : t('btn.copy')} onClick={() => void copyToken()}><span className="material-icons">{tokenDone ? 'check' : 'content_copy'}</span></button>
               : <button type="button" className={tokenDone ? 'inline inline--done' : 'inline'} aria-label={t('btn.genKey')} title={t('btn.genKey')} onClick={() => void generateToken()}><span className="material-icons">{tokenDone ? 'check' : 'autorenew'}</span></button>}
             <span className="fld__note sub">{t('set.mxTokenHint')}</span></div>
+          <div className="fld"><label className="fld__label" htmlFor={address ? 'maddr' : undefined}>{t('set.extAddr')}</label>
+            {address ? (
+              <span className="fld__group">
+                <input id="maddr" className="fld__text" readOnly value={address} />
+                <button type="button" className={copied ? 'inline inline--done' : 'inline'} aria-label={t('btn.copy')} title={copied ? t('btn.copied') : t('btn.copy')} onClick={() => void copyAddress()}>
+                  <span className="material-icons">{copied ? 'check' : 'content_copy'}</span>
+                </button>
+              </span>
+            ) : <span className="fld__static">{t('set.extAddrOff')}</span>}</div>
         </Box>
         <Box title={t('set.mcp')}>
           <Switch id="mcpon" label={t('set.mcpOn')} hint={t('set.mcpHint')} checked={cfg.mcpOn} onChange={(v) => apply({ mcpOn: v }, 'mcpOn')} />
@@ -160,6 +160,13 @@ export function SettingsPage() {
           <div className="fld"><label className="fld__label" htmlFor="mcpport">{t('set.mcpPort')}</label>
             <input id="mcpport" className="fld__text" type="number" min={1024} max={65535} value={cfg.mcpPort} onChange={(e) => edit({ mcpPort: +e.target.value })}
               onBlur={() => void commitSetting('mcpPort')} onKeyDown={onEnter('mcpPort')} /></div>
+          <div className="fld fld--note"><label className="fld__label" htmlFor="mcptoken">{t('set.mcpToken')}</label>
+            <input id="mcptoken" className="fld__text fld__text--grow" type="text" autoComplete="off" spellCheck={false} value={mcpToken} placeholder={t('set.extPwUnset')}
+              onChange={(e) => setMcpToken(e.target.value)} onBlur={() => void saveMcpToken()} onKeyDown={(e) => { if (e.key === 'Enter') void saveMcpToken(); }} />
+            {mcpToken
+              ? <button type="button" className={mcpDone ? 'inline inline--done' : 'inline'} aria-label={t('btn.copy')} title={mcpDone ? t('btn.copied') : t('btn.copy')} onClick={() => void (copyText(mcpToken).then((ok) => { if (ok) flashMcp(); }))}><span className="material-icons">{mcpDone ? 'check' : 'content_copy'}</span></button>
+              : <button type="button" className={mcpDone ? 'inline inline--done' : 'inline'} aria-label={t('btn.genKey')} title={t('btn.genKey')} onClick={() => void generateMcpToken()}><span className="material-icons">{mcpDone ? 'check' : 'autorenew'}</span></button>}
+            <span className="fld__note sub">{t('set.mcpTokenHint')}</span></div>
           <div className="fld"><label className="fld__label" htmlFor={mcpAddress ? 'mcpaddr' : undefined}>{t('set.mcpAddr')}</label>
             {mcpAddress ? (
               <span className="fld__group">
@@ -169,13 +176,6 @@ export function SettingsPage() {
                 </button>
               </span>
             ) : <span className="fld__static">{cfg.mcpOn && !mcpTokenSet ? t('set.mcpNeedToken') : t('set.mcpOff')}</span>}</div>
-          <div className="fld fld--note"><label className="fld__label" htmlFor="mcptoken">{t('set.mcpToken')}</label>
-            <input id="mcptoken" className="fld__text fld__text--grow" type="text" autoComplete="off" spellCheck={false} value={mcpToken} placeholder={t('set.extPwUnset')}
-              onChange={(e) => setMcpToken(e.target.value)} onBlur={() => void saveMcpToken()} onKeyDown={(e) => { if (e.key === 'Enter') void saveMcpToken(); }} />
-            {mcpToken
-              ? <button type="button" className={mcpDone ? 'inline inline--done' : 'inline'} aria-label={t('btn.copy')} title={mcpDone ? t('btn.copied') : t('btn.copy')} onClick={() => void (copyText(mcpToken).then((ok) => { if (ok) flashMcp(); }))}><span className="material-icons">{mcpDone ? 'check' : 'content_copy'}</span></button>
-              : <button type="button" className={mcpDone ? 'inline inline--done' : 'inline'} aria-label={t('btn.genKey')} title={t('btn.genKey')} onClick={() => void generateMcpToken()}><span className="material-icons">{mcpDone ? 'check' : 'autorenew'}</span></button>}
-            <span className="fld__note sub">{t('set.mcpTokenHint')}</span></div>
         </Box>
         <Box title={t('set.monitor')}>
           {platform === 'darwin' && <Switch id="pm" label={t('set.pm')} hint={t('set.pmHint')} checked={false} disabled onChange={() => undefined} />}
