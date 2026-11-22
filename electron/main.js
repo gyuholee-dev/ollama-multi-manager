@@ -17,6 +17,7 @@ import { overlay } from './overlay.js';
 import { failureText, fitPicture, focusWindow, putOnClipboard, screenshotDir, takeScreenshot } from './screenshot.js';
 import { ShotRequestError, startShotServer } from './mcp-shot.js';
 import { hiddenWindowError, resolveMonitor, unthrottled, waitForContent, windowState } from './mcp-monitor.js';
+import { NEEDS_SHOWN, parseUiRequest, runUiAction } from './mcp-ui.js';
 
 const log = (...a) => console.log(new Date().toISOString(), '[shell]', ...a);
 
@@ -292,6 +293,24 @@ if (!app.requestSingleInstanceLock()) {
     }
   }
 
+  // What an MCP client does on the screen (find, click, type ...: mcp-ui.js): of the main window (the monitor panel is a part of it), or of a monitor window that is open.
+  async function mcpUi(body) {
+    const request = parseUiRequest(body);
+    let w = win;
+    if (request.instanceId) {
+      w = monitors.get(request.instanceId);
+      if (!w || w.isDestroyed()) {
+        throw new ShotRequestError('NO_WINDOW', `The monitor window of instance ${request.instanceId} is not open (a monitor shown in the panel is part of the main window: leave out instance_id)`, 404);
+      }
+    }
+    if (!w || w.isDestroyed()) throw new ShotRequestError('NO_WINDOW', 'The main window is not open', 404);
+    if (NEEDS_SHOWN.has(request.action) && windowState(w)?.hidden) {
+      throw new ShotRequestError('WINDOW_HIDDEN', `The window is hidden (in the tray or minimized), so "${request.action}" cannot be done on it: the input of a window that is not shown does not arrive`, 409);
+    }
+    log(`MCP ui: ${request.action}${request.selector ? ` ${request.selector}` : ''}`);
+    return unthrottled(w.webContents, () => runUiAction(w.webContents, request));
+  }
+
   // What an MCP client may ask about the app before it asks for a picture: which windows there are and whether they are shown (see mcp-monitor.js).
   const appState = () => ({
     developer_mode: DEV,
@@ -446,7 +465,7 @@ if (!app.requestSingleInstanceLock()) {
   app.whenReady().then(async () => {
     if (OVERLAY_TITLEBAR) Menu.setApplicationMenu(null);
     if (DEV) {
-      try { shotServer = await startShotServer({ capture: mcpCapture, state: appState, log }); } catch (e) { log('The screenshot listener for MCP did not start:', e.message); }
+      try { shotServer = await startShotServer({ capture: mcpCapture, state: appState, ui: mcpUi, log }); } catch (e) { log('The screenshot listener for MCP did not start:', e.message); }
     }
     backend = new Backend({
       dataDir: app.getPath('userData'), isPackaged: app.isPackaged, log,

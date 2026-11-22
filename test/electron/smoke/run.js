@@ -9,6 +9,7 @@ import path from 'node:path';
 import { fitPicture, takeScreenshot } from '../../../electron/screenshot.js';
 import { startShotServer } from '../../../electron/mcp-shot.js';
 import { unthrottled } from '../../../electron/mcp-monitor.js';
+import { parseUiRequest, runUiAction } from '../../../electron/mcp-ui.js';
 import { overlay } from '../../../electron/overlay.js';
 
 const failures = [];
@@ -112,6 +113,31 @@ app.whenReady().then(async () => {
       const missing = await ask({ kind: 'element', selector: '#nothing-here' });
       check('mcp: an element that is not there is an error with its code', [missing.ok, missing.code], [false, 'NO_ELEMENT']);
     } finally { await listener.close(); }
+
+    // what an MCP client does on the screen, in a real page: found, clicked, typed into, keys, scrolled, set
+    const uiPage = await open('ui.html');
+    const ui2 = body => runUiAction(uiPage.webContents, parseUiRequest(body), { settleMs: 80 });
+    const found = await ui2({ action: 'find', selector: 'button', text: 'Click' });
+    check('ui: find gives the matches with their state', [found.count, found.elements[0].tag, found.elements[0].visible, found.elements[0].disabled], [1, 'button', true, false]);
+    await ui2({ action: 'click', selector: '#count' });
+    check('ui: a click is a mouse click on the element (the page counted it, and its text changed)', [await js(uiPage, 'window.clicks'), await js(uiPage, '#count'.length && 'document.getElementById("count").textContent')], [1, 'Clicked 1']);
+    check('ui: a disabled button is not clicked', await ui2({ action: 'click', selector: '#off' }).then(() => 'clicked', e => e.code), 'NOT_CLICKABLE');
+    check('ui: an inert element (under a dialog) is not clicked', await ui2({ action: 'click', selector: '#blocked' }).then(() => 'clicked', e => e.code), 'NOT_CLICKABLE');
+    check('ui: no match is an error that says so', await ui2({ action: 'click', selector: '#nothing' }).then(() => 'clicked', e => e.code), 'NO_ELEMENT');
+    await ui2({ action: 'type', selector: '#name', text: 'new', clear: true });
+    check('ui: typing replaces what was in the field, and the page saw the input', [await js(uiPage, 'document.getElementById("name").value'), await js(uiPage, 'window.typed')], ['new', 'new']);
+    await ui2({ action: 'key', key: 'Enter' });
+    check('ui: a key press reaches the focused element', await js(uiPage, 'window.lastKey'), 'Enter');
+    await ui2({ action: 'set_value', selector: '#mode', value: 'Beta' });
+    check('ui: a select is set by its option text, and the page was told', [await js(uiPage, 'document.getElementById("mode").value'), await js(uiPage, 'window.mode')], ['b', 'b']);
+    const scrolled = await ui2({ action: 'scroll', selector: '#log', delta_y: 100 });
+    check('ui: a box is scrolled', [scrolled.to[1], await js(uiPage, 'document.getElementById("log").scrollTop')], [100, 100]);
+    await ui2({ action: 'click', selector: '#far' });
+    check('ui: an element out of view is scrolled into view and clicked', await js(uiPage, 'window.far === true'), true);
+    const secret = await ui2({ action: 'find', selector: '#secret' });
+    check('ui: the value of a password field is not given', secret.elements[0].value, undefined);
+    const text = await ui2({ action: 'text', selector: '#log', max_chars: 5 });
+    check('ui: the text of a part of the page, cut at the length asked for', [text.text.length, text.cut], [5, true]);
 
     // a monitor window: the body scrolls under a header, inside a <main> that has no box of its own (display: contents) but has overflow
     const mon = await open('monitor.html');

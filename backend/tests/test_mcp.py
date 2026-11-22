@@ -355,6 +355,72 @@ async def test_a_window_that_is_hidden_is_refused_with_its_reason_not_waited_for
     assert result.is_error and "only kind" in result.content[0].text and "has to be shown first" in result.content[0].text
 
 
+# ---- operating the screen (developer mode and the control switch)
+
+UI_TOOLS = {"find_elements", "click_element", "type_text", "press_key", "scroll_element", "set_element_value", "get_page_text"}
+
+
+def ui_listener(requests, status=200, reply=None):
+    def handler(request: httpx.Request) -> httpx.Response:
+        import json
+        requests.append((request.url.path, request.headers.get("authorization"), json.loads(request.content)))
+        return httpx.Response(status, json=reply or {"ok": True, "clicked": {"tag": "button", "text": "Monitor"}, "at": {"x": 60, "y": 35}})
+    env_transport = httpx.MockTransport(handler)
+    return env_transport
+
+
+async def test_the_screen_is_not_operated_without_the_control_switch_or_without_developer_mode(env):
+    env.app.state.mcp.shots = ShotBridge("http://shots.test", "shot-token", transport=ui_listener([]))
+    port = await start_mcp(env)  # developer mode, but the control switch is off: looking at the screen, not operating it
+    async with connect(port) as client:
+        names = {t.name for t in (await client.list_tools()).tools}
+    assert "take_screenshot" in names and not UI_TOOLS & names
+    await env.client.put("/settings", json={"mcp_control": True})
+    await wait_for(lambda: env.app.state.mcp.active and env.app.state.mcp._bound[1] is True)
+    async with connect(port) as client:
+        assert UI_TOOLS <= {t.name for t in (await client.list_tools()).tools}
+    env.app.state.mcp.shots = ShotBridge()  # control on, but the app is not in developer mode: there is no screen to operate
+    await env.client.put("/settings", json={"mcp_port": free_port()})
+    await wait_for(lambda: env.app.state.mcp.active and env.app.state.mcp._bound[2] is False)
+    async with connect(env.app.state.mcp._bound[0]) as client:
+        assert not UI_TOOLS & {t.name for t in (await client.list_tools()).tools}
+
+
+async def test_what_is_asked_of_the_screen_goes_to_the_app_as_it_is_asked(env):
+    requests = []
+    env.app.state.mcp.shots = ShotBridge("http://shots.test", "shot-token", transport=ui_listener(requests))
+    port = await start_mcp(env, mcp_control=True)
+    async with connect(port) as client:
+        tools = {t.name: t for t in (await client.list_tools()).tools}
+        assert tools["find_elements"].annotations.read_only_hint is True and tools["get_page_text"].annotations.read_only_hint is True  # these only look
+        assert tools["click_element"].annotations.read_only_hint is False and tools["click_element"].annotations.destructive_hint is True  # a click can press delete
+        await client.call_tool("click_element", {"selector": ".card button", "text": "Monitor", "index": 1, "double": True, "modifiers": ["shift"], "instance_id": 3})
+        await client.call_tool("type_text", {"text": "qwen", "selector": "input", "clear": True})
+        await client.call_tool("press_key", {"key": "Enter", "modifiers": ["meta"]})
+        await client.call_tool("scroll_element", {"delta_y": 300, "selector": ".log"})
+        await client.call_tool("set_element_value", {"selector": "#port", "value": "9200"})
+        await client.call_tool("find_elements", {"selector": "button", "limit": 5})
+        await client.call_tool("get_page_text", {"selector": "main", "max_chars": 100})
+    assert all(path == "/ui" and auth == "Bearer shot-token" for path, auth, _ in requests)
+    bodies = [b for _, _, b in requests]
+    assert bodies[0] == {"action": "click", "selector": ".card button", "text": "Monitor", "index": 1, "double": True, "modifiers": ["shift"], "instance_id": 3}
+    assert bodies[1] == {"action": "type", "text": "qwen", "selector": "input", "clear": True, "index": 0}
+    assert bodies[2] == {"action": "key", "key": "Enter", "modifiers": ["meta"]}
+    assert bodies[3] == {"action": "scroll", "delta_y": 300, "delta_x": 0, "selector": ".log", "index": 0}
+    assert bodies[4] == {"action": "set_value", "selector": "#port", "value": "9200", "index": 0}
+    assert bodies[5] == {"action": "find", "selector": "button", "limit": 5}
+    assert bodies[6] == {"action": "text", "selector": "main", "max_chars": 100}
+
+
+async def test_a_refusal_of_the_app_reaches_the_model_with_its_reason(env):
+    reply = {"ok": False, "code": "NOT_CLICKABLE", "message": "the element is disabled"}
+    env.app.state.mcp.shots = ShotBridge("http://shots.test", "shot-token", transport=ui_listener([], status=409, reply=reply))
+    port = await start_mcp(env, mcp_control=True)
+    async with connect(port) as client:
+        result = await client.call_tool("click_element", {"selector": "button"})
+    assert result.is_error and "the element is disabled" in result.content[0].text
+
+
 async def test_a_screenshot_that_fails_is_a_tool_error_the_model_can_read(env):
     requests = []
     with_listener(env, requests, status=404, reply={"ok": False, "code": "NO_WINDOW", "message": "The monitor window of instance 9 is not open"})

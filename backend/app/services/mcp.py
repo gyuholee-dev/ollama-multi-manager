@@ -33,7 +33,7 @@ from mcp.server.transport_security import TransportSecuritySettings
 from starlette.responses import JSONResponse
 
 from app.services.instances import InstanceManager, port_free
-from app.services.mcp_tools import instructions, register_control_tools, register_screenshot_tool, register_tools
+from app.services.mcp_tools import instructions, register_control_tools, register_screenshot_tool, register_tools, register_ui_tools
 from app.services.models import ModelService
 from app.services.monitor.collector import Collector
 from app.services.settings import MCP_TOKEN_KEY, SettingsService
@@ -115,6 +115,8 @@ def build_app(manager: InstanceManager, collector: Collector, models: ModelServi
         register_control_tools(server, manager)
     if shots is not None:
         register_screenshot_tool(server, shots)
+        if control:
+            register_ui_tools(server, shots)  # operating the screen is a control: it needs the switch, as starting an instance does
     # Host and Origin checks (against DNS rebinding) cannot name the addresses the server is reached by: they are the PC's names and addresses on every
     # network, so the token is what stands guard (a page that reaches the server by rebinding does not have it).
     security = TransportSecuritySettings(enable_dns_rebinding_protection=False)

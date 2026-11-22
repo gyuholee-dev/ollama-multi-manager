@@ -1,0 +1,14 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><title>ui</title>
+<style>body{margin:0;font:14px sans-serif} #log{height:80px;overflow:auto;border:1px solid #888} #log div{height:30px} .spacer{height:900px}</style></head>
+<body>
+<button id="count" onclick="window.clicks=(window.clicks||0)+1;this.textContent='Clicked '+window.clicks">Click me</button>
+<button id="off" disabled>Disabled</button>
+<input id="name" type="text" value="old" oninput="window.typed=this.value">
+<input id="secret" type="password" value="hunter2">
+<select id="mode" onchange="window.mode=this.value"><option value="a">Alpha</option><option value="b">Beta</option></select>
+<div id="log"><div>1</div><div>2</div><div>3</div><div>4</div><div>5</div><div>6</div><div>7</div><div>8</div></div>
+<div id="dialog-under" inert><button id="blocked">Blocked</button></div>
+<script>document.addEventListener('keydown', e => { window.lastKey = e.key; });</script>
+<div class="spacer"></div><button id="far" onclick="window.far=true">Far away</button>
+</body></html>

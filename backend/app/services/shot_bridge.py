@@ -62,6 +62,23 @@ class ShotBridge:
             raise ShotError(str(data.get("message") or f"The app's state could not be read (HTTP {r.status_code})"), str(data.get("code") or "FAILED"))
         return {k: v for k, v in data.items() if k != "ok"}
 
+    async def ui(self, request: dict[str, Any]) -> dict[str, Any]:
+        """Does one thing on the app's screen (find, click, type ...) as Electron's listener does it; what it answers, without the `ok`."""
+        if not self.available:
+            raise ShotError("The screen cannot be operated: the app is not running in developer mode", "UNAVAILABLE")
+        try:
+            async with httpx.AsyncClient(transport=self._transport, timeout=30.0) as client:
+                r = await client.post(f"{self.url}/ui", json=request, headers={"Authorization": f"Bearer {self.token}"})
+        except httpx.HTTPError as e:
+            raise ShotError(f"The app's listener cannot be reached ({type(e).__name__})", "UNAVAILABLE") from e
+        try:
+            data = r.json()
+        except ValueError:
+            data = {}
+        if r.status_code != 200 or not data.get("ok"):
+            raise ShotError(str(data.get("message") or f"The action failed (HTTP {r.status_code})"), str(data.get("code") or "FAILED"))
+        return {k: v for k, v in data.items() if k != "ok"}
+
     async def capture(self, kind: str, selector: str | None = None, instance_id: int | None = None, depth: int | None = None, max_side: int = 1568,
                       open_monitor: bool = False) -> Shot:
         if not self.available:

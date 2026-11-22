@@ -42,6 +42,10 @@ def instructions(control: bool = False, screenshots: bool = False) -> str:
         text += (" The reading tools change nothing. start_instance, stop_instance and restart_instance do change the app: "
                  "they act on the instances the user has set up, and stopping or restarting one interrupts what it is answering unless drain_seconds "
                  "gives it time to finish. Use them only when the user asked for it.")
+        if screenshots:
+            text += (" click_element, type_text, press_key, scroll_element and set_element_value operate the app's screen as a person does (any button "
+                     "can be pressed, the delete buttons too: the app asks before it deletes); find_elements and get_page_text only look. Find the "
+                     "element first, and look (take_screenshot) to check what a click did.")
     else:
         text += " Nothing here changes the app."
     if screenshots:
@@ -55,6 +59,8 @@ INSTRUCTIONS = instructions(False)
 
 READ_ONLY = ToolAnnotations(read_only_hint=True, destructive_hint=False, idempotent_hint=True, open_world_hint=False)
 START = ToolAnnotations(read_only_hint=False, destructive_hint=False, idempotent_hint=False, open_world_hint=False)
+# what is done on the screen: a click can press any button, the delete button too
+UI = ToolAnnotations(read_only_hint=False, destructive_hint=True, idempotent_hint=False, open_world_hint=False)
 STOP = ToolAnnotations(read_only_hint=False, destructive_hint=True, idempotent_hint=True, open_world_hint=False)
 # a screenshot changes nothing in the app (it saves a file of its own and flashes a note on the page)
 SHOT = ToolAnnotations(read_only_hint=False, destructive_hint=False, idempotent_hint=False, open_world_hint=False)
@@ -205,3 +211,61 @@ def register_screenshot_tool(server: MCPServer, shots: ShotBridge) -> None:
         note = f"Saved on the machine running the app: {shot.file}\nShown {shot.width}x{shot.height}px"
         note += f" (scaled down from {shot.full_width}x{shot.full_height}px)." if (shot.width, shot.height) != (shot.full_width, shot.full_height) else "."
         return [Image(data=shot.png, format="png"), note]
+
+
+def register_ui_tools(server: MCPServer, shots: ShotBridge) -> None:
+    """Operating the app's screen: registered only with the control switch on and where the app can be operated (developer mode)."""
+
+    async def act(action: str, **fields: Any) -> dict[str, Any]:
+        request = {"action": action, **{k: v for k, v in fields.items() if v is not None}}
+        try:
+            return await shots.ui(request)
+        except ShotError as e:
+            raise ToolError(str(e)) from e
+
+    @server.tool(annotations=READ_ONLY)
+    async def find_elements(selector: str, text: str | None = None, limit: int = 20, instance_id: int | None = None) -> dict[str, Any]:
+        """Elements of the app's screen that a CSS selector names (for example "button", ".card button", "#logs"), optionally only those whose text or label
+        contains `text`: for each its index among the matches (what the other tools take as `index`), tag, id, class, text, label, whether it is visible,
+        disabled or inert (something is open over it), its position and size on screen, and a checkbox's state or an input's value. instance_id: the monitor
+        window of that instance (it has to be open); without it the main window, of which the monitor panel is a part. Looks only."""
+        return await act("find", selector=selector, text=text, limit=limit, instance_id=instance_id)
+
+    @server.tool(annotations=UI)
+    async def click_element(selector: str, text: str | None = None, index: int = 0, double: bool = False, modifiers: list[str] | None = None,
+                            instance_id: int | None = None) -> dict[str, Any]:
+        """Click an element with the mouse, at its centre: the `index`-th of those that `selector` (and `text`) match, scrolled into view first. A button
+        that is disabled, an element that is not visible and one under an open dialog or page (inert) are not clicked, and the error says why. The window has
+        to be shown (in the tray or minimized it takes no input). Returns what was clicked; take_screenshot shows what it did."""
+        return await act("click", selector=selector, text=text, index=index, double=double or None, modifiers=modifiers, instance_id=instance_id)
+
+    @server.tool(annotations=UI)
+    async def type_text(text: str, selector: str | None = None, clear: bool = False, index: int = 0, instance_id: int | None = None) -> dict[str, Any]:
+        """Type text as a person does, into the field `selector` names (focused first), or into the field that has the focus when there is no selector.
+        clear: select what is in the field first, so that the text replaces it. The window has to be shown. Use set_element_value for a field that does
+        not take typing."""
+        return await act("type", text=text, selector=selector, clear=clear or None, index=index, instance_id=instance_id)
+
+    @server.tool(annotations=UI)
+    async def press_key(key: str, modifiers: list[str] | None = None, instance_id: int | None = None) -> dict[str, Any]:
+        """Press a key on the focused element: Enter, Escape, Tab, Backspace, Delete, Space, ArrowUp/Down/Left/Right, Home, End, PageUp, PageDown, F1 to F12,
+        or one character; modifiers: any of shift, control, alt, meta. The window has to be shown."""
+        return await act("key", key=key, modifiers=modifiers, instance_id=instance_id)
+
+    @server.tool(annotations=UI)
+    async def scroll_element(delta_y: int = 0, delta_x: int = 0, selector: str | None = None, index: int = 0, instance_id: int | None = None) -> dict[str, Any]:
+        """Scroll the element `selector` names (its `index`-th match), or the page when there is no selector, by delta_y (down is positive) and delta_x px.
+        Returns where it is now and how long the content is."""
+        return await act("scroll", delta_y=delta_y, delta_x=delta_x, selector=selector, index=index, instance_id=instance_id)
+
+    @server.tool(annotations=UI)
+    async def set_element_value(selector: str, value: str, text: str | None = None, index: int = 0, instance_id: int | None = None) -> dict[str, Any]:
+        """Set the value of an input, a text area or a select (by the option's value or its text), and tell the page that it changed. For a switch or a
+        checkbox use click_element."""
+        return await act("set_value", selector=selector, value=value, text=text, index=index, instance_id=instance_id)
+
+    @server.tool(annotations=READ_ONLY)
+    async def get_page_text(selector: str | None = None, max_chars: int = 4000, instance_id: int | None = None) -> dict[str, Any]:
+        """The text that is on the app's screen (of the element `selector` names, or of the whole page), at most `max_chars` (up to 20000). It can include
+        what was asked and answered, as the screen does."""
+        return await act("text", selector=selector, max_chars=max_chars, instance_id=instance_id)
