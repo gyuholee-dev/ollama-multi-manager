@@ -177,16 +177,17 @@ def register_screenshot_tool(server: MCPServer, shots: ShotBridge) -> None:
     @server.tool(annotations=SHOT)
     async def take_screenshot(
         kind: Literal["viewport", "full", "element"] = "viewport", selector: str | None = None, instance_id: int | None = None,
-        depth: int | None = None, max_side: int = DEFAULT_MAX_SIDE,
+        depth: int | None = None, max_side: int = DEFAULT_MAX_SIDE, open_monitor: bool = False,
     ) -> list[Image | str]:
         """A screenshot of the app's window, as the picture the client can look at (and the file it was saved to, on the machine running the app).
         kind: viewport = what is on screen now; full = the whole page with its scrolling boxes opened out (the long main view in one picture);
-        element = the part of the page that `selector` (a CSS selector) names, which is required for this kind. instance_id: the monitor window
-        of that instance, which has to be open; without it the main window. depth: how many levels below <body> scrolling boxes are opened out
+        element = the part of the page that `selector` (a CSS selector) names, which is required for this kind. instance_id: the monitor of that
+        instance; without it the main window. The monitor has to be open, unless open_monitor is true: it is then opened for the picture without
+        taking the user's focus, and closed again afterwards (one that was already open stays as it is). depth: how many levels below <body> scrolling boxes are opened out
         (the default reaches the main view). max_side: the picture is scaled down so that its longer side is at most this many pixels (256 to
         4096, default 1568); the saved file keeps the full size. The screen can show prompts and answers."""
         try:
-            shot = await shots.capture(kind, selector, instance_id, depth, clamp(max_side, 256, 4096))
+            shot = await shots.capture(kind, selector, instance_id, depth, clamp(max_side, 256, 4096), open_monitor)
         except ShotError as e:
             raise ToolError(str(e)) from e
         note = f"Saved on the machine running the app: {shot.file}\nShown {shot.width}x{shot.height}px"

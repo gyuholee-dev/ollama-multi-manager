@@ -17,11 +17,11 @@ async function serve(capture) {
 // ---- what a request may ask for
 
 test('a request is checked: only a known kind, a selector for an element, and numbers within their limits', () => {
-  assert.deepEqual(parseShotRequest({}), { kind: 'viewport', selector: undefined, instanceId: undefined, depth: undefined, maxSide: DEFAULT_MAX_SIDE });
-  assert.deepEqual(parseShotRequest({ kind: 'element', selector: '  #logs ', instance_id: 3, depth: 5, max_side: 800 }),
-    { kind: 'element', selector: '#logs', instanceId: 3, depth: 5, maxSide: 800 });
+  assert.deepEqual(parseShotRequest({}), { kind: 'viewport', selector: undefined, instanceId: undefined, openMonitor: false, depth: undefined, maxSide: DEFAULT_MAX_SIDE });
+  assert.deepEqual(parseShotRequest({ kind: 'element', selector: '  #logs ', instance_id: 3, open_monitor: true, depth: 5, max_side: 800 }),
+    { kind: 'element', selector: '#logs', instanceId: 3, openMonitor: true, depth: 5, maxSide: 800 });
   for (const bad of [null, [], 'x', { kind: 'video' }, { kind: 'element' }, { kind: 'element', selector: '   ' }, { selector: 5 }, { selector: 'a'.repeat(501) },
-    { instance_id: 0 }, { instance_id: 1.5 }, { instance_id: '2' }, { depth: -1 }, { depth: 31 }, { max_side: 100 }, { max_side: 5000 }, { max_side: 'big' }]) {
+    { open_monitor: 'yes', instance_id: 1 }, { open_monitor: true }, { instance_id: 0 }, { instance_id: 1.5 }, { instance_id: '2' }, { depth: -1 }, { depth: 31 }, { max_side: 100 }, { max_side: 5000 }, { max_side: 'big' }]) {
     assert.throws(() => parseShotRequest(bad), e => e instanceof ShotRequestError && e.code === 'INVALID_REQUEST' && e.status === 400, JSON.stringify(bad));
   }
 });
@@ -39,7 +39,7 @@ test('the picture is taken for a request with the token, and comes back as base6
     const { data, ...rest } = body;
     assert.deepEqual(rest, { ok: true, mime: 'image/png', file: '/data/screenshots/a.png', width: 10, height: 20, full_width: 100, full_height: 200 });
     assert.equal(Buffer.from(data, 'base64').toString(), 'fake-png-bytes');
-    assert.deepEqual(seen, [{ kind: 'full', selector: undefined, instanceId: undefined, depth: undefined, maxSide: 512 }]);
+    assert.deepEqual(seen, [{ kind: 'full', selector: undefined, instanceId: undefined, openMonitor: false, depth: undefined, maxSide: 512 }]);
   } finally { await server.close(); }
 });
 

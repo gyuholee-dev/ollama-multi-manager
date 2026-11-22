@@ -28,19 +28,21 @@ export class ShotRequestError extends Error {
 
 const whole = (value, low, high) => typeof value === 'number' && Number.isInteger(value) && value >= low && value <= high;
 
-/** What a request body asks for, checked: { kind, selector, instanceId, depth, maxSide }. Anything else is a ShotRequestError. */
+/** What a request body asks for, checked: { kind, selector, instanceId, openMonitor, depth, maxSide }. Anything else is a ShotRequestError. */
 export function parseShotRequest(body) {
   if (!body || typeof body !== 'object' || Array.isArray(body)) throw new ShotRequestError('INVALID_REQUEST', 'The request must be a JSON object');
-  const { kind = 'viewport', selector, instance_id: instanceId, depth, max_side: maxSide = DEFAULT_MAX_SIDE } = body;
+  const { kind = 'viewport', selector, instance_id: instanceId, open_monitor: openMonitor = false, depth, max_side: maxSide = DEFAULT_MAX_SIDE } = body;
   if (!KINDS.includes(kind)) throw new ShotRequestError('INVALID_REQUEST', `kind must be one of ${KINDS.join(', ')}`);
   if (selector != null && (typeof selector !== 'string' || !selector.trim() || selector.length > MAX_SELECTOR)) {
     throw new ShotRequestError('INVALID_REQUEST', `selector must be a CSS selector of at most ${MAX_SELECTOR} characters`);
   }
   if (kind === 'element' && !selector) throw new ShotRequestError('INVALID_REQUEST', 'kind "element" needs a selector: nobody can click the element');
   if (instanceId != null && !whole(instanceId, 1, 2 ** 31 - 1)) throw new ShotRequestError('INVALID_REQUEST', 'instance_id must be a whole number of 1 or more');
+  if (typeof openMonitor !== 'boolean') throw new ShotRequestError('INVALID_REQUEST', 'open_monitor must be true or false');
+  if (openMonitor && instanceId == null) throw new ShotRequestError('INVALID_REQUEST', 'open_monitor needs an instance_id: it opens the monitor of that instance');
   if (depth != null && !whole(depth, 0, MAX_DEPTH)) throw new ShotRequestError('INVALID_REQUEST', `depth must be a whole number from 0 to ${MAX_DEPTH}`);
   if (!whole(maxSide, MIN_MAX_SIDE, MAX_MAX_SIDE)) throw new ShotRequestError('INVALID_REQUEST', `max_side must be a whole number from ${MIN_MAX_SIDE} to ${MAX_MAX_SIDE}`);
-  return { kind, selector: selector ? selector.trim() : undefined, instanceId: instanceId ?? undefined, depth: depth ?? undefined, maxSide };
+  return { kind, selector: selector ? selector.trim() : undefined, instanceId: instanceId ?? undefined, openMonitor, depth: depth ?? undefined, maxSide };
 }
 
 function sameToken(given, expected) {

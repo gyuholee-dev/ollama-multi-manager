@@ -45,13 +45,16 @@ class ShotBridge:
     def available(self) -> bool:
         return bool(self.url and self.token)
 
-    async def capture(self, kind: str, selector: str | None = None, instance_id: int | None = None, depth: int | None = None, max_side: int = 1568) -> Shot:
+    async def capture(self, kind: str, selector: str | None = None, instance_id: int | None = None, depth: int | None = None, max_side: int = 1568,
+                      open_monitor: bool = False) -> Shot:
         if not self.available:
             raise ShotError("Screenshots are not available: the app is not running in developer mode", "UNAVAILABLE")
         body: dict[str, Any] = {"kind": kind, "max_side": max_side}
         for key, value in (("selector", selector), ("instance_id", instance_id), ("depth", depth)):
             if value is not None:
                 body[key] = value
+        if open_monitor:
+            body["open_monitor"] = True
         try:
             async with httpx.AsyncClient(transport=self._transport, timeout=TIMEOUT) as client:
                 r = await client.post(f"{self.url}/capture", json=body, headers={"Authorization": f"Bearer {self.token}"})

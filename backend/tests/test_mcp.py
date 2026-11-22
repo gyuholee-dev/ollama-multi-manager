@@ -325,6 +325,17 @@ async def test_the_screenshot_tool_defaults_and_limits(env):
     assert refused.is_error and len(requests) == 2  # a kind that does not exist never reaches the app
 
 
+async def test_the_monitor_is_opened_for_the_picture_only_when_asked(env):
+    requests = []
+    with_listener(env, requests)
+    port = await start_mcp(env, mcp_screenshot=True)
+    async with connect(port) as client:
+        await client.call_tool("take_screenshot", {"instance_id": 2})
+        await client.call_tool("take_screenshot", {"instance_id": 2, "open_monitor": True})
+    assert "open_monitor" not in requests[0][2]  # off unless asked: opening a window is a side effect
+    assert requests[1][2] == {"kind": "viewport", "max_side": 1568, "instance_id": 2, "open_monitor": True}
+
+
 async def test_a_screenshot_that_fails_is_a_tool_error_the_model_can_read(env):
     requests = []
     with_listener(env, requests, status=404, reply={"ok": False, "code": "NO_WINDOW", "message": "The monitor window of instance 9 is not open"})

@@ -16,6 +16,7 @@ import { startMockupServer } from './dev-mockup.js';
 import { overlay } from './overlay.js';
 import { failureText, fitPicture, focusWindow, putOnClipboard, screenshotDir, takeScreenshot } from './screenshot.js';
 import { ShotRequestError, startShotServer } from './mcp-shot.js';
+import { resolveMonitor, waitForContent } from './mcp-monitor.js';
 
 const log = (...a) => console.log(new Date().toISOString(), '[shell]', ...a);
 
@@ -247,20 +248,37 @@ if (!app.requestSingleInstanceLock()) {
   // Developer mode: a screenshot an MCP client asked for (the MCP server in the backend calls the listener of mcp-shot.js). The window is the main one, or the monitor
   // window of an instance; the element is named by a selector (nobody can click it); the picture handed back is scaled to at most `maxSide` on its longer
   // side, the whole one is saved as a file. The page says that it was taken, as it does for the developer's own screenshots.
-  async function mcpCapture({ kind, selector, instanceId, depth, maxSide }) {
-    const w = instanceId ? monitors.get(instanceId) : win;
-    if (!w || w.isDestroyed()) {
-      throw new ShotRequestError('NO_WINDOW', instanceId ? `The monitor window of instance ${instanceId} is not open` : 'The main window is not open', 404);
+  async function mcpCapture({ kind, selector, instanceId, openMonitor: openIfClosed, depth, maxSide }) {
+    // Which page: the main window, or the monitor of an instance (found open, or opened just for this picture and closed again after it). The monitor
+    // is looked up through resolveMonitor and not by `monitors.get`, so that it can become a side panel later without this function knowing.
+    let release = async () => {};
+    let w = win;
+    if (instanceId) {
+      ({ target: w, release } = await resolveMonitor(instanceId, {
+        allowOpen: openIfClosed,
+        find: id => { const m = monitors.get(id); return m && !m.isDestroyed() ? m : null; },
+        open: async id => {
+          try { await backend.api('GET', `/instances/${id}`); } catch { return null; } // no such instance: nothing to open
+          const opened = openMonitor(id, { transient: true });
+          return opened && { target: opened, release: async () => { if (!opened.isDestroyed()) opened.destroy(); } };
+        },
+        ready: waitForContent,
+      }));
     }
-    const l = MENU_LABEL[String(settings.language || app.getLocale()).slice(0, 2)] || MENU_LABEL.en;
-    const ui = overlay(w.webContents);
-    const shot = await takeScreenshot(w.webContents, kind, {
-      dir: screenshotDir(app.getPath('userData')), label: instanceId ? `monitor-${instanceId}` : 'main', selector, depth, feedback: { clear: ui.clear },
-    }).catch(async e => { if (!w.isDestroyed()) await ui.failed(`${l.failedNote}: ${failureText(e, 'en')}`); throw e; });
-    const fit = fitPicture(shot.png, maxSide, nativeImage);
-    log(`Capture (${kind}) for an MCP client saved: ${shot.file}`);
-    if (!w.isDestroyed()) await ui.done(`${l.savedNote} (MCP): ${path.basename(shot.file)}`);
-    return { file: shot.file, png: fit.png, width: fit.width, height: fit.height, fullWidth: shot.width, fullHeight: shot.height };
+    try {
+      if (!w || w.isDestroyed()) throw new ShotRequestError('NO_WINDOW', 'The main window is not open', 404);
+      const l = MENU_LABEL[String(settings.language || app.getLocale()).slice(0, 2)] || MENU_LABEL.en;
+      const ui = overlay(w.webContents);
+      const shot = await takeScreenshot(w.webContents, kind, {
+        dir: screenshotDir(app.getPath('userData')), label: instanceId ? `monitor-${instanceId}` : 'main', selector, depth, feedback: { clear: ui.clear },
+      }).catch(async e => { if (!w.isDestroyed()) await ui.failed(`${l.failedNote}: ${failureText(e, 'en')}`); throw e; });
+      const fit = fitPicture(shot.png, maxSide, nativeImage);
+      log(`Capture (${kind}) for an MCP client saved: ${shot.file}`);
+      if (!w.isDestroyed()) await ui.done(`${l.savedNote} (MCP): ${path.basename(shot.file)}`);
+      return { file: shot.file, png: fit.png, width: fit.width, height: fit.height, fullWidth: shot.width, fullHeight: shot.height };
+    } finally {
+      await release();
+    }
   }
 
   // The page may only ever be the backend's own UI; everything else opens in the system browser.
@@ -304,13 +322,17 @@ if (!app.requestSingleInstanceLock()) {
   }
 
   // One monitor window per instance: a second request for the same instance brings the first to the front.
-  function openMonitor(id) {
-    if (!backend || !Number.isInteger(id) || id < 1) return;
+  // `transient`: a monitor opened only for a screenshot an MCP client asked for: it is not shown, does not take the user's focus, does not remember its
+  // place, and is destroyed once the picture is taken (see mcpCapture). Returns the window (an open one is brought forward, unless it is transient).
+  function openMonitor(id, { transient = false } = {}) {
+    if (!backend || !Number.isInteger(id) || id < 1) return null;
     const open = monitors.get(id);
     if (open && !open.isDestroyed()) {
-      if (open.isMinimized()) open.restore();
-      open.show(); open.focus();
-      return;
+      if (!transient) {
+        if (open.isMinimized()) open.restore();
+        open.show(); open.focus();
+      }
+      return open;
     }
     const saved = monitorBounds(id);
     // none saved: as high as the display of the main window allows (the windows already open sit a little to the right of each other)
@@ -324,12 +346,15 @@ if (!app.requestSingleInstanceLock()) {
       webPreferences: webPrefs(),
     });
     monitors.set(id, w);
-    w.once('ready-to-show', () => w.show());
-    trackBounds(w, () => saveMonitorState(id, w));
-    w.on('close', () => saveMonitorState(id, w, true));
+    if (!transient) {
+      w.once('ready-to-show', () => w.show());
+      trackBounds(w, () => saveMonitorState(id, w));
+      w.on('close', () => saveMonitorState(id, w, true));
+    }
     w.loadURL(`${backend.url}/#token=${backend.token}&monitor=${id}`);
     guard(w, `monitor ${id}`);
     w.on('closed', () => { if (monitors.get(id) === w) monitors.delete(id); });
+    return w;
   }
   const closeMonitors = () => { monitors.forEach(w => { if (!w.isDestroyed()) w.close(); }); monitors.clear(); };
 
