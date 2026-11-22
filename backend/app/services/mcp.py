@@ -13,7 +13,8 @@ page is not meant to open just because a client wants the tools):
 - What a client may do is what the settings allow: the reading tools always; start/stop/restart only with "control" (mcp_control, off by default);
   take_screenshot wherever the app can take a picture (today: in developer mode, when the app hands the backend the way to Electron's screenshot
   listener, see shot_bridge.py); it has no switch of its own, as a developer is meant to be able to take screenshots, and the screenshots meant for
-  users that come later are meant to be reachable through this server too.
+  users that come later are meant to be reachable through this server too. With it comes get_app_state (which windows are shown): a hidden window can
+  only be photographed as it is on screen, and the others are refused at once.
 - A client that starts its servers as programs can use app/mcp_stdio.py, a bridge to this listener (`python -m app mcp-stdio`).
 Started, stopped and rebound whenever the mcp_* settings change (the tools are registered when the server is built, so a switch is a rebind).
 """

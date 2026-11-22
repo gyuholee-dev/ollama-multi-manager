@@ -27,6 +27,24 @@ export async function waitForContent(window, { timeoutMs = 10000, settleMs = 400
   throw new Error(unanswered ? 'the page did not answer in time' : 'it did not load in time');
 }
 
+/** What a window is like, for a client that asks: shown or hidden (in the tray, minimized, never shown), and in focus. `hidden` is the one that counts:
+ * the system holds back the page of a hidden window, and a picture that has to change the size of the page (the whole page, an element) cannot be made. */
+export function windowState(window) {
+  if (!window || window.isDestroyed()) return null;
+  const visible = window.isVisible(), minimized = window.isMinimized();
+  return { visible, minimized, focused: window.isFocused(), hidden: !visible || minimized };
+}
+
+/** The error for a picture that cannot be taken of a hidden window, or null. Only the picture of what is on screen (`viewport`) can be taken of it: the
+ * others change the size of the page first (checked on Windows and macOS: such a request is not answered, and leaves the debugger of the window taken).
+ * `what` names the window in the message. */
+export function hiddenWindowError(kind, state, what) {
+  if (!state || !state.hidden || kind === 'viewport') return null;
+  const where = state.minimized ? 'minimized' : 'hidden (in the tray or not shown)';
+  return new ShotRequestError('WINDOW_HIDDEN',
+    `${what} is ${where}, so only kind "viewport" can be taken of it; for "${kind}" the window has to be shown first (get_app_state tells which windows are shown)`, 409);
+}
+
 /** Runs `job` with the page not held back for being in the background, and puts the setting back (to the default, on) afterwards. A page that is
  * hidden (the window in the tray, minimized, or never shown) is otherwise slowed or stopped by the system, and then a picture of it does not come. It is
  * switched off only for the time of the picture, so that a window kept hidden for long does not keep drawing at full speed. */
@@ -39,7 +57,7 @@ export async function unthrottled(webContents, job) {
   }
 }
 
-/** Resolves { target, release }: the monitor of the instance, found open, or (with `allowOpen`) opened for this picture. `release()` puts back what the
+/** Resolves { target, release, opened }: the monitor of the instance, found open, or (with `allowOpen`) opened for this picture. `release()` puts back what the
  * picture changed: it closes a monitor that was opened for it, and leaves one that was open before. Throws a ShotRequestError (code NO_WINDOW) when
  * there is none and it may not or cannot be opened.
  *   find(instanceId)  -> the open monitor, or null
@@ -47,7 +65,7 @@ export async function unthrottled(webContents, job) {
  *   ready(opened)     -> a promise that resolves once the monitor shows its content */
 export async function resolveMonitor(instanceId, { find, open, ready, allowOpen = false }) {
   const found = find(instanceId);
-  if (found) return { target: found, release: async () => {} };
+  if (found) return { target: found, release: async () => {}, opened: false };
   if (!allowOpen) {
     throw new ShotRequestError('NO_WINDOW', `The monitor of instance ${instanceId} is not open (open_monitor opens it for the picture)`, 404);
   }
@@ -60,5 +78,5 @@ export async function resolveMonitor(instanceId, { find, open, ready, allowOpen 
     await release();
     throw new ShotRequestError('NO_WINDOW', `The monitor of instance ${instanceId} did not show its content: ${e.message}`, 504);
   }
-  return { target: opened.target, release };
+  return { target: opened.target, release, opened: true };
 }

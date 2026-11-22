@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { resolveMonitor, unthrottled, waitForContent } from '../../electron/mcp-monitor.js';
+import { hiddenWindowError, resolveMonitor, unthrottled, waitForContent, windowState } from '../../electron/mcp-monitor.js';
 import { ShotRequestError } from '../../electron/mcp-shot.js';
 
 const fakeWindow = (texts = []) => ({
@@ -77,4 +77,35 @@ test('the page is not held back for the time of the job, and is let be held back
   assert.deepEqual(calls, ['throttling false', 'throttling true']);
   const gone = { setBackgroundThrottling: on => { if (on) throw new Error('Object has been destroyed'); } };
   assert.equal(await unthrottled(gone, async () => 'done'), 'done'); // a window destroyed meanwhile does not turn the result into an error
+});
+
+test('the state of a window: shown, hidden or minimized, in focus; nothing for a window that is gone', () => {
+  const win = (over = {}) => ({ isDestroyed: () => false, isVisible: () => true, isMinimized: () => false, isFocused: () => false, ...over });
+  assert.deepEqual(windowState(win()), { visible: true, minimized: false, focused: false, hidden: false });
+  assert.equal(windowState(win({ isVisible: () => false })).hidden, true); // in the tray
+  assert.equal(windowState(win({ isMinimized: () => true })).hidden, true);
+  assert.equal(windowState(win({ isFocused: () => true })).focused, true);
+  assert.equal(windowState(win({ isDestroyed: () => true })), null);
+  assert.equal(windowState(null), null);
+});
+
+test('a hidden window can only be photographed as it is on screen: the other kinds are refused at once, with a message that says what to do', () => {
+  const hidden = { visible: false, minimized: false, focused: false, hidden: true };
+  const shown = { visible: true, minimized: false, focused: true, hidden: false };
+  assert.equal(hiddenWindowError('viewport', hidden, 'The main window'), null);
+  assert.equal(hiddenWindowError('full', shown, 'The main window'), null);
+  assert.equal(hiddenWindowError('element', null, 'The main window'), null);
+  for (const kind of ['full', 'element']) {
+    const e = hiddenWindowError(kind, hidden, 'The main window');
+    assert.ok(e instanceof ShotRequestError);
+    assert.deepEqual([e.code, e.status], ['WINDOW_HIDDEN', 409]);
+    assert.match(e.message, new RegExp(`The main window is hidden.*only kind "viewport".*"${kind}".*get_app_state`));
+  }
+  assert.match(hiddenWindowError('full', { ...hidden, minimized: true }, 'The monitor of instance 3').message, /monitor of instance 3 is minimized/);
+});
+
+test('a monitor found open is not marked as opened for the picture, one that was opened for it is', async () => {
+  const mon = fakeWindow();
+  assert.equal((await resolveMonitor(4, { ...parts({ found: mon }), allowOpen: true })).opened, false);
+  assert.equal((await resolveMonitor(4, { ...parts({ open: mon }), allowOpen: true })).opened, true);
 });

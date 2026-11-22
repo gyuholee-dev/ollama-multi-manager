@@ -4,8 +4,8 @@ import { DEFAULT_MAX_SIDE, ShotRequestError, parseShotRequest, startShotServer }
 
 const PNG = Buffer.from('fake-png-bytes');
 
-async function serve(capture) {
-  const server = await startShotServer({ capture });
+async function serve(capture, state) {
+  const server = await startShotServer({ capture, ...(state ? { state } : {}) });
   const call = (body, { token = server.token, path = '/capture', method = 'POST', raw } = {}) => fetch(server.url + path, {
     method,
     headers: { ...(token ? { Authorization: `Bearer ${token}` } : {}), 'Content-Type': 'application/json' },
@@ -77,5 +77,18 @@ test('a request body that is too large is refused', async () => {
   try {
     const r = await call(undefined, { raw: JSON.stringify({ selector: 'a'.repeat(20000) }) });
     assert.equal(r.status, 413);
+  } finally { await server.close(); }
+});
+
+test('the state of the app is given to a request that has the token, and to no other', async () => {
+  const { server } = await serve(async () => ({ png: PNG }), async () => ({ developer_mode: true, main_window: { hidden: true }, monitors: [] }));
+  try {
+    const ask = (token) => fetch(`${server.url}/state`, { headers: token ? { Authorization: `Bearer ${token}` } : {} });
+    assert.equal((await ask('')).status, 401);
+    assert.equal((await ask('nope')).status, 401);
+    const r = await ask(server.token);
+    assert.equal(r.status, 200);
+    assert.deepEqual(await r.json(), { ok: true, developer_mode: true, main_window: { hidden: true }, monitors: [] });
+    assert.equal((await fetch(`${server.url}/state`, { method: 'POST', headers: { Authorization: `Bearer ${server.token}` }, body: '{}' })).status, 404); // only a GET reads it
   } finally { await server.close(); }
 });

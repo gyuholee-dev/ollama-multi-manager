@@ -16,7 +16,7 @@ import { startMockupServer } from './dev-mockup.js';
 import { overlay } from './overlay.js';
 import { failureText, fitPicture, focusWindow, putOnClipboard, screenshotDir, takeScreenshot } from './screenshot.js';
 import { ShotRequestError, startShotServer } from './mcp-shot.js';
-import { resolveMonitor, unthrottled, waitForContent } from './mcp-monitor.js';
+import { hiddenWindowError, resolveMonitor, unthrottled, waitForContent, windowState } from './mcp-monitor.js';
 
 const log = (...a) => console.log(new Date().toISOString(), '[shell]', ...a);
 
@@ -253,10 +253,11 @@ if (!app.requestSingleInstanceLock()) {
     // is looked up through resolveMonitor and not by `monitors.get`, so that it can become a side panel later without this function knowing.
     let release = async () => {};
     let w = win;
+    let opened = false;
     const began = Date.now();
     const lap = () => `${Date.now() - began} ms`;
     if (instanceId) {
-      ({ target: w, release } = await resolveMonitor(instanceId, {
+      ({ target: w, release, opened } = await resolveMonitor(instanceId, {
         allowOpen: openIfClosed,
         find: id => { const m = monitors.get(id); return m && !m.isDestroyed() ? m : null; },
         open: async id => {
@@ -270,6 +271,10 @@ if (!app.requestSingleInstanceLock()) {
     if (instanceId) log(`MCP screenshot: the monitor of instance ${instanceId} is ready after ${lap()}`);
     try {
       if (!w || w.isDestroyed()) throw new ShotRequestError('NO_WINDOW', 'The main window is not open', 404);
+      // a window that is not shown (in the tray, minimized) cannot be photographed in every way: say so at once, not after the wait for an answer that does not come
+      // (a monitor opened just for this picture is never shown, by design, and is not held to this)
+      const hidden = opened ? null : hiddenWindowError(kind, windowState(w), instanceId ? `The monitor of instance ${instanceId}` : 'The main window');
+      if (hidden) throw hidden;
       const l = MENU_LABEL[String(settings.language || app.getLocale()).slice(0, 2)] || MENU_LABEL.en;
       const ui = overlay(w.webContents);
       // nobody is at the screen when a client asks: the window may be in the tray or minimized, where the system holds its page back
@@ -286,6 +291,13 @@ if (!app.requestSingleInstanceLock()) {
       await release();
     }
   }
+
+  // What an MCP client may ask about the app before it asks for a picture: which windows there are and whether they are shown (see mcp-monitor.js).
+  const appState = () => ({
+    developer_mode: DEV,
+    main_window: windowState(win),
+    monitors: [...monitors.entries()].filter(([, m]) => !m.isDestroyed()).map(([id, m]) => ({ instance_id: id, ...windowState(m) })),
+  });
 
   // The page may only ever be the backend's own UI; everything else opens in the system browser.
   // Right-click on text selected in a log area offers "Copy" (an Electron window has no menu of its own); in developer mode
@@ -434,7 +446,7 @@ if (!app.requestSingleInstanceLock()) {
   app.whenReady().then(async () => {
     if (OVERLAY_TITLEBAR) Menu.setApplicationMenu(null);
     if (DEV) {
-      try { shotServer = await startShotServer({ capture: mcpCapture, log }); } catch (e) { log('The screenshot listener for MCP did not start:', e.message); }
+      try { shotServer = await startShotServer({ capture: mcpCapture, state: appState, log }); } catch (e) { log('The screenshot listener for MCP did not start:', e.message); }
     }
     backend = new Backend({
       dataDir: app.getPath('userData'), isPackaged: app.isPackaged, log,

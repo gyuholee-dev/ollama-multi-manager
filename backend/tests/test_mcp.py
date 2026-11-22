@@ -325,6 +325,36 @@ async def test_the_monitor_is_opened_for_the_picture_only_when_asked(env):
     assert requests[1][2] == {"kind": "viewport", "max_side": 1568, "instance_id": 2, "open_monitor": True}
 
 
+async def test_the_app_state_is_asked_for_before_a_picture(env):
+    def handler(request: httpx.Request) -> httpx.Response:
+        assert request.url.path == "/state" and request.headers.get("authorization") == "Bearer shot-token"
+        return httpx.Response(200, json={"ok": True, "developer_mode": True, "main_window": {"visible": False, "minimized": False, "focused": False, "hidden": True},
+                                         "monitors": [{"instance_id": 3, "visible": True, "minimized": False, "focused": True, "hidden": False}]})
+    env.app.state.mcp.shots = ShotBridge("http://shots.test", "shot-token", transport=httpx.MockTransport(handler))
+    port = await start_mcp(env)
+    async with connect(port) as client:
+        tools = {t.name: t for t in (await client.list_tools()).tools}
+        assert tools["get_app_state"].annotations.read_only_hint is True  # it reads, and changes nothing
+        state = (await client.call_tool("get_app_state", {})).structured_content
+    assert "ok" not in state and state["main_window"]["hidden"] is True and state["monitors"][0]["instance_id"] == 3
+
+
+async def test_the_app_state_tool_is_not_offered_where_there_is_no_way_to_the_app(env):
+    port = await start_mcp(env)  # no screenshot listener: the app is not in developer mode
+    async with connect(port) as client:
+        assert "get_app_state" not in {t.name for t in (await client.list_tools()).tools}
+
+
+async def test_a_window_that_is_hidden_is_refused_with_its_reason_not_waited_for(env):
+    requests = []
+    with_listener(env, requests, status=409, reply={"ok": False, "code": "WINDOW_HIDDEN",
+                                                  "message": 'The main window is hidden (in the tray or not shown), so only kind "viewport" can be taken of it; for "full" the window has to be shown first'})
+    port = await start_mcp(env)
+    async with connect(port) as client:
+        result = await client.call_tool("take_screenshot", {"kind": "full"})
+    assert result.is_error and "only kind" in result.content[0].text and "has to be shown first" in result.content[0].text
+
+
 async def test_a_screenshot_that_fails_is_a_tool_error_the_model_can_read(env):
     requests = []
     with_listener(env, requests, status=404, reply={"ok": False, "code": "NO_WINDOW", "message": "The monitor window of instance 9 is not open"})

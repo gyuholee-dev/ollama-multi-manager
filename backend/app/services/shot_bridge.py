@@ -45,6 +45,23 @@ class ShotBridge:
     def available(self) -> bool:
         return bool(self.url and self.token)
 
+    async def state(self) -> dict[str, Any]:
+        """What the app looks like now (developer mode, which windows are shown), as Electron tells it."""
+        if not self.available:
+            raise ShotError("The app's state is not available: the app is not running in developer mode", "UNAVAILABLE")
+        try:
+            async with httpx.AsyncClient(transport=self._transport, timeout=10.0) as client:
+                r = await client.get(f"{self.url}/state", headers={"Authorization": f"Bearer {self.token}"})
+        except httpx.HTTPError as e:
+            raise ShotError(f"The app's screenshot listener cannot be reached ({type(e).__name__})", "UNAVAILABLE") from e
+        try:
+            data = r.json()
+        except ValueError:
+            data = {}
+        if r.status_code != 200 or not data.get("ok"):
+            raise ShotError(str(data.get("message") or f"The app's state could not be read (HTTP {r.status_code})"), str(data.get("code") or "FAILED"))
+        return {k: v for k, v in data.items() if k != "ok"}
+
     async def capture(self, kind: str, selector: str | None = None, instance_id: int | None = None, depth: int | None = None, max_side: int = 1568,
                       open_monitor: bool = False) -> Shot:
         if not self.available:

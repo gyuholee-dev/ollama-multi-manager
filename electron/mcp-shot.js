@@ -66,8 +66,8 @@ function readBody(req) {
 }
 
 /** Starts the listener. `capture(request)` resolves { file, png, width, height, fullWidth, fullHeight } (see main.js) or throws (an error with `code`).
- * Resolves { url, token, close }. */
-export async function startShotServer({ capture, log = () => {}, token = crypto.randomBytes(24).toString('hex') }) {
+ * `state()` gives what the app looks like now (which windows are shown ...), for GET /state. Resolves { url, token, close }. */
+export async function startShotServer({ capture, state = () => ({}), log = () => {}, token = crypto.randomBytes(24).toString('hex') }) {
   const reply = (res, status, body) => {
     const text = JSON.stringify(body);
     res.writeHead(status, { 'Content-Type': 'application/json; charset=utf-8', 'Content-Length': Buffer.byteLength(text), 'Cache-Control': 'no-store' });
@@ -77,6 +77,7 @@ export async function startShotServer({ capture, log = () => {}, token = crypto.
     try {
       const auth = req.headers.authorization || '';
       if (!auth.startsWith('Bearer ') || !sameToken(auth.slice(7), token)) return reply(res, 401, { ok: false, code: 'UNAUTHORIZED', message: 'Invalid or missing token' });
+      if (req.method === 'GET' && req.url === '/state') return reply(res, 200, { ok: true, ...(await state()) });
       if (req.method !== 'POST' || req.url !== '/capture') return reply(res, 404, { ok: false, code: 'NOT_FOUND', message: 'Not found' });
       let body;
       try { body = JSON.parse(await readBody(req)); } catch (e) {

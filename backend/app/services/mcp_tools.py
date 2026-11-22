@@ -46,7 +46,8 @@ def instructions(control: bool = False, screenshots: bool = False) -> str:
         text += " Nothing here changes the app."
     if screenshots:
         text += (" take_screenshot shows what is on the app's screen as it is, which can include prompts and answers; take one only when the "
-                 "user asked or when you need to see the screen, and prefer a selector for the part you need.")
+                 "user asked or when you need to see the screen, and prefer a selector for the part you need. A window that is hidden (in the tray, "
+                 "minimized) can only be photographed as it is on screen (kind viewport): call get_app_state first to see which windows are shown.")
     return text
 
 
@@ -174,6 +175,16 @@ def register_control_tools(server: MCPServer, manager: InstanceManager) -> None:
 def register_screenshot_tool(server: MCPServer, shots: ShotBridge) -> None:
     """The screenshot tool. Registered wherever the app can take a picture (today: in developer mode). It has no switch of its own: the MCP token is its guard."""
 
+    @server.tool(annotations=READ_ONLY)
+    async def get_app_state() -> dict[str, Any]:
+        """What the desktop app looks like right now: whether it runs in developer mode, whether the main window is shown, hidden (in the tray) or
+        minimized and in focus, and the monitor windows that are open. Ask it before take_screenshot: a hidden window can only be photographed as
+        it is on screen (kind viewport)."""
+        try:
+            return await shots.state()
+        except ShotError as e:
+            raise ToolError(str(e)) from e
+
     @server.tool(annotations=SHOT)
     async def take_screenshot(
         kind: Literal["viewport", "full", "element"] = "viewport", selector: str | None = None, instance_id: int | None = None,
@@ -183,7 +194,8 @@ def register_screenshot_tool(server: MCPServer, shots: ShotBridge) -> None:
         kind: viewport = what is on screen now; full = the whole page with its scrolling boxes opened out (the long main view in one picture);
         element = the part of the page that `selector` (a CSS selector) names, which is required for this kind. instance_id: the monitor of that
         instance; without it the main window. The monitor has to be open, unless open_monitor is true: it is then opened for the picture without
-        taking the user's focus, and closed again afterwards (one that was already open stays as it is). depth: how many levels below <body> scrolling boxes are opened out
+        taking the user's focus, and closed again afterwards (one that was already open stays as it is). A window that is hidden (in the tray or
+        minimized) can only be photographed with kind viewport; the other kinds are refused at once (get_app_state tells which windows are shown). depth: how many levels below <body> scrolling boxes are opened out
         (the default reaches the main view). max_side: the picture is scaled down so that its longer side is at most this many pixels (256 to
         4096, default 1568); the saved file keeps the full size. The screen can show prompts and answers."""
         try:
