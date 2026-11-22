@@ -91,7 +91,7 @@ app.whenReady().then(async () => {
     // what an MCP client asks for, through the listener (the element is named by a selector, the picture comes back scaled down, the file is whole)
     const listener = await startShotServer({
       capture: async ({ kind, selector, depth, maxSide }) => {
-        const shot = await takeScreenshot(tall.webContents, kind, { dir, label: 'mcp', selector, depth });
+        const shot = await takeScreenshot(tall.webContents, kind, { dir, label: 'mcp', selector, depth, feedback: { clear: ui.clear } });
         const fit = fitPicture(shot.png, maxSide, nativeImage);
         return { file: shot.file, png: fit.png, width: fit.width, height: fit.height, fullWidth: shot.width, fullHeight: shot.height };
       },
@@ -105,6 +105,9 @@ app.whenReady().then(async () => {
       check('mcp: a long picture is scaled down to the longer side asked for', [small.ok, Math.max(small.width, small.height)], [true, 500]);
       check('mcp: the file saved is the whole picture', size(small.file), [small.full_width, small.full_height]);
       check('mcp: the picture handed over is what the file is, scaled', size(small.file)[1] > small.height, true);
+      await ui.done('Saved: earlier.png'); // a note on the page, as after every picture
+      const next = await ask({ kind: 'element', selector: 'header' });
+      check('mcp: a note an earlier picture left is not in the next one, and is gone from the page', [next.ok, await noteText()], [true, null]);
       const missing = await ask({ kind: 'element', selector: '#nothing-here' });
       check('mcp: an element that is not there is an error with its code', [missing.ok, missing.code], [false, 'NO_ELEMENT']);
     } finally { await listener.close(); }

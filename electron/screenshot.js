@@ -103,7 +103,8 @@ function fitPicture(png, maxSide, nativeImage) {
 /** Takes the picture and saves it. kind: 'viewport' | 'full' | 'element' (the user chooses the element on the page, or `selector` names it).
  * Resolves { file, png, width, height }.
  * `pickTimeoutMs`: how long the choosing of an element may take. `depth`: see screenshotDepth. `selector` (kind 'element'): a CSS selector in place of
- * the choosing, for a caller that cannot click (the MCP server): no note is shown and nothing is waited for.
+ * the choosing, for a caller that cannot click (the MCP server): no note asks for a click and nothing is waited for; `feedback.clear()` still runs, so that a
+ * note from an earlier picture is not in this one.
  * `feedback` (optional, see overlay.js): `picking()` is called while an element is being chosen, and `clear()` before every picture, so that
  * what the page shows to the user is never in the picture.
  * `capture` (optional): the package's { core, adapter }, for a test that has no package to load.
@@ -122,7 +123,10 @@ async function takeScreenshot(webContents, kind, { dir, label, now = new Date(),
       return loaded.adapter.runCapture(webContents, 'full', options);
     });
   } else if (selector) {
-    picture = await stillPage(webContents, () => loaded.adapter.runCaptureNode(webContents, selector, options));
+    picture = await stillPage(webContents, async () => {
+      if (feedback) await feedback.clear(); // the note of an earlier picture may still be on the page
+      return loaded.adapter.runCaptureNode(webContents, selector, options);
+    });
   } else {
     picture = await stillPage(webContents, () => captureChosenElement(webContents, loaded, options, feedback));
   }

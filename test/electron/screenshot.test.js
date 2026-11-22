@@ -266,7 +266,7 @@ test('takeScreenshot element with a selector: no choosing, the page is held stil
     capture.adapter.runCaptureNode = async (_wc, selector, o) => { calls.push(['node', selector, o.depth]); return PICTURE; };
     const feedback = { picking: async () => calls.push('picking'), clear: async () => calls.push('clear') };
     const shot = await takeScreenshot(fakePage(), 'element', { dir, label: 'main', selector: '#logs', depth: 7, feedback, capture });
-    assert.deepEqual(calls, [['node', '#logs', 7]]); // no note asking for a click, no waiting for one
+    assert.deepEqual(calls, ['clear', ['node', '#logs', 7]]); // no note asking for a click, no waiting for one; what an earlier picture left on the page is cleared first
     assert.deepEqual([shot.width, shot.height], [10, 10]);
     assert.ok(fs.existsSync(shot.file));
   } finally { fs.rmSync(dir, { recursive: true, force: true }); }
