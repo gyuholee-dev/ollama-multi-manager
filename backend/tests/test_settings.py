@@ -37,7 +37,7 @@ def test_an_old_database_gets_web_access_switched_off_once(tmp_path):
     db.migrate()
     assert db.one("SELECT value FROM settings WHERE key='external_monitoring_enabled'")["value"] == "false"
     assert db.one("SELECT 1 FROM settings WHERE key='external_monitoring_web'") is None
-    assert db.one("PRAGMA user_version")[0] == 2
+    assert db.one("PRAGMA user_version")[0] == 4
     db.execute("UPDATE settings SET value='true' WHERE key='external_monitoring_enabled'")                   # the user's later choice
     db.migrate()
     assert db.one("SELECT value FROM settings WHERE key='external_monitoring_enabled'")["value"] == "true"
@@ -46,3 +46,27 @@ def test_an_old_database_gets_web_access_switched_off_once(tmp_path):
 async def test_responses_carry_a_content_security_policy(env):
     csp = (await env.client.get("/settings")).headers["content-security-policy"]
     assert "script-src 'self'" in csp and "unsafe-eval" not in csp and "object-src 'none'" in csp
+
+
+def test_an_old_database_loses_the_mcp_this_pc_only_setting_once(tmp_path):
+    """The MCP server listens on the network (its token stands guard): the "this PC only" setting is gone, and a database that kept it forgets it."""
+    from app.db import Database
+    db = Database(tmp_path / "app.db")
+    db.migrate()
+    assert db.one("SELECT 1 FROM settings WHERE key='mcp_lan'") is None  # a fresh database never has it
+    db.execute("INSERT INTO settings(key, value) VALUES('mcp_lan', 'false')")
+    db.execute("PRAGMA user_version=2")
+    db.migrate()
+    assert db.one("SELECT 1 FROM settings WHERE key='mcp_lan'") is None
+
+
+def test_an_old_database_loses_the_mcp_screenshot_switch_once(tmp_path):
+    """The screenshot tool has no switch of its own: the setting is gone, and a database that kept it forgets it."""
+    from app.db import Database
+    db = Database(tmp_path / "app.db")
+    db.migrate()
+    assert db.one("SELECT 1 FROM settings WHERE key='mcp_screenshot'") is None
+    db.execute("INSERT INTO settings(key, value) VALUES('mcp_screenshot', 'true')")
+    db.execute("PRAGMA user_version=3")
+    db.migrate()
+    assert db.one("SELECT 1 FROM settings WHERE key='mcp_screenshot'") is None

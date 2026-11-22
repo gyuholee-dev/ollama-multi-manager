@@ -46,7 +46,7 @@ async def test_the_server_is_off_by_default_and_needs_a_token_to_start(env):
 async def test_it_starts_when_the_token_is_set_and_stops_when_it_is_switched_off(env):
     port = await start_mcp(env)
     status = (await env.client.get("/info")).json()["mcp"]
-    assert status["active"] is True and status["port"] == port and status["lan"] is False and status["token_set"] is True
+    assert status["active"] is True and status["port"] == port and status["token_set"] is True
     await env.client.put("/settings", json={"mcp_enabled": False})
     assert env.app.state.mcp.active is False
     with pytest.raises(httpx.ConnectError):
@@ -106,17 +106,6 @@ async def test_only_the_mcp_path_is_served_and_the_token_is_not_a_cookie_or_a_qu
         assert (await c.post(f"http://127.0.0.1:{port}/mcp?token={TOKEN}", json={})).status_code == 401
         c.cookies.set("token", TOKEN)
         assert (await c.post(f"http://127.0.0.1:{port}/mcp", json={})).status_code == 401
-
-
-async def test_a_page_of_another_site_cannot_reach_a_loopback_server_by_dns_rebinding(env):
-    port = await start_mcp(env)
-    body = {"jsonrpc": "2.0", "id": 1, "method": "tools/list", "params": {}}
-    headers = {"Authorization": f"Bearer {TOKEN}", "Accept": "application/json, text/event-stream"}
-    async with httpx.AsyncClient() as c:
-        evil_host = await c.post(f"http://127.0.0.1:{port}/mcp", json=body, headers={**headers, "Host": f"evil.example:{port}"})
-        assert evil_host.status_code == 421
-        evil_origin = await c.post(f"http://127.0.0.1:{port}/mcp", json=body, headers={**headers, "Origin": "https://evil.example"})
-        assert evil_origin.status_code in (400, 403)
 
 
 def test_requests_are_counted_per_sender():
@@ -216,7 +205,7 @@ async def test_the_control_tools_are_not_offered_until_the_control_switch_is_on(
         init = await client.list_tools()
         assert not CONTROL & {t.name for t in init.tools}
     await env.client.put("/settings", json={"mcp_control": True})  # the tools are registered when the server is built: it is rebuilt
-    await wait_for(lambda: env.app.state.mcp.active and env.app.state.mcp._bound[2] is True)
+    await wait_for(lambda: env.app.state.mcp.active and env.app.state.mcp._bound[1] is True)
     assert (await env.client.get("/info")).json()["mcp"]["control"] is True
     async with connect(port) as client:
         tools = {t.name: t for t in (await client.list_tools()).tools}
@@ -225,7 +214,7 @@ async def test_the_control_tools_are_not_offered_until_the_control_switch_is_on(
         assert tools["stop_instance"].annotations.destructive_hint is True and tools["restart_instance"].annotations.destructive_hint is True
         assert not {"delete_instance", "create_instance", "put_settings", "shutdown"} & set(tools)  # nothing else changes the app
     await env.client.put("/settings", json={"mcp_control": False})
-    await wait_for(lambda: env.app.state.mcp.active and env.app.state.mcp._bound[2] is False)
+    await wait_for(lambda: env.app.state.mcp.active and env.app.state.mcp._bound[1] is False)
     async with connect(port) as client:
         assert not CONTROL & {t.name for t in (await client.list_tools()).tools}
 
@@ -280,24 +269,24 @@ def with_listener(env, requests, **kwargs):
     env.app.state.mcp.shots = ShotBridge("http://shots.test", "shot-token", transport=fake_listener(requests, **kwargs))
 
 
-async def test_the_screenshot_tool_is_not_offered_without_developer_mode_or_the_switch(env):
-    port = await start_mcp(env, mcp_screenshot=True)  # the switch is on, but the app has no listener: it is not in developer mode
-    status = (await env.client.get("/info")).json()["mcp"]
-    assert status["screenshot"] is True and status["screenshot_available"] is False and status["screenshot_active"] is False
+async def test_the_screenshot_tool_is_offered_only_where_the_app_can_take_a_picture(env):
+    port = await start_mcp(env)  # the app has no screenshot listener: it is not in developer mode
+    assert (await env.client.get("/info")).json()["mcp"]["screenshot"] is False
     async with connect(port) as client:
         assert "take_screenshot" not in {t.name for t in (await client.list_tools()).tools}
-    with_listener(env, [])  # developer mode, but the switch is off
-    await env.client.put("/settings", json={"mcp_screenshot": False})
-    await wait_for(lambda: env.app.state.mcp.active and env.app.state.mcp._bound[3] is False)
+    with_listener(env, [])  # developer mode: there is a way to a picture, and no switch to turn on
+    await env.client.put("/settings", json={"mcp_control": True})  # any change of the settings makes the server follow them
+    await wait_for(lambda: env.app.state.mcp.active and env.app.state.mcp._bound[2] is True)
+    assert (await env.client.get("/info")).json()["mcp"]["screenshot"] is True
     async with connect(port) as client:
-        assert "take_screenshot" not in {t.name for t in (await client.list_tools()).tools}
+        assert "take_screenshot" in {t.name for t in (await client.list_tools()).tools}
 
 
 async def test_the_screenshot_tool_hands_over_the_picture_and_where_it_was_saved(env):
     requests = []
     with_listener(env, requests)
-    port = await start_mcp(env, mcp_screenshot=True)
-    assert (await env.client.get("/info")).json()["mcp"]["screenshot_active"] is True
+    port = await start_mcp(env)
+    assert (await env.client.get("/info")).json()["mcp"]["screenshot"] is True
     async with connect(port) as client:
         tools = {t.name: t for t in (await client.list_tools()).tools}
         assert tools["take_screenshot"].annotations.read_only_hint is False and tools["take_screenshot"].annotations.destructive_hint is False
@@ -315,7 +304,7 @@ async def test_the_screenshot_tool_hands_over_the_picture_and_where_it_was_saved
 async def test_the_screenshot_tool_defaults_and_limits(env):
     requests = []
     with_listener(env, requests)
-    port = await start_mcp(env, mcp_screenshot=True)
+    port = await start_mcp(env)
     async with connect(port) as client:
         await client.call_tool("take_screenshot", {})
         await client.call_tool("take_screenshot", {"kind": "full", "max_side": 100000})  # more than the most: cut, not refused
@@ -328,7 +317,7 @@ async def test_the_screenshot_tool_defaults_and_limits(env):
 async def test_the_monitor_is_opened_for_the_picture_only_when_asked(env):
     requests = []
     with_listener(env, requests)
-    port = await start_mcp(env, mcp_screenshot=True)
+    port = await start_mcp(env)
     async with connect(port) as client:
         await client.call_tool("take_screenshot", {"instance_id": 2})
         await client.call_tool("take_screenshot", {"instance_id": 2, "open_monitor": True})
@@ -339,7 +328,7 @@ async def test_the_monitor_is_opened_for_the_picture_only_when_asked(env):
 async def test_a_screenshot_that_fails_is_a_tool_error_the_model_can_read(env):
     requests = []
     with_listener(env, requests, status=404, reply={"ok": False, "code": "NO_WINDOW", "message": "The monitor window of instance 9 is not open"})
-    port = await start_mcp(env, mcp_screenshot=True)
+    port = await start_mcp(env)
     async with connect(port) as client:
         result = await client.call_tool("take_screenshot", {"instance_id": 9})
     assert result.is_error and "not open" in result.content[0].text
@@ -347,21 +336,19 @@ async def test_a_screenshot_that_fails_is_a_tool_error_the_model_can_read(env):
 
 async def test_a_listener_that_cannot_be_reached_is_an_error_not_a_crash(env):
     env.app.state.mcp.shots = ShotBridge("http://127.0.0.1:1", "shot-token")  # nothing listens there
-    port = await start_mcp(env, mcp_screenshot=True)
+    port = await start_mcp(env)
     async with connect(port) as client:
         result = await client.call_tool("take_screenshot", {})
     assert result.is_error and "cannot be reached" in result.content[0].text
 
 
-async def test_with_other_machines_allowed_the_screenshot_tool_is_not_offered(env):
+async def test_the_screenshot_tool_is_offered_to_a_client_on_another_pc_too(env):
     with_listener(env, [])
-    port = await start_mcp(env, mcp_screenshot=True, mcp_lan=True)  # what a screenshot shows is not meant to leave this PC
+    port = await start_mcp(env)  # the server listens on the network; there is no switch for screenshots, the token is the guard
     status = (await env.client.get("/info")).json()["mcp"]
-    assert status["lan"] is True and status["screenshot"] is True and status["screenshot_active"] is False
+    assert "lan" not in status and status["screenshot"] is True and "mcp_screenshot" not in (await env.client.get("/settings")).json()
     async with connect(port) as client:
-        assert "take_screenshot" not in {t.name for t in (await client.list_tools()).tools}
-    await env.client.put("/settings", json={"mcp_lan": False})  # back to this PC only: the tool comes
-    await wait_for(lambda: env.app.state.mcp.active and env.app.state.mcp._bound[3] is True)
+        assert "take_screenshot" in {t.name for t in (await client.list_tools()).tools}
 
 
 def test_the_bridge_is_there_only_with_an_address_and_a_token():
@@ -424,16 +411,19 @@ async def test_guests_of_the_web_access_never_see_the_mcp_token(env):
     assert settings["mcp_token_set"] is True  # that there is one is not a secret; what it is, is
 
 
-async def test_with_other_machines_allowed_the_address_is_not_known_in_advance_and_the_token_stands_guard(env):
-    port = await start_mcp(env, mcp_lan=True)
-    assert (await env.client.get("/info")).json()["mcp"]["lan"] is True
+async def test_the_server_listens_on_the_network_and_the_token_stands_guard(env, monkeypatch):
+    monkeypatch.delenv("OMM_MCP_HOST", raising=False)  # the tests keep it on the loopback address; without it the server takes all addresses
+    port = await start_mcp(env)
+    assert env.app.state.mcp._server.config.host == "0.0.0.0"
     body = {"jsonrpc": "2.0", "id": 1, "method": "tools/list", "params": {}}
     headers = {"Accept": "application/json, text/event-stream", "Host": f"192.168.1.20:{port}"}
     async with httpx.AsyncClient() as c:
         refused = await c.post(f"http://127.0.0.1:{port}/mcp", json=body, headers=headers)  # no token
         assert refused.status_code == 401
         passed = await c.post(f"http://127.0.0.1:{port}/mcp", json=body, headers={**headers, "Authorization": f"Bearer {TOKEN}"})
-        assert passed.status_code != 421  # the Host of a LAN address is accepted; the token was what counted
+        assert passed.status_code not in (401, 421)  # the Host of a LAN address is accepted; the token is what counted
+        evil = await c.post(f"http://127.0.0.1:{port}/mcp", json=body, headers={**headers, "Origin": "https://evil.example"})
+        assert evil.status_code == 401  # a page of another site has no token
 
 
 def test_what_the_tools_show_of_an_instance_and_how_much_they_return():

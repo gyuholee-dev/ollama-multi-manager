@@ -4,7 +4,7 @@
 //  * every request carries a token made for this run (handed to the backend through its environment, as the app's own API token is), a wrong or
 //    missing one is refused;
 //  * a request is only data (what to photograph); the taking of the picture is `capture`, which main.js passes in.
-// The backend decides whether a client may ask at all (the "screenshots for MCP" switch, off by default, and loopback-only MCP).
+// The backend decides whether a client may ask at all (the MCP token); the tool has no switch of its own.
 
 import crypto from 'node:crypto';
 import http from 'node:http';

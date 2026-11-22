@@ -111,7 +111,7 @@ export function SettingsPage() {
     setMcpToken(fresh); setSavedMcpToken(fresh);
     if (await copyText(fresh)) flashMcp();
   };
-  const mcpAddress = cfg.mcpOn && mcpTokenSet ? `http://${cfg.mcpLan && lanIp ? lanIp : '127.0.0.1'}:${cfg.mcpPort}${mcp?.path ?? '/mcp'}` : '';
+  const mcpAddress = cfg.mcpOn && mcpTokenSet ? `http://${lanIp ?? '127.0.0.1'}:${cfg.mcpPort}${mcp?.path ?? '/mcp'}` : '';
   const copyMcpAddress = async () => { if (mcpAddress && (await copyText(mcpAddress))) { setMcpAddrDone(true); setTimeout(() => setMcpAddrDone(false), 1500); } };
   const savePw = async () => { if (pw && (await commitPassword(pw))) setPw(''); };
   const save = () => { log('Settings saved'); close(); }; // every change is already stored; this just closes the window
@@ -156,21 +156,10 @@ export function SettingsPage() {
         </Box>
         <Box title={t('set.mcp')}>
           <Switch id="mcpon" label={t('set.mcpOn')} hint={t('set.mcpHint')} checked={cfg.mcpOn} onChange={(v) => apply({ mcpOn: v }, 'mcpOn')} />
+          <Switch id="mcpctl" label={t('set.mcpControl')} hint={t('set.mcpControlHint')} checked={cfg.mcpControl} onChange={(v) => apply({ mcpControl: v }, 'mcpControl')} />
           <div className="fld"><label className="fld__label" htmlFor="mcpport">{t('set.mcpPort')}</label>
             <input id="mcpport" className="fld__text" type="number" min={1024} max={65535} value={cfg.mcpPort} onChange={(e) => edit({ mcpPort: +e.target.value })}
               onBlur={() => void commitSetting('mcpPort')} onKeyDown={onEnter('mcpPort')} /></div>
-          <Switch id="mcplan" label={t('set.mcpLan')} hint={t('set.mcpLanHint')} checked={cfg.mcpLan} onChange={(v) => apply({ mcpLan: v }, 'mcpLan')} />
-          <Switch id="mcpctl" label={t('set.mcpControl')} hint={t('set.mcpControlHint')} checked={cfg.mcpControl} onChange={(v) => apply({ mcpControl: v }, 'mcpControl')} />
-          {mcp?.screenshot_available && (
-            <Switch id="mcpshot" label={t('set.mcpShot')} hint={cfg.mcpLan ? t('set.mcpShotLan') : t('set.mcpShotHint')} checked={cfg.mcpShot} onChange={(v) => apply({ mcpShot: v }, 'mcpShot')} />
-          )}
-          <div className="fld fld--note"><label className="fld__label" htmlFor="mcptoken">{t('set.mcpToken')}</label>
-            <input id="mcptoken" className="fld__text fld__text--grow" type="text" autoComplete="off" spellCheck={false} value={mcpToken} placeholder={t('set.extPwUnset')}
-              onChange={(e) => setMcpToken(e.target.value)} onBlur={() => void saveMcpToken()} onKeyDown={(e) => { if (e.key === 'Enter') void saveMcpToken(); }} />
-            {mcpToken
-              ? <button type="button" className={mcpDone ? 'inline inline--done' : 'inline'} aria-label={t('btn.copy')} title={mcpDone ? t('btn.copied') : t('btn.copy')} onClick={() => void (copyText(mcpToken).then((ok) => { if (ok) flashMcp(); }))}><span className="material-icons">{mcpDone ? 'check' : 'content_copy'}</span></button>
-              : <button type="button" className={mcpDone ? 'inline inline--done' : 'inline'} aria-label={t('btn.genKey')} title={t('btn.genKey')} onClick={() => void generateMcpToken()}><span className="material-icons">{mcpDone ? 'check' : 'autorenew'}</span></button>}
-            <span className="fld__note sub">{t('set.mcpTokenHint')}</span></div>
           <div className="fld"><label className="fld__label" htmlFor={mcpAddress ? 'mcpaddr' : undefined}>{t('set.mcpAddr')}</label>
             {mcpAddress ? (
               <span className="fld__group">
@@ -180,6 +169,13 @@ export function SettingsPage() {
                 </button>
               </span>
             ) : <span className="fld__static">{cfg.mcpOn && !mcpTokenSet ? t('set.mcpNeedToken') : t('set.mcpOff')}</span>}</div>
+          <div className="fld fld--note"><label className="fld__label" htmlFor="mcptoken">{t('set.mcpToken')}</label>
+            <input id="mcptoken" className="fld__text fld__text--grow" type="text" autoComplete="off" spellCheck={false} value={mcpToken} placeholder={t('set.extPwUnset')}
+              onChange={(e) => setMcpToken(e.target.value)} onBlur={() => void saveMcpToken()} onKeyDown={(e) => { if (e.key === 'Enter') void saveMcpToken(); }} />
+            {mcpToken
+              ? <button type="button" className={mcpDone ? 'inline inline--done' : 'inline'} aria-label={t('btn.copy')} title={mcpDone ? t('btn.copied') : t('btn.copy')} onClick={() => void (copyText(mcpToken).then((ok) => { if (ok) flashMcp(); }))}><span className="material-icons">{mcpDone ? 'check' : 'content_copy'}</span></button>
+              : <button type="button" className={mcpDone ? 'inline inline--done' : 'inline'} aria-label={t('btn.genKey')} title={t('btn.genKey')} onClick={() => void generateMcpToken()}><span className="material-icons">{mcpDone ? 'check' : 'autorenew'}</span></button>}
+            <span className="fld__note sub">{t('set.mcpTokenHint')}</span></div>
         </Box>
         <Box title={t('set.monitor')}>
           {platform === 'darwin' && <Switch id="pm" label={t('set.pm')} hint={t('set.pmHint')} checked={false} disabled onChange={() => undefined} />}

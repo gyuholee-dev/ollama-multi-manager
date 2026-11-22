@@ -73,9 +73,7 @@ class SettingsPatch(BaseModel):
     external_monitoring_session_hours: Annotated[int, Field(ge=1, le=720)] | None = None
     mcp_enabled: bool | None = None
     mcp_port: Port | None = None
-    mcp_lan: bool | None = None
     mcp_control: bool | None = None
-    mcp_screenshot: bool | None = None
     mcp_token: Annotated[str, Field(max_length=200)] | None = None  # "" removes it
     refresh_interval_seconds: Annotated[int, Field(ge=1, le=60)] | None = None
     monitor_default_ollama: bool | None = None

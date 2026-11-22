@@ -7,7 +7,7 @@ from pathlib import Path
 from typing import Any, Iterable
 
 SCHEMA_PATH = Path(__file__).resolve().parent.parent / "schema.sql"
-SCHEMA_VERSION = 2
+SCHEMA_VERSION = 4
 
 
 class Database:
@@ -27,6 +27,12 @@ class Database:
                 # database that predates this would silently open the UI to the network: switch it off once.
                 self._conn.execute("UPDATE settings SET value='false' WHERE key='external_monitoring_enabled'")
                 self._conn.execute("DELETE FROM settings WHERE key='external_monitoring_web'")
+            if 0 < old < 3:
+                # v3: the MCP server has no "this PC only" mode any more (its token is what stands guard); the setting is gone
+                self._conn.execute("DELETE FROM settings WHERE key='mcp_lan'")
+            if 0 < old < 4:
+                # v4: the MCP screenshot tool has no switch of its own any more: it is offered wherever the app can take a picture
+                self._conn.execute("DELETE FROM settings WHERE key='mcp_screenshot'")
             self._conn.execute(f"PRAGMA user_version={SCHEMA_VERSION}")
 
     def query(self, sql: str, params: Iterable[Any] = ()) -> list[sqlite3.Row]:

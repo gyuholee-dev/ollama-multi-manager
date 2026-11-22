@@ -172,7 +172,7 @@ def register_control_tools(server: MCPServer, manager: InstanceManager) -> None:
 
 
 def register_screenshot_tool(server: MCPServer, shots: ShotBridge) -> None:
-    """The screenshot tool. Registered only when the user switched it on, the app is in developer mode and only this PC can connect."""
+    """The screenshot tool. Registered wherever the app can take a picture (today: in developer mode). It has no switch of its own: the MCP token is its guard."""
 
     @server.tool(annotations=SHOT)
     async def take_screenshot(
