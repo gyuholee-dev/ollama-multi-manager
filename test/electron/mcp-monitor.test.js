@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { resolveMonitor, waitForContent } from '../../electron/mcp-monitor.js';
+import { resolveMonitor, unthrottled, waitForContent } from '../../electron/mcp-monitor.js';
 import { ShotRequestError } from '../../electron/mcp-shot.js';
 
 const fakeWindow = (texts = []) => ({
@@ -58,4 +58,23 @@ test('waiting for the content: until the page has drawn text, and an error when 
   const closed = fakeWindow();
   closed.destroyed = true;
   await assert.rejects(waitForContent(closed, { settleMs: 0, pollMs: 1 }), /closed/);
+});
+
+test('waiting for the content: a page that never answers does not hold it up, and the error says so', async () => {
+  const silent = { isDestroyed: () => false, webContents: { executeJavaScript: () => new Promise(() => {}) } }; // never resolves
+  const began = Date.now();
+  await assert.rejects(waitForContent(silent, { timeoutMs: 120, askMs: 30, settleMs: 0, pollMs: 5 }), /did not answer in time/);
+  assert.ok(Date.now() - began < 1000, 'it ended at its own limit, not when the page answered');
+});
+
+test('the page is not held back for the time of the job, and is let be held back again after it, also when the job fails', async () => {
+  const calls = [];
+  const wc = { setBackgroundThrottling: on => calls.push(`throttling ${on}`) };
+  assert.equal(await unthrottled(wc, async () => { calls.push('job'); return 7; }), 7);
+  assert.deepEqual(calls, ['throttling false', 'job', 'throttling true']);
+  calls.length = 0;
+  await assert.rejects(unthrottled(wc, async () => { throw new Error('no picture'); }), /no picture/);
+  assert.deepEqual(calls, ['throttling false', 'throttling true']);
+  const gone = { setBackgroundThrottling: on => { if (on) throw new Error('Object has been destroyed'); } };
+  assert.equal(await unthrottled(gone, async () => 'done'), 'done'); // a window destroyed meanwhile does not turn the result into an error
 });

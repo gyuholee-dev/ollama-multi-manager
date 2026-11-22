@@ -8,6 +8,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { fitPicture, takeScreenshot } from '../../../electron/screenshot.js';
 import { startShotServer } from '../../../electron/mcp-shot.js';
+import { unthrottled } from '../../../electron/mcp-monitor.js';
 import { overlay } from '../../../electron/overlay.js';
 
 const failures = [];
@@ -91,7 +92,7 @@ app.whenReady().then(async () => {
     // what an MCP client asks for, through the listener (the element is named by a selector, the picture comes back scaled down, the file is whole)
     const listener = await startShotServer({
       capture: async ({ kind, selector, depth, maxSide }) => {
-        const shot = await takeScreenshot(tall.webContents, kind, { dir, label: 'mcp', selector, depth, feedback: { clear: ui.clear } });
+        const shot = await unthrottled(tall.webContents, () => takeScreenshot(tall.webContents, kind, { dir, label: 'mcp', selector, depth, feedback: { clear: ui.clear } }));
         const fit = fitPicture(shot.png, maxSide, nativeImage);
         return { file: shot.file, png: fit.png, width: fit.width, height: fit.height, fullWidth: shot.width, fullHeight: shot.height };
       },

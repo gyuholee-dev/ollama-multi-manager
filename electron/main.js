@@ -16,7 +16,7 @@ import { startMockupServer } from './dev-mockup.js';
 import { overlay } from './overlay.js';
 import { failureText, fitPicture, focusWindow, putOnClipboard, screenshotDir, takeScreenshot } from './screenshot.js';
 import { ShotRequestError, startShotServer } from './mcp-shot.js';
-import { resolveMonitor, waitForContent } from './mcp-monitor.js';
+import { resolveMonitor, unthrottled, waitForContent } from './mcp-monitor.js';
 
 const log = (...a) => console.log(new Date().toISOString(), '[shell]', ...a);
 
@@ -253,6 +253,8 @@ if (!app.requestSingleInstanceLock()) {
     // is looked up through resolveMonitor and not by `monitors.get`, so that it can become a side panel later without this function knowing.
     let release = async () => {};
     let w = win;
+    const began = Date.now();
+    const lap = () => `${Date.now() - began} ms`;
     if (instanceId) {
       ({ target: w, release } = await resolveMonitor(instanceId, {
         allowOpen: openIfClosed,
@@ -265,17 +267,21 @@ if (!app.requestSingleInstanceLock()) {
         ready: waitForContent,
       }));
     }
+    if (instanceId) log(`MCP screenshot: the monitor of instance ${instanceId} is ready after ${lap()}`);
     try {
       if (!w || w.isDestroyed()) throw new ShotRequestError('NO_WINDOW', 'The main window is not open', 404);
       const l = MENU_LABEL[String(settings.language || app.getLocale()).slice(0, 2)] || MENU_LABEL.en;
       const ui = overlay(w.webContents);
-      const shot = await takeScreenshot(w.webContents, kind, {
-        dir: screenshotDir(app.getPath('userData')), label: instanceId ? `monitor-${instanceId}` : 'main', selector, depth, feedback: { clear: ui.clear },
-      }).catch(async e => { if (!w.isDestroyed()) await ui.failed(`${l.failedNote}: ${failureText(e, 'en')}`); throw e; });
-      const fit = fitPicture(shot.png, maxSide, nativeImage);
-      log(`Capture (${kind}) for an MCP client saved: ${shot.file}`);
-      if (!w.isDestroyed()) await ui.done(`${l.savedNote} (MCP): ${path.basename(shot.file)}`);
-      return { file: shot.file, png: fit.png, width: fit.width, height: fit.height, fullWidth: shot.width, fullHeight: shot.height };
+      // nobody is at the screen when a client asks: the window may be in the tray or minimized, where the system holds its page back
+      return await unthrottled(w.webContents, async () => {
+        const shot = await takeScreenshot(w.webContents, kind, {
+          dir: screenshotDir(app.getPath('userData')), label: instanceId ? `monitor-${instanceId}` : 'main', selector, depth, feedback: { clear: ui.clear },
+        }).catch(async e => { if (!w.isDestroyed()) await ui.failed(`${l.failedNote}: ${failureText(e, 'en')}`); throw e; });
+        const fit = fitPicture(shot.png, maxSide, nativeImage);
+        log(`Capture (${kind}) for an MCP client saved after ${lap()}: ${shot.file}`);
+        if (!w.isDestroyed()) await ui.done(`${l.savedNote} (MCP): ${path.basename(shot.file)}`);
+        return { file: shot.file, png: fit.png, width: fit.width, height: fit.height, fullWidth: shot.width, fullHeight: shot.height };
+      });
     } finally {
       await release();
     }
@@ -343,7 +349,8 @@ if (!app.requestSingleInstanceLock()) {
       width: MONITOR_SIZE.width, minWidth: MONITOR_SIZE.width, maxWidth: MONITOR_SIZE.width, maximizable: false, fullscreenable: false,
       height: saved?.height || first.height, x: saved?.x ?? first?.x, y: saved?.y ?? first?.y, minHeight: 360, show: false, title: 'Ollama Multi Manager',
       backgroundColor: nativeTheme.shouldUseDarkColors ? '#1c1c1c' : '#ebebeb', ...titleBar(),
-      webPreferences: webPrefs(),
+      // a monitor opened only for a picture is never shown: it must not be held back like a page in the background, or it would not draw
+      webPreferences: transient ? { ...webPrefs(), backgroundThrottling: false } : webPrefs(),
     });
     monitors.set(id, w);
     if (!transient) {

@@ -8,18 +8,35 @@
 import { ShotRequestError } from './mcp-shot.js';
 
 const sleep = ms => new Promise(resolve => setTimeout(resolve, ms));
+const within = (promise, ms, fallback) => Promise.race([promise, new Promise(resolve => setTimeout(() => resolve(fallback), ms))]);
 
 /** Waits until the page of `window` has loaded and drawn something (some text on it), then a moment more for what loads in after it. Throws when it
- * does not within `timeoutMs`, or when the window is closed meanwhile. */
-export async function waitForContent(window, { timeoutMs = 10000, settleMs = 400, pollMs = 150 } = {}) {
+ * does not within `timeoutMs`, or when the window is closed meanwhile. A page that does not answer at all (a window that is not shown can have its page
+ * held back by the system) does not hold this up either: every question to the page is given only `askMs`. */
+export async function waitForContent(window, { timeoutMs = 10000, settleMs = 400, pollMs = 150, askMs = 1500 } = {}) {
   const end = Date.now() + timeoutMs;
+  let unanswered = 0;
   while (Date.now() < end) {
     if (window.isDestroyed()) throw new Error('the window was closed');
-    const drawn = await window.webContents.executeJavaScript("document.readyState === 'complete' && (document.body.innerText || '').trim().length > 40").catch(() => false);
-    if (drawn) { await sleep(settleMs); return; }
+    const ask = window.webContents.executeJavaScript("document.readyState === 'complete' && (document.body.innerText || '').trim().length > 40").catch(() => false);
+    const drawn = await within(ask, Math.min(askMs, Math.max(end - Date.now(), 1)), 'no answer');
+    if (drawn === 'no answer') unanswered++;
+    else if (drawn) { await sleep(settleMs); return; }
     await sleep(pollMs);
   }
-  throw new Error('it did not load in time');
+  throw new Error(unanswered ? 'the page did not answer in time' : 'it did not load in time');
+}
+
+/** Runs `job` with the page not held back for being in the background, and puts the setting back (to the default, on) afterwards. A page that is
+ * hidden (the window in the tray, minimized, or never shown) is otherwise slowed or stopped by the system, and then a picture of it does not come. It is
+ * switched off only for the time of the picture, so that a window kept hidden for long does not keep drawing at full speed. */
+export async function unthrottled(webContents, job) {
+  webContents.setBackgroundThrottling(false);
+  try {
+    return await job();
+  } finally {
+    try { webContents.setBackgroundThrottling(true); } catch { /* the window is gone */ }
+  }
 }
 
 /** Resolves { target, release }: the monitor of the instance, found open, or (with `allowOpen`) opened for this picture. `release()` puts back what the
