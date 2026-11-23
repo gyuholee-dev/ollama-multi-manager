@@ -3,18 +3,18 @@ import { useDialogStore } from '@/stores/dialogStore';
 import { useUiStore } from '@/stores/uiStore';
 
 // the desktop shell and the width of the viewport are what these tests stand in for
-const desktop = vi.hoisted(() => ({ isDesktop: false, fits: true, calls: [] as string[] }));
+const desktop = vi.hoisted(() => ({ isDesktop: false, full: false, calls: [] as string[] }));
 vi.mock('@/desktop', () => ({
   isDesktop: () => desktop.isDesktop,
   openMonitorWindow: (id: number, dock?: string) => desktop.calls.push(dock ? `window ${id} ${dock}` : `window ${id}`),
   mergeMonitorWindow: (id: number) => desktop.calls.push(`merge ${id}`),
 }));
-vi.mock('@/lib/panel', () => ({ panelFits: () => desktop.fits }));
+vi.mock('@/lib/panel', () => ({ panelFull: () => desktop.full }));
 
 const { closePanel, detachMonitor, mergeMonitor, openPanel, showMonitor } = await import('./monitorActions');
 
 beforeEach(() => {
-  desktop.isDesktop = true; desktop.fits = true; desktop.calls.length = 0;
+  desktop.isDesktop = true; desktop.full = false; desktop.calls.length = 0;
   useDialogStore.setState({ monitor: null });
   useUiStore.setState({ monitorMode: 'panel', panelSide: 'right' });
 });
@@ -41,14 +41,14 @@ describe('the monitor button', () => {
     expect(desktop.calls).toEqual(['window 3']);
     expect(useDialogStore.getState().monitor).toBeNull();
   });
-  it('in a browser with no room beside the main view a window is not tried: the monitor opens in the main window (a popup is blocked on a phone)', () => {
-    desktop.isDesktop = false; desktop.fits = false;
+  it('in a browser narrower than 768 a window is not tried: the monitor opens in the main window as the panel that covers it (a popup is blocked on a phone)', () => {
+    desktop.isDesktop = false; desktop.full = true;
     useUiStore.setState({ monitorMode: 'window' });
     showMonitor(4);
     expect(desktop.calls).not.toContain('window 4');
     expect(useDialogStore.getState().monitor).toBe(4);
   });
-  it('in a browser with room it opens a popup, as before', () => {
+  it('in a browser that is wide enough it opens a popup, as before', () => {
     desktop.isDesktop = false;
     useUiStore.setState({ monitorMode: 'window' });
     showMonitor(4);

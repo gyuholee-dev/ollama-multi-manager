@@ -5,6 +5,7 @@
 // under the header, with a scrim over the main view (see the media query at the end).
 
 .workspace {
+  position: relative; // (the monitor panel covers it below 768 px)
   display: flex;
   flex: 1;
   min-height: 0;
@@ -27,7 +28,7 @@
   flex: 0 0 480px;
   flex-direction: column;
   width: 480px;
-  min-width: 480px; // never squeezed (the window is at least 960 wide, so the main view keeps 480 beside it)
+  min-width: 480px; // never squeezed: the main view keeps what is left (its columns follow its own width: container queries), and below 768 px the panel covers it
   min-height: 0;
   background: var(--bg);
 
@@ -37,6 +38,16 @@
 
   &--left {
     border-right: 1px solid var(--line);
+  }
+
+  // a viewport narrower than 768 px: the panel covers the whole main view (and is not beside it, nor a page that slides in)
+  @media (max-width: 767.98px) {
+    position: absolute;
+    inset: 0;
+    z-index: 3; // over the page panels (settings, models)
+    width: auto;
+    min-width: 0;
+    border: 0;
   }
 }
 

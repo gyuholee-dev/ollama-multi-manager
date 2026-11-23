@@ -374,7 +374,7 @@ if (!app.requestSingleInstanceLock()) {
     const st = loadState();
     const first = st.width && st.height ? null : firstBounds(MAIN_SIZE.width, undefined, 0, MAIN_SIZE.height); // nothing saved: the display under the pointer
     win = new BrowserWindow({
-      width: st.width || first.width, height: st.height || first.height, x: st.x ?? first?.x, y: st.y ?? first?.y, minWidth: 960, minHeight: 480,
+      width: st.width || first.width, height: st.height || first.height, x: st.x ?? first?.x, y: st.y ?? first?.y, minWidth: 480, minHeight: 480,
       show: false, title: 'Ollama Multi Manager', backgroundColor: nativeTheme.shouldUseDarkColors ? '#1c1c1c' : '#ebebeb', ...titleBar(),
       webPreferences: webPrefs(),
     });

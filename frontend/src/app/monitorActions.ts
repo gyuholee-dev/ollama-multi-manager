@@ -1,25 +1,25 @@
 import { isDesktop, mergeMonitorWindow, openMonitorWindow } from '@/desktop';
-import { panelFits } from '@/lib/panel';
+import { panelFull } from '@/lib/panel';
 import { useDialogStore } from '@/stores/dialogStore';
 import { useUiStore } from '@/stores/uiStore';
 
 /**
  * The monitor button of an instance: opens the monitor the way it was last used (the panel beside the main view at first, or a window of its own).
- * Where there is no room for the panel, a panel becomes a page over the main view; in a browser (where a popup is often blocked, on a phone always)
- * a window too.
+ * The panel is always a panel (below 768 px wide it covers the main view); in a browser a narrow viewport (where a popup is often blocked, on a phone always) opens
+ * it as the panel, not as a window.
  */
 export function showMonitor(id: number): void {
   const wantsPanel = useUiStore.getState().monitorMode === 'panel';
-  if (wantsPanel || (!isDesktop() && !panelFits())) return openPanel(id);
+  if (wantsPanel || (!isDesktop() && panelFull())) return openPanel(id);
   openMonitorWindow(id);
 }
 
-/** Opens the panel beside the main view (or, where the window is too narrow for that, the page the monitor is shown as). The window is never resized for it. */
+/** Opens the panel beside the main view (or, below 768 px, covering it). The window is never resized for it. */
 export function openPanel(id: number): void {
   useDialogStore.getState().showMonitor(id);
 }
 
-/** Closes the panel (or the page the monitor was shown as). */
+/** Closes the panel. */
 export function closePanel(): void {
   useDialogStore.getState().hideMonitor();
 }

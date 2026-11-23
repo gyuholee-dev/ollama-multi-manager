@@ -200,7 +200,7 @@ const placePanel=()=>{const a=$('mpanel'),ws=$('ws');a.className='mpanel mpanel-
  swapPanel=()=>{panelSide=panelSide=='left'?'right':'left';placePanel()},
  mergeMon=()=>{try{window.opener.mergeFromPopup(curMon)}catch(e){}window.close()},
  detachPanel=()=>{const id=curMon;closePanelMon();monMode='window';popupMon(id)},
- openMon=id=>{if(monMode=='panel'&&innerWidth>=960){monPanel=true;showMon(id,true)}else popupMon(id)},
+ openMon=id=>{if(monMode=='panel'||innerWidth<768){monPanel=true;showMon(id,true)}else popupMon(id)},
  popupMon=id=>{const w=window.open(location.pathname+'#monitor='+id,'omm-monitor-'+id,'popup,width=480,height=720');try{w?.resizeTo(480,720)}catch(e){}};
 let monPage=false;
 const monHost=()=>{if(monPanel)return panelHost();let h=$('monpage');if(!h){document.querySelectorAll('header,.workspace,footer').forEach(e=>e.style.display='none');const mn=document.createElement('main');mn.className='mwm';h=document.createElement('div');h.id='monpage';h.className='mwin';mn.append(h);document.body.append(mn)}return h};

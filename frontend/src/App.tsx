@@ -2,7 +2,7 @@ import { useEffect } from 'react';
 import { startApp } from '@/app/bootstrap';
 import { openPanel } from '@/app/monitorActions';
 import { onShowPanel } from '@/desktop';
-import { usePanelFits } from '@/lib/panel';
+import { usePanelFull } from '@/lib/panel';
 import { DialogHost } from '@/containers/DialogHost';
 import { Footer } from '@/containers/Footer';
 import { Header } from '@/containers/Header';
@@ -28,12 +28,13 @@ export default function App({ monitor }: { monitor?: number }) {
   const closePage = useDialogStore((s) => s.close);
   const slide = useDialogStore((s) => s.slide);
   const monitorShown = useDialogStore((s) => s.monitor);
-  const fits = usePanelFits();
-  // the monitor of an instance in the main window: a panel beside the main view where there is room for it, else a page over the main view
-  const panelId = fits ? monitorShown : null;
-  const monitorPageId = fits ? null : monitorShown;
+  const full = usePanelFull();
+  // the monitor of an instance in the main window: always a panel, beside the main view, or (a viewport narrower than 768) covering it (no page that slides in)
+  const panelId = monitorShown;
 
   useEffect(() => startApp(), []);
+  // a page (settings, models) opens over the main view: where the monitor panel covers it, the monitor makes room for the page
+  useEffect(() => { if (full && page && monitorShown != null) useDialogStore.getState().hideMonitor(); }, [full, page, monitorShown]);
   // a monitor window merged into the panel (by the shell, or from a popup of this page): the panel is the way monitors open from now on
   useEffect(() => monitor ? undefined : onShowPanel((id) => { useUiStore.getState().setMonitorMode('panel'); openPanel(id); }), [monitor]);
   useEffect(() => { document.documentElement.dataset.theme = theme; }, [theme]);
@@ -56,17 +57,17 @@ export default function App({ monitor }: { monitor?: number }) {
   return (
     <>
       <Header />
-      {/* the main view and a page (settings, models) side by side: on a narrow window the main view slides out to the left and the page in from the right; on a wide one the page comes in as a panel over the main view (the scrim behind it closes it) */}
+      {/* the main view and a page (settings, models) side by side: on a narrow window the main view slides out to the left and the page in from the right; on a wide one the page comes in as a panel over the main view (the scrim behind it closes it). The monitor panel is not a page: it is beside the main view (or covers it, below 768) */}
       <div className="workspace">
         {panelId != null && panelSide === 'left' && panel}
-        <div className={`views${page || monitorPageId != null ? ' views--page' : ''}${slide ? ' views--slide' : ''}`}>
+        <div className={`views${page ? ' views--page' : ''}${slide ? ' views--slide' : ''}`} inert={full && panelId != null}>
           <div className="views__scrim" onClick={closePage} />
           <div className="views__track">
-            <div className="view" inert={!!page || monitorPageId != null}>
+            <div className="view" inert={!!page}>
               {/* Until the first load is over nothing is shown (no loading note for now), so no empty template and no controls flash by. */}
               {ready ? <main><Summary /><Monitor /><ServerInstances /><Logs /></main> : null}
             </div>
-            <div className="view" inert={!page && monitorPageId == null}><PageHost monitorAsPage={monitorPageId} /></div>
+            <div className="view" inert={!page}><PageHost /></div>
           </div>
         </div>
         {/* the monitor panel: beside the main view, not over it, on the side the user chose; a page (settings) opens over the main view only */}
