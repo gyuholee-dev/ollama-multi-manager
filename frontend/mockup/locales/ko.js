@@ -45,6 +45,7 @@
 
   'd.pid': 'PID', 'd.uptime': '가동 시간', 'd.up': '2시간 14분', 'd.none': '없음', 'd.models': '모델',
   'd.loaded': '로드된 모델', 'd.avail': '사용 가능 모델', 'd.res': '리소스', 'd.vram': '{mem} 사용량',
+  'f.lan': 'LAN에서 접속 허용', 'f.key': '인스턴스 API 키', 'f.keyPh': '비워 두면 인증하지 않습니다', 'f.auto': '요청이 오면 자동 시작', 'f.idle': '유휴 시 자동 중지 (분, 0 = 안 함)', 'auto.idle': '켬 · 유휴 {n}분 후 중지', 'im.detach': '창으로 분리', 'im.merge': '메인 창의 패널로 합치기', 'im.side': '패널을 반대쪽으로 옮기기', 'v.models.t': '허용 모델 선택', 'v.models.m': '허용 모델을 하나 이상 골라야 합니다.', 'det.edit': '편집', 'btn.save': '저장', 'det.g.basic': '기본', 'det.g.access': '접속', 'det.g.perf': '자원과 성능', 'det.g.models': '모델', 'det.g.log': '기록', 'f.modelsPath': '모델 저장 경로', 'f.modelsPathPh': '비워 두면 기본 경로를 씁니다', 'd.allowed': '허용 모델', 'd.allowedAll': '설치된 모든 모델', 'det.stopAsk.t': '편집하려면 인스턴스를 종료해야 합니다', 'det.stopAsk.m': '{n}은(는) 종료된 상태에서만 편집할 수 있습니다. 지금 종료할까요? 처리 중인 요청은 끊기고 로드된 모델은 내려갑니다.', 'det.stopAsk.ok': '종료 후 편집', 'det.discard.t': '변경을 취소할까요?', 'det.discard.m': '바꾼 값이 사라집니다.', 'det.discard.ok': '변경 취소', 'det.discard.keep': '계속 편집', 'det.nameNote': '이름을 바꿔도 이 인스턴스의 요청 기록과 통계는 그대로 이어집니다.', 'det.portNote': '포트를 바꾸면 현재 포트로 접속하던 외부 도구와 다른 PC의 연결이 끊어집니다.', 'det.afterSave': '저장한 뒤에도 인스턴스는 종료 상태로 둡니다.', 'd.addr': '접속 주소',
   'd.reqs': '요청 처리', 'd.reqsV': '{n}건 처리 중',
 
   'set.title': '환경설정', 'set.general': '일반', 'set.login': '시스템 시작 시 자동 실행',
