@@ -18,11 +18,23 @@ import { failureText, focusWindow, putOnClipboard, screenshotDir, takeScreenshot
 import { startDevServer } from './dev/listener.js';
 import { createDevHandlers } from './dev/handlers.js';
 import { dockBounds, dockSide } from './monitor-dock.js';
+import { startBackendEvents } from './backend-events.js';
+import { consoleEntry, createLogger, KEEP_DAYS, pruneLogs, resetLogs } from './logger.js';
 
-const log = (...a) => console.log(new Date().toISOString(), '[shell]', ...a);
 
 // Developer mode: OMM_DEV=1 (or true/yes/on). Works for `yarn start` and for a packaged app alike.
 const DEV = /^(1|true|yes|on)$/i.test(process.env.OMM_DEV || '');
+
+// The log of the main process, and of the windows' pages (the renderer): everything goes to a file in <data folder>/logs, one file a day; the terminal shows the main
+// process's info, warnings and errors (OMM_LOG_LEVEL changes that). The backend writes its own file there (app/logsetup.py).
+// OMM_RESET_LOGS=1: every log file is deleted at start. Otherwise the files are kept 30 days, and in developer mode without a limit.
+const LOGS_DIR = path.join(app.getPath('userData'), 'logs');
+const RESET_LOGS = /^(1|true|yes|on)$/i.test(process.env.OMM_RESET_LOGS || '');
+const logsGone = RESET_LOGS ? resetLogs(LOGS_DIR) : DEV ? [] : pruneLogs(LOGS_DIR, KEEP_DAYS);
+const log = createLogger({ dir: LOGS_DIR, name: 'main' });
+const rendererLog = createLogger({ dir: LOGS_DIR, name: 'renderer', terminal: () => {} }); // what a page writes to its console is the page's own business: a file only
+if (RESET_LOGS) log(`Logs reset (OMM_RESET_LOGS): ${logsGone.length} files deleted`);
+else if (logsGone.length) log.debug(`Deleted ${logsGone.length} log files older than ${KEEP_DAYS} days`);
 // OMM_MOCKUP=1: also serves the design mockup (frontend/mockup) on this PC, independent of developer mode.
 const MOCKUP = /^(1|true|yes|on)$/i.test(process.env.OMM_MOCKUP || '');
 const MENU_LABEL = {
@@ -35,7 +47,7 @@ const MENU_LABEL = {
 if (!app.requestSingleInstanceLock()) {
   app.quit();
 } else {
-  let win = null, backend = null, tray = null, settings = {}, quitting = false, mockup = null, devServer = null;
+  let win = null, backend = null, tray = null, settings = {}, quitting = false, mockup = null, devServer = null, backendEvents = null;
   let panelInstance = null; // the instance whose monitor the main window shows in its panel (told by the page)
   const monitors = new Map(); // instance id -> its monitor window (one per instance)
 
@@ -168,7 +180,7 @@ if (!app.requestSingleInstanceLock()) {
     const st = readMonitorState();
     if (st.byId) delete st.byId[id];
     delete st.last;
-    try { fs.writeFileSync(monitorStateFile(), JSON.stringify(st)); } catch (e) { log('Could not reset the monitor window state:', e.message); }
+    try { fs.writeFileSync(monitorStateFile(), JSON.stringify(st)); } catch (e) { log.warn('Could not reset the monitor window state:', e.message); }
   }
   function saveMonitorState(id, w, sync = false) {
     if (NO_STATE || w.isDestroyed() || resetting.has(id)) return;
@@ -176,8 +188,8 @@ if (!app.requestSingleInstanceLock()) {
     const b = { ...w.getNormalBounds(), maximized: w.isMaximized() };
     st.byId = { ...st.byId, [id]: b };
     st.last = b;
-    if (!sync) { fs.writeFile(monitorStateFile(), JSON.stringify(st), e => { if (e) log('Could not save the monitor window state:', e.message); }); return; }
-    try { fs.writeFileSync(monitorStateFile(), JSON.stringify(st)); } catch (e) { log('Could not save the monitor window state:', e.message); }
+    if (!sync) { fs.writeFile(monitorStateFile(), JSON.stringify(st), e => { if (e) log.warn('Could not save the monitor window state:', e.message); }); return; }
+    try { fs.writeFileSync(monitorStateFile(), JSON.stringify(st)); } catch (e) { log.warn('Could not save the monitor window state:', e.message); }
   }
   function monitorBounds(id) {
     if (NO_STATE) return null;
@@ -207,7 +219,7 @@ if (!app.requestSingleInstanceLock()) {
     tray?.setLang(s.language || app.getLocale());
   }
   async function refreshSettings() {
-    try { applySettings(await backend.api('GET', '/settings')); } catch (e) { log('Could not read settings:', e.message); }
+    try { applySettings(await backend.api('GET', '/settings')); } catch (e) { log.warn('Could not read settings:', e.message); }
   }
 
   // ---- window
@@ -266,7 +278,7 @@ if (!app.requestSingleInstanceLock()) {
   // The developer's tools of the MCP server (electron/dev/: screenshot, screen actions, app state), wired to this app's windows.
   const devHandlers = createDevHandlers({
     getWin: () => win, monitors, getPanelInstance: () => panelInstance, backend: { api: (...a) => backend.api(...a) }, openMonitor: (...a) => openMonitor(...a),
-    menuLabel: () => MENU_LABEL[String(settings.language || app.getLocale()).slice(0, 2)] || MENU_LABEL.en, nativeImage, log, developerMode: DEV,
+    menuLabel: () => MENU_LABEL[String(settings.language || app.getLocale()).slice(0, 2)] || MENU_LABEL.en, nativeImage, log: log.debug, developerMode: DEV, backendState: () => backendEvents?.state() ?? null,
   });
 
   // The page may only ever be the backend's own UI; everything else opens in the system browser.
@@ -274,6 +286,10 @@ if (!app.requestSingleInstanceLock()) {
   // the menu also offers reload, pausing the page's live updates, and inspect.
   function guard(w, label = 'main') {
     debugWindow(w, label);
+    // what the page writes to its console (and its uncaught errors) goes to the renderer's log file, all levels
+    w.webContents.on('console-message', (...args) => { const { level, text } = consoleEntry(args, label); rendererLog[level](text); });
+    w.webContents.on('render-process-gone', (_e, details) => log.error(`The page of the window ${label} is gone (${details.reason}, exit code ${details.exitCode})`));
+    w.webContents.on('unresponsive', () => log.warn(`The page of the window ${label} does not respond`));
     const isOwn = u => { try { return new URL(u).origin === backend.url; } catch { return false; } };
     const external = u => { if (/^https?:\/\//i.test(u)) shell.openExternal(u); };
     const keepOwn = (e, u) => { if (!isOwn(u)) { e.preventDefault(); external(u); } };
@@ -425,10 +441,11 @@ if (!app.requestSingleInstanceLock()) {
     if (quitting) return;
     e.preventDefault();
     quitting = true;
+    backendEvents?.stop();
     mockup?.close();
     devServer?.close();
     log('Quitting: stopping the backend (this stops the instances)');
-    backend.stop().catch(err => log('Backend stop failed:', err.message)).finally(() => app.quit());
+    backend.stop().catch(err => log.warn('Backend stop failed:', err.message)).finally(() => app.quit());
   });
 
   app.on('web-contents-created', (_e, contents) => {
@@ -437,11 +454,18 @@ if (!app.requestSingleInstanceLock()) {
 
   app.whenReady().then(async () => {
     if (OVERLAY_TITLEBAR) Menu.setApplicationMenu(null);
+    if (!DEV) setInterval(() => { const gone = pruneLogs(LOGS_DIR, KEEP_DAYS); if (gone.length) log.debug(`Deleted ${gone.length} log files older than ${KEEP_DAYS} days`); }, 24 * 60 * 60 * 1000).unref(); // (the app may run for days)
+    app.on('child-process-gone', (_e, details) => log.error(`A ${details.type} process is gone (${details.reason}, exit code ${details.exitCode})`));
     if (DEV) {
-      try { devServer = await startDevServer({ ...devHandlers, log }); } catch (e) { log('The screenshot listener for MCP did not start:', e.message); }
+      try {
+        devServer = await startDevServer({ ...devHandlers, log: log.warn });
+        log(`Developer listener served at ${devServer.url} (this PC only, for the developer tools of the MCP server)`);
+      } catch (e) { log.warn('The screenshot listener for MCP did not start:', e.message); }
     }
     backend = new Backend({
       dataDir: app.getPath('userData'), isPackaged: app.isPackaged, log,
+      // the backend's own lines are on the terminal as they are (and in its own file); what is not one of its log lines (a trace, a message before its logging started) is kept in the main file too
+      onOutput: line => { console.log(line); if (!/^\d{4}-\d\d-\d\dT/.test(line)) log.fileOnly('warn', `[backend output] ${line}`); },
       env: devServer ? { OMM_DEV_URL: devServer.url, OMM_DEV_TOKEN: devServer.token } : {},
     });
     backend.onCrash = (code, sig) => {
@@ -453,13 +477,14 @@ if (!app.requestSingleInstanceLock()) {
     try {
       await backend.start();
     } catch (e) {
-      log('Backend start failed:', e.message);
+      log.error('Backend start failed:', e.message);
       dialog.showErrorBox('Ollama Multi Manager', e.message);
       quitting = true;
       app.exit(1);
       return;
     }
     log(`Backend ready on ${backend.url}`);
+    backendEvents = startBackendEvents({ url: backend.url, token: backend.token, api: (method, route) => backend.api(method, route), log }); // what the backend does, as its events
     // The app uses no camera, microphone, location, notifications or the like: every permission request is refused,
     // except copying text to the clipboard (the address and key buttons).
     const allowed = permission => permission === 'clipboard-sanitized-write';

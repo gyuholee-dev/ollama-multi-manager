@@ -11,6 +11,7 @@ import { startDevServer } from '../../../electron/dev/listener.js';
 import { unthrottled } from '../../../electron/dev/monitor.js';
 import { parseUiRequest, runUiAction } from '../../../electron/dev/ui.js';
 import { overlay } from '../../../electron/overlay.js';
+import { consoleEntry } from '../../../electron/logger.js';
 
 const failures = [];
 const check = (name, actual, expected) => {
@@ -118,6 +119,16 @@ app.whenReady().then(async () => {
       const missing = await ask({ kind: 'element', selector: '#nothing-here' });
       check('mcp: an element that is not there is an error with its code', [missing.ok, missing.code], [false, 'NO_ELEMENT']);
     } finally { await listener.close(); }
+
+    // what a page writes to its console reaches the renderer log in the form it is made from (the event of this Electron)
+    const consoleWin = new BrowserWindow({ width: 400, height: 300, show: false });
+    const heard = [];
+    consoleWin.webContents.on('console-message', (...args) => heard.push(consoleEntry(args, 'smoke')));
+    await consoleWin.loadURL('data:text/html,<title>c</title>');
+    await consoleWin.webContents.executeJavaScript("console.warn('careful'); console.error('broken'); console.log('plain'); 0");
+    await sleep(300);
+    check('renderer log: a console message has its level and text', heard.filter(h => !h.text.includes('Electron Security Warning')).map(h => [h.level, h.text.split(' [')[0]]), [['warn', '(smoke) careful'], ['error', '(smoke) broken'], ['info', '(smoke) plain']]);
+    consoleWin.destroy();
 
     // what an MCP client does on the screen, in a real page: found, clicked, typed into, keys, scrolled, set
     const uiPage = await open('ui.html');

@@ -9,8 +9,9 @@ import { hiddenWindowError, resolveMonitor, unthrottled, waitForContent, windowS
 import { NEEDS_SHOWN, parseUiRequest, runUiAction } from './ui.js';
 
 /** { capture, ui, state } for startDevServer. `deps`: getWin() (the main window), monitors (Map of instance id to monitor window), getPanelInstance() (the
- * instance shown in the panel of the main window), backend, openMonitor(id, opts), menuLabel() (the texts of the page's notes), nativeImage, log, developerMode. */
-export function createDevHandlers({ getWin, monitors, getPanelInstance, backend, openMonitor, menuLabel, nativeImage, log, developerMode }) {
+ * instance shown in the panel of the main window), backend, openMonitor(id, opts), menuLabel() (the texts of the page's notes), nativeImage, log, developerMode,
+ * backendState() (what the main process knows of the backend from its events: see backend-events.js). */
+export function createDevHandlers({ getWin, monitors, getPanelInstance, backend, openMonitor, menuLabel, nativeImage, log, developerMode, backendState = () => null }) {
   // Developer mode: a screenshot an MCP client asked for (the MCP server in the backend calls the listener, listener.js). The window is the main one, or the monitor
   // window of an instance; the element is named by a selector (nobody can click it); the picture handed back is scaled to at most `maxSide` on its longer
   // side, nothing is saved. The page says that it was taken, as it does for the developer's own screenshots.
@@ -92,6 +93,7 @@ export function createDevHandlers({ getWin, monitors, getPanelInstance, backend,
   const state = () => ({
     developer_mode: developerMode,
     main_window: windowState(getWin()),
+    backend: backendState(),
     monitor_panel: getPanelInstance() == null ? null : { instance_id: getPanelInstance() },
     monitors: [...monitors.entries()].filter(([, m]) => !m.isDestroyed()).map(([id, m]) => ({ instance_id: id, ...windowState(m) })),
   });

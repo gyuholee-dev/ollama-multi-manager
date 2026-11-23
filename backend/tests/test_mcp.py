@@ -576,3 +576,47 @@ def test_what_the_server_tells_a_client_about_itself_follows_the_control_switch(
     assert "start_instance" in instructions(True) and "only when the user asked" in instructions(True)
     assert "take_screenshot" not in instructions(False) and "take_screenshot" not in instructions(True)  # what only a developer's agent is told is not said to users
     assert "prompts and answers" in dev_instructions(False) and "click_element" not in dev_instructions(False) and "click_element" in dev_instructions(True)
+
+
+# ---- what the servers do is told to the shell as events (and logged in the same words)
+
+def server_events(queue):
+    events = []
+    while not queue.empty():
+        event = queue.get_nowait()
+        if event.get("type") == "server":
+            events.append(event)
+    return events
+
+
+async def test_the_mcp_server_tells_when_it_started_and_when_it_stopped(env, caplog):
+    queue = env.app.state.hub.subscribe()
+    with caplog.at_level("INFO", logger="omm.mcp"):
+        port = await start_mcp(env)
+        started = server_events(queue)
+        assert [(e["name"], e["state"]) for e in started] == [("mcp", "started")]
+        assert started[0]["urls"][0] == f"http://127.0.0.1:{port}/mcp" and started[0]["error"] is None
+        await env.client.put("/settings", json={"mcp_enabled": False})
+        await wait_for(lambda: not env.app.state.mcp.active)
+        stopped = server_events(queue)
+        assert [(e["name"], e["state"]) for e in stopped] == [("mcp", "stopped")]
+    assert any(f"MCP server served at http://127.0.0.1:{port}/mcp" in r.getMessage() for r in caplog.records)  # the log says what the event says
+    assert any(r.getMessage() == "MCP server stopped" for r in caplog.records)
+
+
+async def test_a_port_in_use_is_told_as_a_failure(env, caplog):
+    import socket
+    blocker = socket.socket()
+    blocker.bind(("127.0.0.1", 0))
+    blocker.listen()
+    busy = blocker.getsockname()[1]
+    queue = env.app.state.hub.subscribe()
+    try:
+        with caplog.at_level("WARNING", logger="omm.mcp"):
+            await env.client.put("/settings", json={"mcp_enabled": True, "mcp_port": busy, "mcp_token": TOKEN})
+            await wait_for(lambda: env.app.state.mcp.error is not None)
+    finally:
+        blocker.close()
+    failed = server_events(queue)
+    assert [(e["name"], e["state"]) for e in failed][:1] == [("mcp", "failed")] and "already in use" in failed[0]["error"]
+    assert any(r.levelname == "WARNING" and "MCP server not started" in r.getMessage() for r in caplog.records)

@@ -55,12 +55,17 @@ function looksLikeBackend(pid) {
 }
 
 class Backend {
-  // `env`: more environment variables for the backend (developer mode hands it the address of the screenshot listener)
-  constructor({ dataDir, isPackaged, log = console.log, env = {} }) {
+  // `env`: more environment variables for the backend (developer mode hands it the address of the screenshot listener).
+  // `onOutput(line)`: what the backend prints (its own log lines: it writes its log file itself, and they are already in the look of the main process's lines).
+  constructor({ dataDir, isPackaged, log = console.log, env = {}, onOutput = line => console.log(line) }) {
     this.dataDir = dataDir;
     this.extraEnv = env;
     this.isPackaged = isPackaged;
     this.log = log;
+    this.warn = log.warn?.bind(log) ?? log; // (a logger has levels; console.log has not)
+    this.error = log.error?.bind(log) ?? log;
+    this.onOutput = onOutput;
+    this.recent = []; // the last lines the backend printed, for the message when it fails to start or stops
     this.child = null;
     this.exited = true;
     this.stopping = false;
@@ -68,7 +73,6 @@ class Backend {
     this.token = '';
     this.onCrash = () => {};
     this.pidFile = path.join(dataDir, 'backend.pid');
-    this.logFile = path.join(dataDir, 'logs', 'backend.log');
   }
 
   get url() { return `http://127.0.0.1:${this.port}`; }
@@ -83,6 +87,13 @@ class Backend {
     return r.status === 204 ? null : r.json();
   }
 
+  output(line) {
+    if (!line) return;
+    this.recent.push(line);
+    if (this.recent.length > 50) this.recent.shift();
+    this.onOutput(line);
+  }
+
   async cleanupStale() {
     let info;
     try { info = JSON.parse(fs.readFileSync(this.pidFile, 'utf8')); } catch { return; }
@@ -95,31 +106,38 @@ class Backend {
   }
 
   tailLog(n = 15) {
-    try { return fs.readFileSync(this.logFile, 'utf8').trim().split('\n').slice(-n).join('\n'); } catch { return ''; }
+    return this.recent.slice(-n).join('\n');
   }
 
   async start() {
-    fs.mkdirSync(path.dirname(this.logFile), { recursive: true });
     await this.cleanupStale();
-    if (fs.existsSync(this.logFile) && fs.statSync(this.logFile).size > 5 * 1024 * 1024) fs.writeFileSync(this.logFile, '');
 
     this.port = await freePort();
     this.token = crypto.randomBytes(24).toString('hex');
     const { cmd, args, cwd, frontend } = commandFor(this.isPackaged);
-    const out = fs.openSync(this.logFile, 'a');
     this.log(`Starting backend: ${cmd} ${[...args, '--port', this.port].join(' ')}`);
     this.exited = false;
     this.stopping = false;
     this.child = spawn(cmd, [...args, '--port', String(this.port)], {
-      cwd, windowsHide: true, stdio: ['ignore', out, out],
+      cwd, windowsHide: true, stdio: ['ignore', 'pipe', 'pipe'],
       env: { ...process.env, ...this.extraEnv, OMM_TOKEN: this.token, OMM_DATA_DIR: this.dataDir, OMM_FRONTEND_DIR: frontend, PYTHONUNBUFFERED: '1', PYTHONIOENCODING: 'utf-8' },
     });
-    fs.closeSync(out);
-    this.child.once('error', e => { this.exited = true; this.log(`Backend failed to start: ${e.message}`); });
+    for (const stream of [this.child.stdout, this.child.stderr]) {
+      if (!stream) continue;
+      stream.setEncoding('utf8');
+      let pending = '';
+      stream.on('data', chunk => {
+        const lines = (pending + chunk).split('\n');
+        pending = lines.pop();
+        for (const line of lines) this.output(line.replace(/\r$/, ''));
+      });
+      stream.on('end', () => { if (pending) this.output(pending); pending = ''; });
+    }
+    this.child.once('error', e => { this.exited = true; this.error(`Backend failed to start: ${e.message}`); });
     this.child.once('exit', (code, sig) => {
       this.exited = true;
       fs.rmSync(this.pidFile, { force: true });
-      this.log(`Backend exited (code ${code}, signal ${sig})`);
+      (this.stopping || code === 0 ? this.log : this.warn)(`Backend exited (code ${code}, signal ${sig})`);
       if (!this.stopping) this.onCrash(code, sig);
     });
     if (this.child.pid) fs.writeFileSync(this.pidFile, JSON.stringify({ pid: this.child.pid, port: this.port }));
@@ -148,7 +166,7 @@ class Backend {
     this.stopping = true;
     try { await this.api('POST', '/shutdown'); } catch { /* fall through to the signal */ }
     if (await this.waitExit(25000)) return;
-    this.log('Backend did not exit in time; terminating it');
+    this.warn('Backend did not exit in time; terminating it');
     if (WIN) { try { execFileSync('taskkill', ['/PID', String(this.child.pid), '/T', '/F']); } catch { /* ignore */ } } else this.child.kill('SIGTERM');
     if (!await this.waitExit(8000) && !WIN) this.child.kill('SIGKILL');
   }

@@ -43,7 +43,6 @@ log = logging.getLogger("omm.instances")
 
 LOG_LINES = 2000
 START_WAIT_SECONDS = 120.0  # how long a request waits for an instance that is starting
-LOG_FILE_MAX_BYTES = 5 * 1024 * 1024
 
 
 class InstanceError(Exception):
@@ -304,11 +303,12 @@ class InstanceManager:
     def _publish_status(self, iid: int) -> None:
         self.hub.publish({"type": "instance", "id": iid, "status": self.status(iid)})
 
-    def _log(self, iid: int, level: str, msg: str) -> None:
-        """iid 0 = the app itself."""
+    def _log(self, iid: int, level: str, msg: str, *, output: bool = False) -> None:
+        """iid 0 = the app itself. `output`: a line the instance's own process printed: it is for the log screen and the log file (debug level for the logger, which
+        the terminal does not show), not for the terminal."""
         entry = {"type": "log", "instance": iid, "level": level, "ts": time.time(), "msg": msg}
         self.logs.setdefault(iid, deque(maxlen=LOG_LINES)).append(entry)
-        log.log(logging.WARNING if level == "warn" else logging.INFO, "[%s] %s", iid or "app", msg)
+        log.log(logging.DEBUG if output else logging.WARNING if level == "warn" else logging.INFO, "[%s] %s", iid or "app", msg)
         self.hub.publish(entry)
 
     def recent_logs(self, iid: int | None, limit: int = 200) -> list[dict[str, Any]]:
@@ -343,9 +343,8 @@ class InstanceManager:
         proxy.save_content = opts.save_requests
         proxy.cpu_only = cpu_by_request(opts)
 
-        log_path = self.log_dir / f"instance-{iid}.log"
-        if log_path.exists() and log_path.stat().st_size > LOG_FILE_MAX_BYTES:
-            log_path.write_bytes(b"")
+        # one file a day and instance (the day it was started): the files are pruned by age with the rest of the log folder (electron/logger.js)
+        log_path = self.log_dir / f"instance-{iid}.{time.strftime('%Y-%m-%d')}.log"
         start_pos = log_path.stat().st_size if log_path.exists() else 0
 
         # Output goes to a file, not a pipe: a pipe would break when this process exits.
@@ -414,13 +413,13 @@ class InstanceManager:
                 for ln in lines:
                     text = ln.decode("utf-8", "replace").rstrip("\r")
                     if not is_poll_noise(text):
-                        self._log(h.iid, "info", text)
+                        self._log(h.iid, "info", text, output=True)
                 continue
             if not alive:
                 break
             await asyncio.sleep(0.3)
         if buf and not is_poll_noise(buf.decode("utf-8", "replace")):
-            self._log(h.iid, "info", buf.decode("utf-8", "replace"))
+            self._log(h.iid, "info", buf.decode("utf-8", "replace"), output=True)
 
     async def _watch(self, h: Handle) -> None:
         code = await h.proc.wait()

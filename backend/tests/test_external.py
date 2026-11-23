@@ -6,7 +6,7 @@ from pathlib import Path
 import httpx
 
 from app.main import create_app
-from tests.conftest import free_port
+from tests.conftest import free_port, wait_for
 
 FAKE = str(Path(__file__).parent / "fake_ollama.py")
 
@@ -92,3 +92,18 @@ async def test_backend_serves_the_ui(tmp_path, provider):
             assert "<h1>ui</h1>" in (await c.get("/")).text            # public shell
             assert (await c.get("/instances")).status_code == 401      # API still protected
             assert (await c.get("/health")).json() == {"status": "ok"}
+
+
+async def test_the_web_access_tells_when_it_started_and_when_it_stopped(env):
+    queue = env.app.state.hub.subscribe()
+    port = free_port()
+    await env.client.put("/settings", json={"external_monitoring_enabled": True, "external_monitoring_port": port, "external_monitoring_password": "pw-for-test-1234"})
+    await wait_for(lambda: env.app.state.external.active)
+    await env.client.put("/settings", json={"external_monitoring_enabled": False})
+    await wait_for(lambda: not env.app.state.external.active)
+    events = []
+    while not queue.empty():
+        event = queue.get_nowait()
+        if event.get("type") == "server":
+            events.append((event["name"], event["state"]))
+    assert events == [("web", "started"), ("web", "stopped")]

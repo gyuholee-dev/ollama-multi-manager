@@ -33,6 +33,8 @@ from app.config import CSP
 from app.services.instances import InstanceManager, port_free
 from app.services.monitor.collector import Collector
 from app.services.settings import PASSWORD_KEY, TOKEN_KEY, SettingsService
+from app.logsetup import served_urls, url_list
+from app.services.events import announce
 from app.services.webauth import (COOKIE_NAME, DEFAULT_SESSION_HOURS, LoginLimiter, login_page, make_session, session_valid,
                                   verify_password, verify_token)
 
@@ -233,9 +235,9 @@ class ExternalMonitor:
         self.error = None
         if not port_free(port):
             self.error = f"Port {port} is already in use"
-            log.warning("Web access not started: %s", self.error)
+            announce(self.manager.hub, log, "web", "failed", f"Web access (remote monitoring) not started: {self.error}", error=self.error)
             return
-        server = uvicorn.Server(uvicorn.Config(self._app(), host=self.host, port=port, log_level="warning", lifespan="off", timeout_graceful_shutdown=2))
+        server = uvicorn.Server(uvicorn.Config(self._app(), host=self.host, port=port, log_level="warning", lifespan="off", log_config=None, timeout_graceful_shutdown=2))
         server.install_signal_handlers = lambda: None  # the main server owns signal handling
         self._server, self._port = server, port
         self._task = asyncio.create_task(self._serve(server))
@@ -244,9 +246,11 @@ class ExternalMonitor:
                 break
             await asyncio.sleep(0.05)
         if server.started:
-            log.info("Web access listening on %s:%d", self.host, port)
+            urls = url_list(self.host, port, "/", lan_ip())
+            announce(self.manager.hub, log, "web", "started", f"Web access (remote monitoring) served at {' and '.join(urls)}", urls=urls)
         else:
             self.error = self.error or "Failed to start"
+            announce(self.manager.hub, log, "web", "failed", f"Web access (remote monitoring) not started: {self.error}", error=self.error)
             await self._stop()
 
     async def _serve(self, server: uvicorn.Server) -> None:
@@ -256,11 +260,14 @@ class ExternalMonitor:
             self.error = "Failed to bind the port"
 
     async def _stop(self) -> None:
+        was_up = bool(self._server and self._server.started)
         if self._server:
             self._server.should_exit = True
         if self._task:
             await asyncio.gather(self._task, return_exceptions=True)
         self._server = self._task = self._port = None
+        if was_up:
+            announce(self.manager.hub, log, "web", "stopped", "Web access (remote monitoring) stopped")
 
     async def close(self) -> None:
         await self._stop()

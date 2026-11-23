@@ -425,7 +425,7 @@ class InstanceProxy:
     async def start(self) -> None:
         server = uvicorn.Server(uvicorn.Config(
             self._app(), host=self.host, port=self.port, log_level="warning", lifespan="off",
-            access_log=False, timeout_graceful_shutdown=2,
+            access_log=False, log_config=None, timeout_graceful_shutdown=2,
         ))
         server.install_signal_handlers = lambda: None  # the main server owns signal handling
         self._server = server

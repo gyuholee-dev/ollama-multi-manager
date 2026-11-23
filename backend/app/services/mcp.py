@@ -31,6 +31,9 @@ from mcp.server.mcpserver import MCPServer
 from mcp.server.transport_security import TransportSecuritySettings
 from starlette.responses import JSONResponse
 
+from app.logsetup import url_list
+from app.services.events import announce
+from app.services.external import lan_ip
 from app.services.instances import InstanceManager, port_free
 from app.services.mcp_dev import dev_instructions, register_dev_tools
 from app.services.mcp_tools import instructions, register_control_tools, register_tools
@@ -168,11 +171,11 @@ class McpService:
         self.error = None
         if not port_free(port):
             self.error = f"Port {port} is already in use"
-            log.warning("MCP server not started: %s", self.error)
+            announce(self.manager.hub, log, "mcp", "failed", f"MCP server not started: {self.error}", error=self.error)
             return
         host = os.environ.get("OMM_MCP_HOST") or "0.0.0.0"
         app = build_app(self.manager, self.collector, self.models, self.settings, self.version, control, self.dev if dev_tools else None)
-        server = uvicorn.Server(uvicorn.Config(app, host=host, port=port, log_level="warning", lifespan="on", timeout_graceful_shutdown=2))
+        server = uvicorn.Server(uvicorn.Config(app, host=host, port=port, log_level="warning", lifespan="on", log_config=None, timeout_graceful_shutdown=2))
         server.install_signal_handlers = lambda: None  # the main server owns signal handling
         self._server, self._bound = server, (port, control, dev_tools)
         self._task = asyncio.create_task(self._serve(server))
@@ -181,9 +184,11 @@ class McpService:
                 break
             await asyncio.sleep(0.05)
         if server.started:
-            log.info("MCP server listening on %s:%d%s", host, port, PATH)
+            urls = url_list(host, port, PATH, lan_ip())
+            announce(self.manager.hub, log, "mcp", "started", f"MCP server served at {' and '.join(urls)} (control tools {'on' if control else 'off'}, developer tools {'on' if dev_tools else 'off'})", urls=urls)
         else:
             self.error = self.error or "Failed to start"
+            announce(self.manager.hub, log, "mcp", "failed", f"MCP server not started: {self.error}", error=self.error)
             await self._stop()
 
     async def _serve(self, server: uvicorn.Server) -> None:
@@ -193,11 +198,14 @@ class McpService:
             self.error = "Failed to bind the port"
 
     async def _stop(self) -> None:
+        was_up = bool(self._server and self._server.started)
         if self._server:
             self._server.should_exit = True
         if self._task:
             await asyncio.gather(self._task, return_exceptions=True)
         self._server = self._task = self._bound = None
+        if was_up:
+            announce(self.manager.hub, log, "mcp", "stopped", "MCP server stopped")
 
     async def close(self) -> None:
         await self._stop()
