@@ -7,13 +7,15 @@ interface Props {
   children: ReactNode;
   'data-k'?: string;
   'aria-live'?: 'assertive';
+  /** Closing by Escape or a click on the backdrop is held back while `allow()` is false (unsaved changes); `blocked()` then asks the user what to do. */
+  guard?: { allow: () => boolean; blocked: () => void };
 }
 
 /**
  * A native modal <dialog> that opens when it is mounted. Escape and a click on the backdrop close it
  * (a press that starts inside the dialog and ends outside, such as a text selection, does not).
  */
-export function Dialog({ id, onClose, children, ...rest }: Props) {
+export function Dialog({ id, onClose, children, guard, ...rest }: Props) {
   const ref = useRef<HTMLDialogElement>(null);
   const pressedOutside = useRef(false);
   useEffect(() => {
@@ -26,9 +28,10 @@ export function Dialog({ id, onClose, children, ...rest }: Props) {
   };
   return (
     <dialog id={id} ref={ref} onClose={onClose} {...rest}
+      onCancel={(e) => { if (guard && !guard.allow()) { e.preventDefault(); guard.blocked(); } }}
       onMouseDown={(e) => { pressedOutside.current = e.target === ref.current && outside(e); }}
       onClick={(e) => {
-        if (pressedOutside.current && e.target === ref.current && outside(e)) ref.current?.close();
+        if (pressedOutside.current && e.target === ref.current && outside(e)) { if (guard && !guard.allow()) guard.blocked(); else ref.current?.close(); }
         pressedOutside.current = false;
       }}>
       {children}

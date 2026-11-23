@@ -14,8 +14,8 @@ contextBridge.exposeInMainWorld('omm', {
   pickPath: (kind, current) => ipcRenderer.invoke('pick-path', kind === 'dir' ? 'dir' : 'file', typeof current === 'string' ? current : ''),
   // tell the shell that settings changed so it can apply tray / login / theme
   settingsChanged: () => ipcRenderer.send('settings-changed'),
-  // open an instance's monitor in a window of its own
-  openMonitor: id => ipcRenderer.send('open-monitor', Number(id)),
+  // open an instance's monitor in a window of its own (`dock`: 'left' or 'right' when it is detached from the panel on that side)
+  openMonitor: (id, dock) => ipcRenderer.send('open-monitor', Number(id), dock),
   // the monitor panel of the main window: the page tells which monitor it shows; a monitor window is merged into it
   panelShows: id => ipcRenderer.send('monitor-panel-changed', id == null ? null : Number(id)),
   mergeMonitor: id => ipcRenderer.send('merge-monitor', Number(id)),

@@ -42,6 +42,13 @@ dialog h3 {
   background: var(--bg);
 }
 
+// a state badge next to the title looks as it does on the card: the title's line height and weight are not the badge's
+dialog h3 .badge {
+  margin-left: 4px;
+  font-weight: normal;
+  line-height: normal;
+}
+
 code {
   font-size: .75rem;
   color: var(--sub);

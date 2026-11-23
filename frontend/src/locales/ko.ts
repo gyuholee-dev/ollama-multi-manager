@@ -32,6 +32,7 @@ const ko: Messages = {
   'btn.monitor': '모니터', 'im.title': '{n} 모니터', 'im.now': '현재 상태', 'im.ttft': '첫 토큰', 'im.window': '최근 {m}분 기준', 'im.hour': '최근 1시간', 'f.saveReq': '요청 내용 저장', 'f.saveReqHint': '프롬프트와 응답이 이 PC의 로그 파일에 그대로 저장됩니다.', 'rq.client': '클라이언트', 'rq.asked': '요청 내용', 'rq.answered': '응답 내용', 'rq.notSaved': '이 요청의 내용은 저장되지 않았습니다(인스턴스 옵션 "요청 내용 저장"이 꺼져 있었습니다).', 'rq.noDetail': '상세 내역을 불러올 수 없습니다.', 'im.total': '요청 (전체/실패)', 'im.tokIn': '입력 토큰', 'im.tokOut': '출력 토큰', 'im.reqs': '분당 요청 수', 'im.speed': '분당 토큰 속도', 'im.latency': '분당 평균 응답', 'im.live': '실시간 리소스', 'im.collecting': '데이터를 모으는 중입니다. 잠시 뒤 그래프가 나타납니다.', 'im.span': '{m}분 전', 'im.nowEdge': '지금', 'im.hourAgo': '60분 전', 'im.conc': '동시 요청(처리 + 대기)',
   'im.history': '내역', 'im.log': '로그', 'im.logNone': '아직 로그가 없습니다.',
   'im.removed': '이 인스턴스가 삭제되었습니다. 창을 닫습니다.', 'im.removedPanel': '이 인스턴스가 삭제되었습니다. 패널을 닫습니다.', 'im.detach': '창으로 분리', 'im.merge': '메인 창의 패널로 합치기',
+  'im.side': '패널을 반대쪽으로 옮기기',
   'new.models': '허용 모델', 'new.toggle': '{n} 펼치기/숨기기', 'new.noModels': '다운로드된 모델이 없습니다',
 
   'log.all': '전체', 'log.app': '앱',
@@ -50,6 +51,12 @@ const ko: Messages = {
   'd.pid': 'PID', 'd.uptime': '가동 시간', 'd.up': '2시간 14분', 'd.none': '없음', 'd.models': '모델',
   'd.loaded': '로드된 모델', 'd.avail': '사용 가능 모델', 'd.res': '리소스', 'd.vram': '{mem} 사용량',
   'd.reqs': '요청 처리', 'd.reqsV': '{n}건 처리 중',
+  'det.edit': '편집', 'btn.save': '저장', 'det.g.basic': '기본', 'det.g.access': '접속', 'det.g.perf': '자원과 성능', 'det.g.models': '모델', 'det.g.log': '기록',
+  'f.modelsPath': '모델 저장 경로', 'f.modelsPathPh': '비워 두면 기본 경로를 씁니다', 'd.allowed': '허용 모델', 'd.allowedAll': '설치된 모든 모델',
+  'det.stopAsk.t': '편집하려면 인스턴스를 종료해야 합니다', 'det.stopAsk.m': '{n}은(는) 종료된 상태에서만 편집할 수 있습니다. 지금 종료할까요? 처리 중인 요청은 끊기고 로드된 모델은 내려갑니다.', 'det.stopAsk.ok': '종료 후 편집',
+  'det.discard.t': '변경을 취소할까요?', 'det.discard.m': '바꾼 값이 사라집니다.', 'det.discard.ok': '변경 취소', 'det.discard.keep': '계속 편집',
+  'det.nameNote': '이름을 바꿔도 이 인스턴스의 요청 기록과 통계는 그대로 이어집니다.', 'det.portNote': '포트를 바꾸면 현재 포트로 접속하던 외부 도구와 다른 PC의 연결이 끊어집니다.',
+  'det.afterSave': '저장한 뒤에도 인스턴스는 종료 상태로 둡니다.',
 
   'set.title': '환경설정', 'set.general': '일반', 'set.login': '시스템 시작 시 자동 실행',
   'set.tray': '트레이로 최소화', 'set.lang': '언어', 'set.theme': '테마',

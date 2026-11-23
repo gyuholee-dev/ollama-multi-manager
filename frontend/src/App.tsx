@@ -21,6 +21,7 @@ import { useUiStore } from '@/stores/uiStore';
 /** `monitor`: show only that instance's monitor (a window of its own) instead of the whole page. */
 export default function App({ monitor }: { monitor?: number }) {
   const ready = useUiStore((s) => s.ready);
+  const panelSide = useUiStore((s) => s.panelSide);
   const theme = useSettingsStore((s) => s.cfg.theme);
   const lang = useSettingsStore((s) => s.cfg.lang);
   const page = useDialogStore((s) => s.page);
@@ -50,11 +51,14 @@ export default function App({ monitor }: { monitor?: number }) {
     );
   }
 
+  const panel = panelId != null && <aside className={`mpanel mpanel--${panelSide}`}><main className="mwm"><MonitorPanel id={panelId} /></main></aside>;
+
   return (
     <>
       <Header />
       {/* the main view and a page (settings, models) side by side: on a narrow window the main view slides out to the left and the page in from the right; on a wide one the page comes in as a panel over the main view (the scrim behind it closes it) */}
       <div className="workspace">
+        {panelId != null && panelSide === 'left' && panel}
         <div className={`views${page || monitorPageId != null ? ' views--page' : ''}${slide ? ' views--slide' : ''}`}>
           <div className="views__scrim" onClick={closePage} />
           <div className="views__track">
@@ -65,8 +69,8 @@ export default function App({ monitor }: { monitor?: number }) {
             <div className="view" inert={!page && monitorPageId == null}><PageHost monitorAsPage={monitorPageId} /></div>
           </div>
         </div>
-        {/* the monitor panel: beside the main view, not over it; a page (settings) opens over the main view only */}
-        {panelId != null && <aside className="mpanel"><main className="mwm"><MonitorPanel id={panelId} /></main></aside>}
+        {/* the monitor panel: beside the main view, not over it, on the side the user chose; a page (settings) opens over the main view only */}
+        {panelId != null && panelSide === 'right' && panel}
       </div>
       <Footer />
       <DialogHost />

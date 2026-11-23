@@ -18,6 +18,7 @@ export function MonitorPanel({ id, asPage = false }: { id: number; asPage?: bool
   const ready = useUiStore((s) => s.ready);
   const view = useViews().find((v) => v.id === id);
   const gone = ready && !view;
+  const side = useUiStore((s) => s.panelSide);
 
   // the shell is told what the panel shows (its screenshots for the MCP server look for the monitor there)
   // (only the panel tells: the page the monitor becomes on a narrow screen is kept a moment while it slides out, and must not take back what a new panel said)
@@ -34,6 +35,7 @@ export function MonitorPanel({ id, asPage = false }: { id: number; asPage?: bool
 
   const buttons = (
     <>
+      {!asPage && <button type="button" className="inline" aria-label={t('im.side')} title={t('im.side')} onClick={() => useUiStore.getState().setPanelSide(side === 'left' ? 'right' : 'left')}><Icon name="swap_horiz" /></button>}
       {!asPage && <button type="button" className="inline" aria-label={t('im.detach')} title={t('im.detach')} onClick={() => detachMonitor(id)}><Icon name="open_in_new" /></button>}
       <button type="button" className="inline" aria-label={t('btn.close')} title={t('btn.close')} onClick={closePanel}><Icon name="close" /></button>
     </>

@@ -33,6 +33,7 @@ const en: Messages = {
   'btn.monitor': 'Monitor', 'im.title': '{n} monitor', 'im.now': 'Now', 'im.ttft': 'First token', 'im.window': 'Last {m} min', 'im.hour': 'Last hour', 'f.saveReq': 'Save request content', 'f.saveReqHint': 'Prompts and answers are stored as they are in a log file on this PC.', 'rq.client': 'Client', 'rq.asked': 'Request', 'rq.answered': 'Answer', 'rq.notSaved': 'The content of this request was not saved (the instance option "Save request content" was off).', 'rq.noDetail': 'Could not load the details.', 'im.total': 'Requests (total/failed)', 'im.tokIn': 'Input tokens', 'im.tokOut': 'Output tokens', 'im.reqs': 'Requests per minute', 'im.speed': 'Token speed per minute', 'im.latency': 'Average response per minute', 'im.live': 'Live resources', 'im.collecting': 'Collecting data. The graphs appear in a moment.', 'im.span': '{m} min ago', 'im.nowEdge': 'now', 'im.hourAgo': '60 min ago', 'im.conc': 'Concurrent requests (running + queued)',
   'im.history': 'History', 'im.log': 'Log', 'im.logNone': 'No log lines yet.',
   'im.removed': 'This instance was deleted. The window closes.', 'im.removedPanel': 'This instance was deleted. The panel closes.', 'im.detach': 'Open in a window', 'im.merge': 'Move to the panel of the main window',
+  'im.side': 'Move the panel to the other side',
   'new.models': 'Served models', 'new.toggle': 'Expand/collapse {n}', 'new.noModels': 'No models downloaded',
 
   'log.all': 'All', 'log.app': 'App',
@@ -51,6 +52,12 @@ const en: Messages = {
   'd.pid': 'PID', 'd.uptime': 'Uptime', 'd.up': '2 h 14 min', 'd.none': 'None', 'd.models': 'Models',
   'd.loaded': 'Loaded models', 'd.avail': 'Available models', 'd.res': 'Resources', 'd.vram': '{mem} usage',
   'd.reqs': 'Request handling', 'd.reqsV': '{n} in progress',
+  'det.edit': 'Edit', 'btn.save': 'Save', 'det.g.basic': 'Basic', 'det.g.access': 'Access', 'det.g.perf': 'Resources and performance', 'det.g.models': 'Models', 'det.g.log': 'Logging',
+  'f.modelsPath': 'Models folder', 'f.modelsPathPh': 'Leave empty to use the default folder', 'd.allowed': 'Served models', 'd.allowedAll': 'All installed models',
+  'det.stopAsk.t': 'Stop the instance to edit', 'det.stopAsk.m': '{n} can only be edited while it is stopped. Stop it now? Requests in progress are cut off and its loaded models are unloaded.', 'det.stopAsk.ok': 'Stop and edit',
+  'det.discard.t': 'Discard the changes?', 'det.discard.m': 'The values you changed will be lost.', 'det.discard.ok': 'Discard', 'det.discard.keep': 'Keep editing',
+  'det.nameNote': 'Renaming keeps the request history and statistics of this instance.', 'det.portNote': 'Changing the port disconnects tools and other PCs that use the current port.',
+  'det.afterSave': 'The instance stays stopped after saving.',
 
   'set.title': 'Settings', 'set.general': 'General', 'set.login': 'Launch at system startup',
   'set.tray': 'Minimize to tray', 'set.lang': 'Language', 'set.theme': 'Theme',

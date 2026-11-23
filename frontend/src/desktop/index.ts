@@ -8,7 +8,7 @@ interface OmmBridge {
   headerHeight?: number;
   pickPath(kind: 'file' | 'dir', current: string): Promise<string | null>;
   settingsChanged(): void;
-  openMonitor(id: number): void;
+  openMonitor(id: number, dock?: 'left' | 'right'): void;
   /** Tells the shell which instance's monitor the panel shows now (null: none), for the shell's own use (the screenshots of the MCP server). */
   panelShows(id: number | null): void;
   /** A monitor window asks to be merged into the main window's panel: the shell has the main window show it, then closes that window. */
@@ -40,9 +40,10 @@ export const notifySettingsChanged = (): void => window.omm?.settingsChanged();
 /**
  * Opens the monitor of an instance in a window of its own. The desktop shell makes a window (one per instance);
  * in a browser a named popup does, so a second click on the same instance brings the same window back.
+ * `dock`: detached from the panel on that side of the main window: the shell opens the window against that side (and forgets where the window was before).
  */
-export function openMonitorWindow(id: number): void {
-  if (window.omm?.openMonitor) { window.omm.openMonitor(id); return; }
+export function openMonitorWindow(id: number, dock?: 'left' | 'right'): void {
+  if (window.omm?.openMonitor) { window.omm.openMonitor(id, dock); return; }
   window.open(`${location.origin}${location.pathname}#monitor=${id}`, `omm-monitor-${id}`, 'popup,width=480,height=720');
 }
 

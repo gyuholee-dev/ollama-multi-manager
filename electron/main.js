@@ -17,6 +17,7 @@ import { overlay } from './overlay.js';
 import { failureText, focusWindow, putOnClipboard, screenshotDir, takeScreenshot } from './screenshot.js';
 import { startDevServer } from './dev/listener.js';
 import { createDevHandlers } from './dev/handlers.js';
+import { dockBounds, dockSide } from './monitor-dock.js';
 
 const log = (...a) => console.log(new Date().toISOString(), '[shell]', ...a);
 
@@ -43,18 +44,19 @@ if (!app.requestSingleInstanceLock()) {
   // while a window dragged by a drag region of the page moves correctly. The page draws the header, which is the
   // drag region, and leaves room for the traffic-light buttons. OMM_NATIVE_TITLEBAR=1 brings the system one back.
   // The width a window gets when it is made for the first time (the height: see firstBounds; later ones remember what the user chose, except the monitor window's width).
-  const MAIN_SIZE = { width: 960 };
+  const MAIN_SIZE = { width: 960, height: 720 }; // the main window opens 4:3 (a monitor window takes the height of the work area instead)
   const MONITOR_SIZE = { width: 480 };
   const MAX_FIRST_HEIGHT = 1200; // the most a window is high at first, whatever the screen
 
   /**
-   * The place and size of a window that has none saved: its width, and the height of the work area (the screen without taskbar, dock or menu bar)
-   * of the display it opens on, at most MAX_FIRST_HEIGHT, at the top of that area and centred across it (`shift` px to the right of the centre).
+   * The place and size of a window that has none saved: its width, and `height` (without it the height of the work area: the screen without taskbar, dock
+   * or menu bar, of the display it opens on, at most MAX_FIRST_HEIGHT; a given height is cut to the work area as well), at the top of that area and
+   * centred across it (`shift` px to the right of the centre).
    * `near` is a point on the display: the centre of the main window, or the pointer.
    */
-  function firstBounds(width, near, shift = 0) {
+  function firstBounds(width, near, shift = 0, height = MAX_FIRST_HEIGHT) {
     const a = screen.getDisplayNearestPoint(near || screen.getCursorScreenPoint()).workArea;
-    return { width, height: Math.min(a.height, MAX_FIRST_HEIGHT), x: Math.round(a.x + (a.width - width) / 2) + shift, y: a.y };
+    return { width, height: Math.min(a.height, height), x: Math.round(a.x + (a.width - width) / 2) + shift, y: a.y };
   }
 
   // The height of the page's header row (and of the title row of a dialog or page), in px: the one number the system's window buttons
@@ -153,8 +155,23 @@ if (!app.requestSingleInstanceLock()) {
   // where the last monitor window was (shifted a little so it does not hide that one).
   const monitorStateFile = () => path.join(app.getPath('userData'), 'monitor-window-state.json');
   const readMonitorState = () => { try { return JSON.parse(fs.readFileSync(monitorStateFile(), 'utf8')); } catch { return {}; } };
+  // OMM_RESET_WINDOW_STATE=1: at start the saved place and size of the main window and of the monitor windows are deleted, so that every window opens as it
+  // does the first time (unlike OMM_NO_WINDOW_STATE, they remember what the user chooses from then on).
+  if (/^(1|true|yes|on)$/i.test(process.env.OMM_RESET_WINDOW_STATE || '')) {
+    for (const file of [stateFile(), monitorStateFile()]) { try { fs.rmSync(file, { force: true }); } catch { /* not critical */ } }
+    log('Window state reset (OMM_RESET_WINDOW_STATE)');
+  }
+  // The saved place and size of the monitor of an instance (and the place of the last monitor window, which a new one would follow) are deleted when its monitor
+  // goes into the panel, or is detached from it. `resetting`: the instances whose window is closing for that: it must not save itself on the way out.
+  const resetting = new Set();
+  function resetMonitorState(id) {
+    const st = readMonitorState();
+    if (st.byId) delete st.byId[id];
+    delete st.last;
+    try { fs.writeFileSync(monitorStateFile(), JSON.stringify(st)); } catch (e) { log('Could not reset the monitor window state:', e.message); }
+  }
   function saveMonitorState(id, w, sync = false) {
-    if (NO_STATE || w.isDestroyed()) return;
+    if (NO_STATE || w.isDestroyed() || resetting.has(id)) return;
     const st = readMonitorState();
     const b = { ...w.getNormalBounds(), maximized: w.isMaximized() };
     st.byId = { ...st.byId, [id]: b };
@@ -295,7 +312,8 @@ if (!app.requestSingleInstanceLock()) {
   // One monitor window per instance: a second request for the same instance brings the first to the front.
   // `transient`: a monitor opened only for a screenshot an MCP client asked for: it is not shown, does not take the user's focus, does not remember its
   // place, and is destroyed once the picture is taken (see mcpCapture). Returns the window (an open one is brought forward, unless it is transient).
-  function openMonitor(id, { transient = false } = {}) {
+  // `dock` ('left' or 'right'): the monitor is detached from the panel on that side: its saved state is deleted first, and it opens against that side of the main window.
+  function openMonitor(id, { transient = false, dock = null } = {}) {
     if (!backend || !Number.isInteger(id) || id < 1) return null;
     const open = monitors.get(id);
     if (open && !open.isDestroyed()) {
@@ -305,9 +323,12 @@ if (!app.requestSingleInstanceLock()) {
       }
       return open;
     }
-    const saved = monitorBounds(id);
-    // none saved: as high as the display of the main window allows (the windows already open sit a little to the right of each other)
     const main = win && !win.isDestroyed() ? win.getBounds() : null;
+    if (dock && !transient) resetMonitorState(id);
+    const docked = dock && main ? dockBounds(main, dock, screen.getDisplayMatching(main).workArea, MONITOR_SIZE.width) : null;
+    const saved = docked || monitorBounds(id);
+    if (docked) log(`Monitor ${id} detached from the ${dock} panel: opens at ${docked.x},${docked.y} ${docked.width}x${docked.height} (main window ${main.x},${main.y} ${main.width}x${main.height})`);
+    // none saved: as high as the display of the main window allows (the windows already open sit a little to the right of each other)
     const first = saved?.height ? null : firstBounds(MONITOR_SIZE.width, main && { x: main.x + Math.round(main.width / 2), y: main.y + Math.round(main.height / 2) }, 28 * monitors.size);
     const w = new BrowserWindow({
       // the width is fixed (only the height changes); the window is neither maximized nor made full screen, which would widen it
@@ -325,14 +346,17 @@ if (!app.requestSingleInstanceLock()) {
     }
     w.loadURL(`${backend.url}/#token=${backend.token}&monitor=${id}`);
     guard(w, `monitor ${id}`);
-    w.on('closed', () => { if (monitors.get(id) === w) monitors.delete(id); });
+    w.on('closed', () => {
+      if (monitors.get(id) === w) monitors.delete(id);
+      if (resetting.delete(id)) resetMonitorState(id); // closed because its monitor went into the panel: nothing of it is kept
+    });
     return w;
   }
   const closeMonitors = () => { monitors.forEach(w => { if (!w.isDestroyed()) w.close(); }); monitors.clear(); };
 
   function createWindow() {
     const st = loadState();
-    const first = st.width && st.height ? null : firstBounds(MAIN_SIZE.width); // nothing saved: the display under the pointer
+    const first = st.width && st.height ? null : firstBounds(MAIN_SIZE.width, undefined, 0, MAIN_SIZE.height); // nothing saved: the display under the pointer
     win = new BrowserWindow({
       width: st.width || first.width, height: st.height || first.height, x: st.x ?? first?.x, y: st.y ?? first?.y, minWidth: 960, minHeight: 480,
       show: false, title: 'Ollama Multi Manager', backgroundColor: nativeTheme.shouldUseDarkColors ? '#1c1c1c' : '#ebebeb', ...titleBar(),
@@ -374,7 +398,7 @@ if (!app.requestSingleInstanceLock()) {
     return r.canceled ? null : r.filePaths[0];
   });
   ipcMain.on('settings-changed', e => { if (fromUi(e)) refreshSettings(); });
-  ipcMain.on('open-monitor', (e, id) => { if (fromUi(e)) openMonitor(Number(id)); });
+  ipcMain.on('open-monitor', (e, id, dock) => { if (fromUi(e)) openMonitor(Number(id), { dock: dockSide(dock) }); });
 
   // ---- the monitor panel of the main window (the window is never resized for it: it is at least 960 wide, so that the main view keeps 480 beside the panel)
   ipcMain.on('monitor-panel-changed', (e, id) => { if (fromUi(e)) panelInstance = Number.isInteger(id) && id > 0 ? id : null; });
@@ -382,6 +406,8 @@ if (!app.requestSingleInstanceLock()) {
   ipcMain.on('merge-monitor', async (e, id) => {
     if (!fromUi(e) || !Number.isInteger(id) || id < 1) return;
     const from = monitors.get(id);
+    // the monitor goes into the panel: its window state is reset (the window closes without saving itself, and the state is deleted once it is closed)
+    if (from && !from.isDestroyed()) resetting.add(id); else resetMonitorState(id);
     const fresh = !win || win.isDestroyed();
     showWindow();
     if (fresh) { await new Promise(resolve => win.webContents.once('did-finish-load', resolve)); await new Promise(resolve => setTimeout(resolve, 800)); } // (the page has to be listening)

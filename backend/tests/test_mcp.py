@@ -196,7 +196,7 @@ async def test_models_and_downloads(env):
 
 # ---- the control tools (off unless switched on)
 
-CONTROL = {"start_instance", "stop_instance", "restart_instance"}
+CONTROL = {"start_instance", "stop_instance", "restart_instance", "update_instance"}
 
 
 async def test_the_control_tools_are_not_offered_until_the_control_switch_is_on(env):
@@ -239,6 +239,38 @@ async def test_an_instance_is_started_stopped_and_restarted_through_the_tools(en
         assert env.app.state.manager.get(inst["id"])["desired_state"] == "stopped"  # it stays stopped across an app restart
         missing = await client.call_tool("stop_instance", {"instance_id": 999})
         assert missing.is_error and "not" in missing.content[0].text.lower()
+
+
+async def test_a_stopped_instance_is_edited_through_the_tool_and_stays_stopped(env):
+    inst = (await env.client.post("/instances", json={"name": "edit-me", "port": free_port(), "options": {"api_key": "super-secret-key-5678", "context_length": 8192}})).json()
+    port = await start_mcp(env, mcp_control=True)
+    async with connect(port) as client:
+        done = await client.call_tool("update_instance", {"instance_id": inst["id"], "name": "renamed", "keep_alive_min": -1, "gpu": "cpu", "allowed_models": ["a:1"]})
+        assert not done.is_error
+        shown = done.structured_content
+        assert shown["name"] == "renamed" and shown["options"]["api_key"] == "********" and "super-secret-key-5678" not in str(done.content)
+        stored = env.app.state.manager.get(inst["id"])
+        assert stored["options"]["keep_alive_min"] == -1 and stored["options"]["gpu"] == "cpu" and stored["options"]["allowed_models"] == ["a:1"]
+        assert stored["options"]["context_length"] == 8192 and stored["options"]["api_key"] == "super-secret-key-5678"  # what was not given stays
+        assert env.app.state.manager.status(inst["id"])["state"] == "stopped"
+        cleared = await client.call_tool("update_instance", {"instance_id": inst["id"], "api_key": ""})  # an empty text clears the key
+        assert not cleared.is_error and env.app.state.manager.get(inst["id"])["options"]["api_key"] is None
+        bad = await client.call_tool("update_instance", {"instance_id": inst["id"], "context_length": 3})
+        assert bad.is_error and "context_length" in bad.content[0].text
+        missing = await client.call_tool("update_instance", {"instance_id": 999, "name": "x"})
+        assert missing.is_error
+
+
+async def test_a_running_instance_is_not_edited_through_the_tool(env):
+    inst = (await env.client.post("/instances", json={"name": "busy-edit", "port": free_port()})).json()
+    port = await start_mcp(env, mcp_control=True)
+    async with connect(port) as client:
+        await client.call_tool("start_instance", {"instance_id": inst["id"]})
+        await wait_for(lambda: env.app.state.manager.status(inst["id"])["state"] == "running")
+        refused = await client.call_tool("update_instance", {"instance_id": inst["id"], "name": "nope"})
+        assert refused.is_error and "stop" in refused.content[0].text.lower()
+        assert env.app.state.manager.get(inst["id"])["name"] == "busy-edit"
+        await client.call_tool("stop_instance", {"instance_id": inst["id"]})
 
 
 async def test_an_instance_returned_by_a_control_tool_has_no_api_key(env):

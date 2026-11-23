@@ -16,6 +16,11 @@
   container-type: inline-size;
 }
 
+// the last section of the main view ends at the main view's own bottom padding, not after a margin of its own as well
+.view > main:not(.mwm) > section:last-child {
+  margin-bottom: 0;
+}
+
 // the monitor panel of an instance beside the main view (see MonitorPanel.tsx); it is as wide as a monitor window
 .mpanel {
   display: flex;
@@ -25,7 +30,14 @@
   min-width: 480px; // never squeezed (the window is at least 960 wide, so the main view keeps 480 beside it)
   min-height: 0;
   background: var(--bg);
-  border-left: 1px solid var(--line);
+
+  &--right {
+    border-left: 1px solid var(--line);
+  }
+
+  &--left {
+    border-right: 1px solid var(--line);
+  }
 }
 
 .views {

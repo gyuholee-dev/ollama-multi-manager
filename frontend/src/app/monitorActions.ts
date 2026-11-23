@@ -26,9 +26,10 @@ export function closePanel(): void {
 
 /** "Detach": the monitor of the panel goes to a window of its own, and the next monitor button opens a window. */
 export function detachMonitor(id: number): void {
-  useUiStore.getState().setMonitorMode('window');
+  const { panelSide, setMonitorMode } = useUiStore.getState();
+  setMonitorMode('window');
   closePanel();
-  openMonitorWindow(id);
+  openMonitorWindow(id, panelSide); // where the panel was: against that side of the main window
 }
 
 /** "Merge", from a monitor window: the monitor goes to the panel of the main window (opened by the shell, or by the page that opened this popup), and this window closes. */

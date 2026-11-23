@@ -532,7 +532,7 @@ section.off .body > div {
   gap: 8px;
 }
 
-@media (max-width: 639px) {
+@container (max-width: 607px) {
   #sum {
     grid-template-columns: minmax(0, 1fr);
   }
@@ -585,7 +585,7 @@ section.off .body > div {
   gap: 8px;
 }
 
-@media (max-width: 639px) {
+@container (max-width: 607px) {
   #mon {
     grid-template-columns: minmax(0, 1fr);
   }
@@ -1228,6 +1228,12 @@ dialog h3 {
   background: var(--bg);
 }
 
+dialog h3 .badge {
+  margin-left: 4px;
+  font-weight: normal;
+  line-height: normal;
+}
+
 code {
   font-size: 0.75rem;
   color: var(--sub);
@@ -1710,9 +1716,41 @@ section.off .sh__tools {
   transition: opacity 0.25s ease, transform 0.25s ease, visibility 0s 0.25s;
 }
 
+.workspace {
+  display: flex;
+  flex: 1;
+  min-height: 0;
+  min-width: 0;
+}
+
+.view > main:not(.mwm) {
+  container-type: inline-size;
+}
+
+.view > main:not(.mwm) > section:last-child {
+  margin-bottom: 0;
+}
+
+.mpanel {
+  display: flex;
+  flex: 0 0 480px;
+  flex-direction: column;
+  width: 480px;
+  min-width: 480px;
+  min-height: 0;
+  background: var(--bg);
+}
+.mpanel--right {
+  border-left: 1px solid var(--line);
+}
+.mpanel--left {
+  border-right: 1px solid var(--line);
+}
+
 .views {
   position: relative;
   flex: 1;
+  min-width: 0;
   min-height: 0;
   overflow: hidden;
   overflow: clip;
@@ -2160,6 +2198,9 @@ html[data-titlebar=custom] header {
 html[data-titlebar=custom] header button,
 html[data-titlebar=custom] header .btns {
   -webkit-app-region: no-drag;
+}
+html[data-titlebar=custom] .mwin--embedded > header {
+  padding-left: 16px;
 }
 
 html[data-titlebar=overlay] header {

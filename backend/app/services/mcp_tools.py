@@ -16,7 +16,9 @@ from typing import Any, Awaitable, Callable
 from mcp.server.mcpserver import MCPServer
 from mcp.server.mcpserver.exceptions import ToolError
 from mcp.types import ToolAnnotations
+from pydantic import ValidationError
 
+from app.schemas import InstanceOptions, InstanceUpdate
 from app.services.instances import InstanceError, InstanceManager
 from app.services.models import ModelService
 from app.services.monitor.collector import Collector
@@ -39,9 +41,9 @@ def instructions(control: bool = False) -> str:
     mcp_dev.py.)"""
     text = _BASE_INSTRUCTIONS
     if control:
-        text += (" The reading tools change nothing. start_instance, stop_instance and restart_instance do change the app: "
+        text += (" The reading tools change nothing. start_instance, stop_instance, restart_instance and update_instance do change the app: "
                  "they act on the instances the user has set up, and stopping or restarting one interrupts what it is answering unless drain_seconds "
-                 "gives it time to finish. Use them only when the user asked for it.")
+                 "gives it time to finish; update_instance only works on an instance that is stopped, and leaves it stopped. Use them only when the user asked for it.")
     else:
         text += " Nothing here changes the app."
     return text
@@ -164,3 +166,33 @@ def register_control_tools(server: MCPServer, manager: InstanceManager) -> None:
         """Stop an instance and start it again (to apply changed options, or to free its memory). Requests it is answering are cut off, unless
         drain_seconds (at most 120) gives them that long to finish first."""
         return masked(await manager.restart(instance_id, drain=clamp(drain_seconds, 0, MAX_DRAIN_SECONDS)))
+
+    @tool(START)
+    async def update_instance(
+        instance_id: int, name: str | None = None, port: int | None = None, gpu: str | None = None, context_length: int | None = None,
+        keep_alive_min: int | None = None, max_loaded_models: int | None = None, num_parallel: int | None = None, flash_attention: bool | None = None,
+        kv_cache_type: str | None = None, models_path: str | None = None, listen: str | None = None, auto_start: bool | None = None,
+        idle_stop_min: int | None = None, api_key: str | None = None, save_requests: bool | None = None, allowed_models: list[str] | None = None,
+    ) -> dict[str, Any]:
+        """Change the name, port or options of a STOPPED instance (a running one is an error: stop it first). Only what is given changes; the
+        rest stays as it is. The instance stays stopped afterwards. gpu: auto, cpu or the number of a GPU as text; kv_cache_type: f16, q8_0 or q4_0;
+        listen: local or lan; keep_alive_min: -1 = never unload; allowed_models: the models it serves (empty = every installed model); models_path
+        and api_key: an empty text clears them. The API key is never shown in the answer."""
+        current = manager.get(instance_id)
+        changes: dict[str, Any] = {
+            "gpu": int(gpu) if gpu is not None and gpu.isdigit() else gpu, "context_length": context_length, "keep_alive_min": keep_alive_min,
+            "max_loaded_models": max_loaded_models, "num_parallel": num_parallel, "flash_attention": flash_attention, "kv_cache_type": kv_cache_type,
+            "listen": listen, "auto_start": auto_start, "idle_stop_min": idle_stop_min, "save_requests": save_requests, "allowed_models": allowed_models,
+        }
+        changes = {k: v for k, v in changes.items() if v is not None}
+        for key, value in (("models_path", models_path), ("api_key", api_key)):  # an empty text is a value here: it clears
+            if value is not None:
+                changes[key] = value or None
+        try:
+            options = InstanceOptions(**{**current["options"], **changes})
+            body = InstanceUpdate(name=name, port=port, options=options)
+        except ValidationError as e:
+            raise ToolError("; ".join(f"{'.'.join(str(x) for x in err['loc'])}: {err['msg']}" for err in e.errors())) from e
+        updated = manager.update(instance_id, body)
+        await manager.sync_standby(instance_id)
+        return masked(updated)
