@@ -4,9 +4,34 @@
 // On a wide window (desktop) the main view does not slide away: the page comes in from the right as a panel over it,
 // under the header, with a scrim over the main view (see the media query at the end).
 
+.workspace {
+  display: flex;
+  flex: 1;
+  min-height: 0;
+  min-width: 0;
+}
+
+// the main view answers to the width of its own column: beside the monitor panel it is narrower than the window (see _summary.scss, _monitor.scss)
+.view > main:not(.mwm) {
+  container-type: inline-size;
+}
+
+// the monitor panel of an instance beside the main view (see MonitorPanel.tsx); it is as wide as a monitor window
+.mpanel {
+  display: flex;
+  flex: 0 0 480px;
+  flex-direction: column;
+  width: 480px;
+  min-width: 480px; // never squeezed (the window is at least 960 wide, so the main view keeps 480 beside it)
+  min-height: 0;
+  background: var(--bg);
+  border-left: 1px solid var(--line);
+}
+
 .views {
   position: relative;
   flex: 1;
+  min-width: 0;
   min-height: 0;
   overflow: hidden;
   overflow: clip; // not a scroll container at all: a focus inside the panel must not scroll the main view out of place

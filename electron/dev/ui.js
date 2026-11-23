@@ -1,11 +1,11 @@
 // Developer mode only: what an MCP client may do on the screen of the app, besides looking at it: find elements, click, type, press a key, scroll, set
-// a value, read the text. The listener of mcp-shot.js hands the request here (POST /ui); the backend decides whether a client may ask at all (the MCP token,
+// a value, read the text. The listener of listener.js hands the request here (POST /ui); the backend decides whether a client may ask at all (the MCP token,
 // the "control" switch, developer mode).
 //
 // What is done is what a person at the screen does, and as they do it: a click is a mouse click on the centre of the element (so a disabled button, or a
 // page that is inert under a dialog, is not clicked), text is typed into the focused field, a key is pressed. Nothing here reaches into the app's code.
 
-import { ShotRequestError } from './mcp-shot.js';
+import { DevRequestError } from './listener.js';
 
 export const UI_ACTIONS = ['find', 'click', 'type', 'key', 'scroll', 'set_value', 'text'];
 const MAX_SELECTOR = 500;
@@ -20,7 +20,7 @@ export const NEEDS_SHOWN = new Set(['click', 'type', 'key']);
 
 const isString = (v, max) => typeof v === 'string' && v.length <= max;
 const whole = (v, low, high) => typeof v === 'number' && Number.isInteger(v) && v >= low && v <= high;
-const bad = message => new ShotRequestError('INVALID_REQUEST', message);
+const bad = message => new DevRequestError('INVALID_REQUEST', message);
 
 /** A request body checked: { action, selector, text, index, limit, value, key, modifiers, dx, dy, clear, double, maxChars, instanceId }. */
 export function parseUiRequest(body) {
@@ -133,7 +133,7 @@ export const scripts = {
 };
 
 const sleep = ms => new Promise(resolve => setTimeout(resolve, ms));
-const fail = (result, code = 'NO_ELEMENT') => { if (result?.error) throw new ShotRequestError(code, result.error, 404); return result; };
+const fail = (result, code = 'NO_ELEMENT') => { if (result?.error) throw new DevRequestError(code, result.error, 404); return result; };
 
 /** Does one action on the page of `webContents`. Resolves what a client should hear back (JSON). `settleMs`: how long the page gets to react after an input. */
 export async function runUiAction(webContents, request, { settleMs = 250 } = {}) {
@@ -158,9 +158,9 @@ export async function runUiAction(webContents, request, { settleMs = 250 } = {})
     case 'click': {
       const where = fail(await run(scripts.locate(base)));
       const { info } = where;
-      if (!info.visible) throw new ShotRequestError('NOT_CLICKABLE', 'the element is not visible', 409);
-      if (info.disabled) throw new ShotRequestError('NOT_CLICKABLE', 'the element is disabled', 409);
-      if (info.inert) throw new ShotRequestError('NOT_CLICKABLE', 'the element is inert (something is open over it: a dialog, a page)', 409);
+      if (!info.visible) throw new DevRequestError('NOT_CLICKABLE', 'the element is not visible', 409);
+      if (info.disabled) throw new DevRequestError('NOT_CLICKABLE', 'the element is disabled', 409);
+      if (info.inert) throw new DevRequestError('NOT_CLICKABLE', 'the element is inert (something is open over it: a dialog, a page)', 409);
       await sleep(60); // the page scrolled the element into view: let it settle
       const at = await run(scripts.locate(base)); // (where it is now)
       const { x, y } = fail(at);

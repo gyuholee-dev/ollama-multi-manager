@@ -1,5 +1,7 @@
-// Developer screenshots (developer mode only; see the right-click menu in main.js): the page as it is on screen, the whole main view
-// with header and footer, or one element, saved as PNG files in <data folder>/screenshots.
+// Developer screenshots (developer mode only): the page as it is on screen, the whole main view with header and footer, or one element.
+// The developer's own (the right-click menu in main.js) are PNG files at the screen's scale, saved in <data folder>/screenshots and put on the
+// clipboard. The ones for an MCP client (dev/handlers.js) are made for a model to look at: scale 1 and JPEG 85 unless full quality is asked for, and
+// not saved anywhere (`save: false`): the client gets them in the session.
 //
 // The taking of the picture is not done here: it is the job of the cdp-screenshot-extension package (its `core` for what is done through the
 // DevTools protocol, its `adapter-electron` for talking to webContents.debugger). Both are imported statically, like every module of the app.
@@ -17,6 +19,8 @@ import * as adapter from 'cdp-screenshot-extension/adapter-electron';
 const DEFAULT_DEPTH = 5;
 // How long the page gets to draw once the note about choosing an element is taken away.
 const SETTLE_MS = 1500;
+// What a picture for a model is taken in by default (see takeScreenshot's `format`, `quality`, `useDeviceScale`).
+const JPEG_QUALITY = 85;
 const SETTLE = 'new Promise(r => requestAnimationFrame(() => requestAnimationFrame(() => r(true))))';
 
 /** The depth the unfolding goes to: OMM_SCREENSHOT_DEPTH (a whole number, 0 or more) or the default. */
@@ -89,19 +93,23 @@ async function captureChosenElement(webContents, capture, options, feedback) {
   }
 }
 
-/** The picture scaled down so that its longer side is at most `maxSide` (a picture that is smaller is left as it is). `nativeImage` is Electron's
- * (or a stand-in in tests). Resolves { png, width, height } of what comes out. */
-function fitPicture(png, maxSide, nativeImage) {
+/** The picture scaled down so that its longer side is at most `maxSide` (a picture that is smaller is left as it is, in the form it has).
+ * `nativeImage` is Electron's (or a stand-in in tests). `format` ('png' or 'jpeg') and `quality` are those the picture was taken in: a scaled one is
+ * encoded the same way. Resolves { png (the bytes, of either format), width, height } of what comes out. */
+function fitPicture(png, maxSide, nativeImage, { format = 'png', quality = JPEG_QUALITY } = {}) {
   const image = nativeImage.createFromBuffer(png);
   const { width, height } = image.getSize();
   const scale = maxSide / Math.max(width, height);
   if (!(scale < 1)) return { png, width, height };
   const to = { width: Math.max(1, Math.round(width * scale)), height: Math.max(1, Math.round(height * scale)) };
-  return { png: image.resize({ ...to, quality: 'best' }).toPNG(), ...to };
+  const scaled = image.resize({ ...to, quality: 'best' });
+  return { png: format === 'jpeg' ? scaled.toJPEG(quality) : scaled.toPNG(), ...to };
 }
 
 /** Takes the picture and saves it. kind: 'viewport' | 'full' | 'element' (the user chooses the element on the page, or `selector` names it).
- * Resolves { file, png, width, height }.
+ * Resolves { file, png (the bytes: PNG, or JPEG when format is 'jpeg'), mime, width, height }; `file` is only there when the picture was saved.
+ * `format` ('png' default, or 'jpeg'), `quality` (JPEG only, 1 to 100) and `useDeviceScale` (default true: the screen's scale; false: scale 1, CSS px)
+ * are passed on to the package for this picture. `save` (default true): false keeps the picture off the disk (`dir` and `label` are then not needed).
  * `pickTimeoutMs`: how long the choosing of an element may take. `depth`: see screenshotDepth. `selector` (kind 'element'): a CSS selector in place of
  * the choosing, for a caller that cannot click (the MCP server): no note asks for a click and nothing is waited for; `feedback.clear()` still runs, so that a
  * note from an earlier picture is not in this one.
@@ -109,10 +117,12 @@ function fitPicture(png, maxSide, nativeImage) {
  * what the page shows to the user is never in the picture.
  * `capture` (optional): the package's { core, adapter }, for a test that has no package to load.
  * A failure is an Error with the package's `code` (CANCELED when the user pressed Escape, TOO_LARGE ...). */
-async function takeScreenshot(webContents, kind, { dir, label, now = new Date(), pickTimeoutMs, depth = screenshotDepth(), feedback, capture, selector }) {
+async function takeScreenshot(webContents, kind, {
+  dir, label, now = new Date(), pickTimeoutMs, depth = screenshotDepth(), feedback, capture, selector, format = 'png', quality = JPEG_QUALITY, useDeviceScale = true, save = true,
+}) {
   if (!['viewport', 'full', 'element'].includes(kind)) throw new Error(`unknown screenshot kind: ${kind}`);
   const loaded = capture || { core, adapter };
-  const options = { depth, format: 'png', pickTimeoutMs };
+  const options = { depth, format, pickTimeoutMs, useDeviceScale, ...(format === 'png' ? {} : { quality }) };
   let picture;
   if (kind === 'viewport') {
     if (feedback) await feedback.clear();
@@ -131,10 +141,12 @@ async function takeScreenshot(webContents, kind, { dir, label, now = new Date(),
     picture = await stillPage(webContents, () => captureChosenElement(webContents, loaded, options, feedback));
   }
   const png = Buffer.from(picture.bytes);
+  const mime = format === 'jpeg' ? 'image/jpeg' : 'image/png';
+  if (!save) return { png, mime, width: picture.width, height: picture.height };
   fs.mkdirSync(dir, { recursive: true });
   const file = path.join(dir, shotName(label, kind, now));
   fs.writeFileSync(file, png);
-  return { file, png, width: picture.width, height: picture.height };
+  return { file, png, mime, width: picture.width, height: picture.height };
 }
 
 // The package's messages are English and for developers (they go to the log). What the page shows is written here, by the error's code.
@@ -166,4 +178,4 @@ function failureText(error, language = 'en') {
   return texts[error?.code]?.(error) ?? error?.message ?? String(error);
 }
 
-export { failureText, fitPicture, shotName, screenshotDir, screenshotDepth, focusWindow, putOnClipboard, takeScreenshot, DEFAULT_DEPTH };
+export { failureText, fitPicture, shotName, screenshotDir, screenshotDepth, focusWindow, putOnClipboard, takeScreenshot, DEFAULT_DEPTH, JPEG_QUALITY };

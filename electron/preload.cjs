@@ -16,4 +16,12 @@ contextBridge.exposeInMainWorld('omm', {
   settingsChanged: () => ipcRenderer.send('settings-changed'),
   // open an instance's monitor in a window of its own
   openMonitor: id => ipcRenderer.send('open-monitor', Number(id)),
+  // the monitor panel of the main window: the page tells which monitor it shows; a monitor window is merged into it
+  panelShows: id => ipcRenderer.send('monitor-panel-changed', id == null ? null : Number(id)),
+  mergeMonitor: id => ipcRenderer.send('merge-monitor', Number(id)),
+  onShowPanel: callback => {
+    const handler = (_event, id) => callback(Number(id));
+    ipcRenderer.on('show-monitor-panel', handler);
+    return () => ipcRenderer.removeListener('show-monitor-panel', handler);
+  },
 });

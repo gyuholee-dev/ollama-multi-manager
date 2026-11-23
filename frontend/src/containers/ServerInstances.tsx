@@ -1,7 +1,7 @@
 import { useDevices, useExternal, useViews } from '@/app/hooks';
 import { changeState, removeInstance } from '@/app/instanceActions';
 import { Icon } from '@/components/common/Icon';
-import { openMonitorWindow } from '@/desktop';
+import { showMonitor } from '@/app/monitorActions';
 import { Section } from '@/components/common/Section';
 import { StateBadge } from '@/components/common/StateBadge';
 import { sortViews, type InstanceView, type LoadedView, type SortKey } from '@/lib/derive';
@@ -41,7 +41,7 @@ function Buttons({ i }: { i: InstanceView }) {
   const guest = useIsGuest();
   const open = useDialogStore((s) => s.open);
   const details = () => open({ kind: 'details', id: i.id });
-  const monitor = () => openMonitorWindow(i.id); // the monitor is a window of its own
+  const monitor = () => showMonitor(i.id); // a window of its own or the panel, the way it was last used
   const monitorButton = <button className="small" disabled={i.state !== 'running'} onClick={monitor}>{t('btn.monitor')}</button>;
   if (guest) return <div className="btns">{monitorButton}<button className="small" onClick={details}>{t('btn.details')}</button></div>;
   const idle = i.state === 'stopped' || i.state === 'crashed';

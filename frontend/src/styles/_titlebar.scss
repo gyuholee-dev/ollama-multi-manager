@@ -17,6 +17,11 @@ html[data-titlebar=custom] {
   header .btns {
     -webkit-app-region: no-drag;
   }
+
+  // the monitor in the main window (a panel, or a page) has the main header above it: nothing of the window's buttons to keep clear of
+  .mwin--embedded > header {
+    padding-left: 16px;
+  }
 }
 
 // Windows: the system draws its three buttons over the right end of the header (titleBarOverlay in electron/main.js). The header is the drag

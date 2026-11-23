@@ -80,6 +80,28 @@ test('takeScreenshot saves the picture under the folder, as a PNG at the depth a
   }
 });
 
+test('takeScreenshot for a model: JPEG at scale 1 as asked, handed back and not saved anywhere', async () => {
+  const dir = path.join(tempDir(), 'never-made');
+  try {
+    const capture = fakeCapture();
+    const shot = await takeScreenshot(fakePage(), 'viewport', { save: false, format: 'jpeg', quality: 85, useDeviceScale: false, capture });
+    assert.equal(shot.file, undefined);
+    assert.equal(shot.mime, 'image/jpeg');
+    assert.deepEqual(shot.png, PNG);
+    assert.equal(capture.options[0].format, 'jpeg');
+    assert.equal(capture.options[0].quality, 85);
+    assert.equal(capture.options[0].useDeviceScale, false);
+    assert.equal(fs.existsSync(dir), false);
+    // the developer's own picture keeps its original form: PNG at the screen's scale (no quality for a PNG)
+    await takeScreenshot(fakePage(), 'viewport', { dir: tempDir(), label: 'main', capture });
+    assert.equal(capture.options[1].format, 'png');
+    assert.equal(capture.options[1].useDeviceScale, true);
+    assert.equal('quality' in capture.options[1], false);
+  } finally {
+    fs.rmSync(path.dirname(dir), { recursive: true, force: true });
+  }
+});
+
 test('takeScreenshot element: the user chooses, then that node is taken, and the debugger is let go', async () => {
   const dir = tempDir();
   try {
@@ -256,6 +278,18 @@ test('fitPicture: a picture longer than the limit is scaled down in proportion, 
   const same = fitPicture(big, 8000, nativeImage);
   assert.equal(same.png, big);
   assert.deepEqual([same.width, same.height], [2000, 8000]);
+});
+
+test('fitPicture: a scaled picture is encoded in the form it was taken in', () => {
+  const nativeImage = {
+    createFromBuffer: () => ({
+      getSize: () => ({ width: 2000, height: 1000 }),
+      resize: () => ({ toPNG: () => Buffer.from('png'), toJPEG: q => Buffer.from(`jpeg${q}`) }),
+    }),
+  };
+  assert.equal(fitPicture(Buffer.from('x'), 1000, nativeImage, { format: 'jpeg', quality: 85 }).png.toString(), 'jpeg85');
+  assert.equal(fitPicture(Buffer.from('x'), 1000, nativeImage, { format: 'png' }).png.toString(), 'png');
+  assert.equal(fitPicture(Buffer.from('x'), 1000, nativeImage).png.toString(), 'png');
 });
 
 test('takeScreenshot element with a selector: no choosing, the page is held still, and the size comes back', async () => {

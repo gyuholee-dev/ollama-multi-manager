@@ -6,7 +6,8 @@
   gap: 8px;
 }
 
-@media (max-width:639px) {
+// by the width of the main view's own column (the monitor panel may take a part of the window), not of the window: 607 = 639 less its padding
+@container (max-width: 607px) {
   #sum {
     grid-template-columns: minmax(0,1fr);
   }

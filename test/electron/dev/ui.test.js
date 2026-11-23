@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { ShotRequestError, startShotServer } from '../../electron/mcp-shot.js';
-import { NEEDS_SHOWN, parseUiRequest, runUiAction, scripts } from '../../electron/mcp-ui.js';
+import { DevRequestError, startDevServer } from '../../../electron/dev/listener.js';
+import { NEEDS_SHOWN, parseUiRequest, runUiAction, scripts } from '../../../electron/dev/ui.js';
 
 // a page that answers the scripts in order, and records what is sent to it as input
 function fakePage(answers) {
@@ -31,7 +31,7 @@ test('a request is checked: a known action, a selector where one is needed, limi
     { action: 'type' }, { action: 'type', text: '' }, { action: 'type', text: 'x'.repeat(2001) }, { action: 'set_value', selector: 'a' }, { action: 'set_value', value: 'v' },
     { action: 'key' }, { action: 'key', key: 'Escape Escape Escape Escape' }, { action: 'key', key: '<script>' }, { action: 'key', key: 'a', modifiers: ['super'] },
     { action: 'scroll', delta_y: 'down' }, { action: 'scroll', delta_y: 1e9 }, { action: 'text', max_chars: 20001 }, { action: 'click', selector: 'a', double: 'yes' }]) {
-    assert.throws(() => parseUiRequest(bad), e => e instanceof ShotRequestError && e.code === 'INVALID_REQUEST', JSON.stringify(bad));
+    assert.throws(() => parseUiRequest(bad), e => e instanceof DevRequestError && e.code === 'INVALID_REQUEST', JSON.stringify(bad));
   }
 });
 
@@ -124,8 +124,8 @@ test('only the actions that need input need a window that is shown', () => {
 
 test('POST /ui: with the token, to the function that does it; without it, or where there is no such function, it is refused', async () => {
   const seen = [];
-  const withUi = await startShotServer({ capture: async () => ({ png: Buffer.alloc(1) }), ui: async body => { seen.push(body); return { clicked: true }; } });
-  const without = await startShotServer({ capture: async () => ({ png: Buffer.alloc(1) }) });
+  const withUi = await startDevServer({ capture: async () => ({ png: Buffer.alloc(1) }), ui: async body => { seen.push(body); return { clicked: true }; } });
+  const without = await startDevServer({ capture: async () => ({ png: Buffer.alloc(1) }) });
   try {
     const post = (server, token) => fetch(`${server.url}/ui`, { method: 'POST', headers: token ? { Authorization: `Bearer ${token}` } : {}, body: JSON.stringify({ action: 'click', selector: 'b' }) });
     assert.equal((await post(withUi, '')).status, 401);

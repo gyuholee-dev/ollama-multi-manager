@@ -23,14 +23,19 @@ interface DialogState {
   popup: PopupRequest | null;
   active: ActiveDialog;
   page: Page | null;
+  /** The instance whose monitor is open in the main window: as a panel beside the main view, or (a narrow screen) as a page; null when none is. */
+  monitor: number | null;
   /** True for a moment after a page was opened or closed: only then does it slide (see _views.scss), not when the window is resized. */
   slide: boolean;
   showPopup: (request: Omit<PopupRequest, 'resolve'>) => Promise<PopupResult>;
   closePopup: (result: PopupResult) => void;
   /** Opens a dialog, or slides to a page (`{ kind: 'settings' | 'models' }`). */
   open: (target: Exclude<ActiveDialog, null> | { kind: Page }) => void;
-  /** Closes the dialog; with none open, goes back from the page to the main view. */
+  /** Closes the dialog; with none open, goes back from the page (or the monitor shown as a page) to the main view. */
   close: () => void;
+  /** Shows the monitor of an instance in the main window (a panel, or a page where there is no room beside the main view); one at a time. */
+  showMonitor: (id: number) => void;
+  hideMonitor: () => void;
 }
 
 const SLIDE_MS = 350; // a little more than the .3s of the slide
@@ -43,6 +48,7 @@ export const useDialogStore = create<DialogState>((set, get) => ({
   popup: null,
   active: null,
   page: null,
+  monitor: null,
   slide: false,
   showPopup: (request) =>
     new Promise<PopupResult>((resolve) => {
@@ -61,6 +67,8 @@ export const useDialogStore = create<DialogState>((set, get) => ({
     clearTimeout(slideTimer);
     slideTimer = setTimeout(() => set({ slide: false }), SLIDE_MS);
   },
+  showMonitor: (id) => set({ monitor: id }),
+  hideMonitor: () => set({ monitor: null }),
   close: () => {
     if (get().active) return set({ active: null });
     set({ page: null, slide: true });

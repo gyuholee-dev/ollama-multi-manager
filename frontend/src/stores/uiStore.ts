@@ -20,6 +20,7 @@ interface UiState {
   imHide: string[]; // the parts of the instance monitor window that are switched off (by the buttons in their section's header)
   imFold: string[]; // the sub-sections of the instance monitor window that are closed
   collapsed: SectionId[];
+  monitorMode: 'window' | 'panel'; // how the monitor button opens a monitor: the way it was last used (the panel at first)
 
   setReady: () => void;
   setConnected: (up: boolean) => void;
@@ -32,6 +33,7 @@ interface UiState {
   toggleImPart: (id: string) => void;
   toggleImFold: (id: string) => void;
   toggleSection: (id: SectionId) => void;
+  setMonitorMode: (mode: 'window' | 'panel') => void;
 }
 
 const toggle = <T,>(list: T[], item: T): T[] => (list.includes(item) ? list.filter((x) => x !== item) : [...list, item]);
@@ -52,6 +54,7 @@ export const useUiStore = create<UiState>()(
       imHide: [],
       imFold: [],
       collapsed: [],
+      monitorMode: 'panel',
 
       setReady: () => set({ ready: true }),
       setConnected: (connected) => set({ connected }),
@@ -67,6 +70,7 @@ export const useUiStore = create<UiState>()(
       toggleImPart: (id) => set({ imHide: toggle(get().imHide, id) }),
       toggleImFold: (id) => set({ imFold: toggle(get().imFold, id) }),
       toggleSection: (id) => set({ collapsed: toggle(get().collapsed, id) }),
+      setMonitorMode: (mode) => set({ monitorMode: mode }),
     }),
     {
       name: 'omm-ui',
@@ -81,7 +85,7 @@ export const useUiStore = create<UiState>()(
         }
         return s as never;
       },
-      partialize: (s) => ({ sortKey: s.sortKey, sortDir: s.sortDir, sumOn: s.sumOn, monOff: s.monOff, imHide: s.imHide, imFold: s.imFold, collapsed: s.collapsed }),
+      partialize: (s) => ({ sortKey: s.sortKey, sortDir: s.sortDir, sumOn: s.sumOn, monOff: s.monOff, imHide: s.imHide, imFold: s.imFold, collapsed: s.collapsed, monitorMode: s.monitorMode }),
     },
   ),
 );

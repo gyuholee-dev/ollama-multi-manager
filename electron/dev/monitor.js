@@ -5,7 +5,7 @@
 // to show its content), and gets back `target`, what the picture is taken of. When the monitor can live in the main window, `find` and `open` are what
 // change (the target would be the main window with the panel's element as scope); the request, the tool and this function stay as they are.
 
-import { ShotRequestError } from './mcp-shot.js';
+import { DevRequestError } from './listener.js';
 
 const sleep = ms => new Promise(resolve => setTimeout(resolve, ms));
 const within = (promise, ms, fallback) => Promise.race([promise, new Promise(resolve => setTimeout(() => resolve(fallback), ms))]);
@@ -41,7 +41,7 @@ export function windowState(window) {
 export function hiddenWindowError(kind, state, what) {
   if (!state || !state.hidden || kind === 'viewport') return null;
   const where = state.minimized ? 'minimized' : 'hidden (in the tray or not shown)';
-  return new ShotRequestError('WINDOW_HIDDEN',
+  return new DevRequestError('WINDOW_HIDDEN',
     `${what} is ${where}, so only kind "viewport" can be taken of it; for "${kind}" the window has to be shown first (get_app_state tells which windows are shown)`, 409);
 }
 
@@ -58,7 +58,7 @@ export async function unthrottled(webContents, job) {
 }
 
 /** Resolves { target, release, opened }: the monitor of the instance, found open, or (with `allowOpen`) opened for this picture. `release()` puts back what the
- * picture changed: it closes a monitor that was opened for it, and leaves one that was open before. Throws a ShotRequestError (code NO_WINDOW) when
+ * picture changed: it closes a monitor that was opened for it, and leaves one that was open before. Throws a DevRequestError (code NO_WINDOW) when
  * there is none and it may not or cannot be opened.
  *   find(instanceId)  -> the open monitor, or null
  *   open(instanceId)  -> opens it without taking the user's focus (a promise); null when it cannot be (no such instance); `release` closes it
@@ -67,16 +67,16 @@ export async function resolveMonitor(instanceId, { find, open, ready, allowOpen 
   const found = find(instanceId);
   if (found) return { target: found, release: async () => {}, opened: false };
   if (!allowOpen) {
-    throw new ShotRequestError('NO_WINDOW', `The monitor of instance ${instanceId} is not open (open_monitor opens it for the picture)`, 404);
+    throw new DevRequestError('NO_WINDOW', `The monitor of instance ${instanceId} is not open (open_monitor opens it for the picture)`, 404);
   }
   const opened = await open(instanceId);
-  if (!opened) throw new ShotRequestError('NO_WINDOW', `The monitor of instance ${instanceId} cannot be opened: there is no such instance`, 404);
+  if (!opened) throw new DevRequestError('NO_WINDOW', `The monitor of instance ${instanceId} cannot be opened: there is no such instance`, 404);
   const release = async () => { try { await opened.release(); } catch { /* it is gone already */ } };
   try {
     await ready(opened.target);
   } catch (e) {
     await release();
-    throw new ShotRequestError('NO_WINDOW', `The monitor of instance ${instanceId} did not show its content: ${e.message}`, 504);
+    throw new DevRequestError('NO_WINDOW', `The monitor of instance ${instanceId} did not show its content: ${e.message}`, 504);
   }
   return { target: opened.target, release, opened: true };
 }

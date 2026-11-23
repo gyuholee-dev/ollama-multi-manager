@@ -14,10 +14,9 @@ import { Backend } from './backend-launcher.js';
 import { AppTray } from './tray.js';
 import { startMockupServer } from './dev-mockup.js';
 import { overlay } from './overlay.js';
-import { failureText, fitPicture, focusWindow, putOnClipboard, screenshotDir, takeScreenshot } from './screenshot.js';
-import { ShotRequestError, startShotServer } from './mcp-shot.js';
-import { hiddenWindowError, resolveMonitor, unthrottled, waitForContent, windowState } from './mcp-monitor.js';
-import { NEEDS_SHOWN, parseUiRequest, runUiAction } from './mcp-ui.js';
+import { failureText, focusWindow, putOnClipboard, screenshotDir, takeScreenshot } from './screenshot.js';
+import { startDevServer } from './dev/listener.js';
+import { createDevHandlers } from './dev/handlers.js';
 
 const log = (...a) => console.log(new Date().toISOString(), '[shell]', ...a);
 
@@ -27,15 +26,16 @@ const DEV = /^(1|true|yes|on)$/i.test(process.env.OMM_DEV || '');
 const MOCKUP = /^(1|true|yes|on)$/i.test(process.env.OMM_MOCKUP || '');
 const MENU_LABEL = {
   ko: { copy: '복사', reload: '새로고침', freeze: '화면 갱신 중지', resume: '화면 갱신 재개', inspect: '검사', captureMenu: 'CDP Screenshot', shot: '화면 캡처', fullShot: '전체 캡처', elementShot: '요소 캡처',
-         pickNote: '캡처할 요소를 클릭하세요 (Esc: 취소)', savedNote: '캡처 저장됨', canceledNote: '캡처 취소됨', failedNote: '캡처 실패' },
+         pickNote: '캡처할 요소를 클릭하세요 (Esc: 취소)', savedNote: '캡처 저장됨', takenNote: '캡처됨 (MCP)', canceledNote: '캡처 취소됨', failedNote: '캡처 실패' },
   en: { copy: 'Copy', reload: 'Reload', freeze: 'Pause updates', resume: 'Resume updates', inspect: 'Inspect', captureMenu: 'CDP Screenshot', shot: 'Screen capture', fullShot: 'Full capture', elementShot: 'Element capture',
-         pickNote: 'Click the element to capture (Esc cancels)', savedNote: 'Capture saved', canceledNote: 'Capture canceled', failedNote: 'Capture failed' },
+         pickNote: 'Click the element to capture (Esc cancels)', savedNote: 'Capture saved', takenNote: 'Captured (MCP)', canceledNote: 'Capture canceled', failedNote: 'Capture failed' },
 };
 
 if (!app.requestSingleInstanceLock()) {
   app.quit();
 } else {
-  let win = null, backend = null, tray = null, settings = {}, quitting = false, mockup = null, shotServer = null;
+  let win = null, backend = null, tray = null, settings = {}, quitting = false, mockup = null, devServer = null;
+  let panelInstance = null; // the instance whose monitor the main window shows in its panel (told by the page)
   const monitors = new Map(); // instance id -> its monitor window (one per instance)
 
   // macOS: no system title bar. With macOS 27.2 a window dragged by the system title bar from one display to another
@@ -246,76 +246,10 @@ if (!app.requestSingleInstanceLock()) {
     }
   }
 
-  // Developer mode: a screenshot an MCP client asked for (the MCP server in the backend calls the listener of mcp-shot.js). The window is the main one, or the monitor
-  // window of an instance; the element is named by a selector (nobody can click it); the picture handed back is scaled to at most `maxSide` on its longer
-  // side, the whole one is saved as a file. The page says that it was taken, as it does for the developer's own screenshots.
-  async function mcpCapture({ kind, selector, instanceId, openMonitor: openIfClosed, depth, maxSide }) {
-    // Which page: the main window, or the monitor of an instance (found open, or opened just for this picture and closed again after it). The monitor
-    // is looked up through resolveMonitor and not by `monitors.get`, so that it can become a side panel later without this function knowing.
-    let release = async () => {};
-    let w = win;
-    let opened = false;
-    const began = Date.now();
-    const lap = () => `${Date.now() - began} ms`;
-    if (instanceId) {
-      ({ target: w, release, opened } = await resolveMonitor(instanceId, {
-        allowOpen: openIfClosed,
-        find: id => { const m = monitors.get(id); return m && !m.isDestroyed() ? m : null; },
-        open: async id => {
-          try { await backend.api('GET', `/instances/${id}`); } catch { return null; } // no such instance: nothing to open
-          const opened = openMonitor(id, { transient: true });
-          return opened && { target: opened, release: async () => { if (!opened.isDestroyed()) opened.destroy(); } };
-        },
-        ready: waitForContent,
-      }));
-    }
-    if (instanceId) log(`MCP screenshot: the monitor of instance ${instanceId} is ready after ${lap()}`);
-    try {
-      if (!w || w.isDestroyed()) throw new ShotRequestError('NO_WINDOW', 'The main window is not open', 404);
-      // a window that is not shown (in the tray, minimized) cannot be photographed in every way: say so at once, not after the wait for an answer that does not come
-      // (a monitor opened just for this picture is never shown, by design, and is not held to this)
-      const hidden = opened ? null : hiddenWindowError(kind, windowState(w), instanceId ? `The monitor of instance ${instanceId}` : 'The main window');
-      if (hidden) throw hidden;
-      const l = MENU_LABEL[String(settings.language || app.getLocale()).slice(0, 2)] || MENU_LABEL.en;
-      const ui = overlay(w.webContents);
-      // nobody is at the screen when a client asks: the window may be in the tray or minimized, where the system holds its page back
-      return await unthrottled(w.webContents, async () => {
-        const shot = await takeScreenshot(w.webContents, kind, {
-          dir: screenshotDir(app.getPath('userData')), label: instanceId ? `monitor-${instanceId}` : 'main', selector, depth, feedback: { clear: ui.clear },
-        }).catch(async e => { if (!w.isDestroyed()) await ui.failed(`${l.failedNote}: ${failureText(e, 'en')}`); throw e; });
-        const fit = fitPicture(shot.png, maxSide, nativeImage);
-        log(`Capture (${kind}) for an MCP client saved after ${lap()}: ${shot.file}`);
-        if (!w.isDestroyed()) await ui.done(`${l.savedNote} (MCP): ${path.basename(shot.file)}`);
-        return { file: shot.file, png: fit.png, width: fit.width, height: fit.height, fullWidth: shot.width, fullHeight: shot.height };
-      });
-    } finally {
-      await release();
-    }
-  }
-
-  // What an MCP client does on the screen (find, click, type ...: mcp-ui.js): of the main window (the monitor panel is a part of it), or of a monitor window that is open.
-  async function mcpUi(body) {
-    const request = parseUiRequest(body);
-    let w = win;
-    if (request.instanceId) {
-      w = monitors.get(request.instanceId);
-      if (!w || w.isDestroyed()) {
-        throw new ShotRequestError('NO_WINDOW', `The monitor window of instance ${request.instanceId} is not open (a monitor shown in the panel is part of the main window: leave out instance_id)`, 404);
-      }
-    }
-    if (!w || w.isDestroyed()) throw new ShotRequestError('NO_WINDOW', 'The main window is not open', 404);
-    if (NEEDS_SHOWN.has(request.action) && windowState(w)?.hidden) {
-      throw new ShotRequestError('WINDOW_HIDDEN', `The window is hidden (in the tray or minimized), so "${request.action}" cannot be done on it: the input of a window that is not shown does not arrive`, 409);
-    }
-    log(`MCP ui: ${request.action}${request.selector ? ` ${request.selector}` : ''}`);
-    return unthrottled(w.webContents, () => runUiAction(w.webContents, request));
-  }
-
-  // What an MCP client may ask about the app before it asks for a picture: which windows there are and whether they are shown (see mcp-monitor.js).
-  const appState = () => ({
-    developer_mode: DEV,
-    main_window: windowState(win),
-    monitors: [...monitors.entries()].filter(([, m]) => !m.isDestroyed()).map(([id, m]) => ({ instance_id: id, ...windowState(m) })),
+  // The developer's tools of the MCP server (electron/dev/: screenshot, screen actions, app state), wired to this app's windows.
+  const devHandlers = createDevHandlers({
+    getWin: () => win, monitors, getPanelInstance: () => panelInstance, backend: { api: (...a) => backend.api(...a) }, openMonitor: (...a) => openMonitor(...a),
+    menuLabel: () => MENU_LABEL[String(settings.language || app.getLocale()).slice(0, 2)] || MENU_LABEL.en, nativeImage, log, developerMode: DEV,
   });
 
   // The page may only ever be the backend's own UI; everything else opens in the system browser.
@@ -400,7 +334,7 @@ if (!app.requestSingleInstanceLock()) {
     const st = loadState();
     const first = st.width && st.height ? null : firstBounds(MAIN_SIZE.width); // nothing saved: the display under the pointer
     win = new BrowserWindow({
-      width: st.width || first.width, height: st.height || first.height, x: st.x ?? first?.x, y: st.y ?? first?.y, minWidth: 480, minHeight: 480,
+      width: st.width || first.width, height: st.height || first.height, x: st.x ?? first?.x, y: st.y ?? first?.y, minWidth: 960, minHeight: 480,
       show: false, title: 'Ollama Multi Manager', backgroundColor: nativeTheme.shouldUseDarkColors ? '#1c1c1c' : '#ebebeb', ...titleBar(),
       webPreferences: webPrefs(),
     });
@@ -414,7 +348,7 @@ if (!app.requestSingleInstanceLock()) {
       saveStateNow();
       if (!quitting && settings.minimize_to_tray && tray) { e.preventDefault(); win.hide(); monitors.forEach(w => w.hide()); }
     });
-    win.on('closed', () => { win = null; closeMonitors(); });
+    win.on('closed', () => { win = null; panelInstance = null; closeMonitors(); });
   }
 
   // ---- IPC
@@ -442,6 +376,19 @@ if (!app.requestSingleInstanceLock()) {
   ipcMain.on('settings-changed', e => { if (fromUi(e)) refreshSettings(); });
   ipcMain.on('open-monitor', (e, id) => { if (fromUi(e)) openMonitor(Number(id)); });
 
+  // ---- the monitor panel of the main window (the window is never resized for it: it is at least 960 wide, so that the main view keeps 480 beside the panel)
+  ipcMain.on('monitor-panel-changed', (e, id) => { if (fromUi(e)) panelInstance = Number.isInteger(id) && id > 0 ? id : null; });
+  // "merge": the main window shows the monitor of that instance in its panel and the monitor window closes
+  ipcMain.on('merge-monitor', async (e, id) => {
+    if (!fromUi(e) || !Number.isInteger(id) || id < 1) return;
+    const from = monitors.get(id);
+    const fresh = !win || win.isDestroyed();
+    showWindow();
+    if (fresh) { await new Promise(resolve => win.webContents.once('did-finish-load', resolve)); await new Promise(resolve => setTimeout(resolve, 800)); } // (the page has to be listening)
+    win.webContents.send('show-monitor-panel', id);
+    if (from && !from.isDestroyed()) from.close();
+  });
+
   // ---- lifecycle
   app.on('second-instance', showWindow);
   app.on('activate', showWindow);
@@ -453,7 +400,7 @@ if (!app.requestSingleInstanceLock()) {
     e.preventDefault();
     quitting = true;
     mockup?.close();
-    shotServer?.close();
+    devServer?.close();
     log('Quitting: stopping the backend (this stops the instances)');
     backend.stop().catch(err => log('Backend stop failed:', err.message)).finally(() => app.quit());
   });
@@ -465,11 +412,11 @@ if (!app.requestSingleInstanceLock()) {
   app.whenReady().then(async () => {
     if (OVERLAY_TITLEBAR) Menu.setApplicationMenu(null);
     if (DEV) {
-      try { shotServer = await startShotServer({ capture: mcpCapture, state: appState, ui: mcpUi, log }); } catch (e) { log('The screenshot listener for MCP did not start:', e.message); }
+      try { devServer = await startDevServer({ ...devHandlers, log }); } catch (e) { log('The screenshot listener for MCP did not start:', e.message); }
     }
     backend = new Backend({
       dataDir: app.getPath('userData'), isPackaged: app.isPackaged, log,
-      env: shotServer ? { OMM_SHOT_URL: shotServer.url, OMM_SHOT_TOKEN: shotServer.token } : {},
+      env: devServer ? { OMM_DEV_URL: devServer.url, OMM_DEV_TOKEN: devServer.token } : {},
     });
     backend.onCrash = (code, sig) => {
       if (quitting) return;

@@ -1,6 +1,9 @@
 import { useEffect } from 'react';
+import { mergeMonitor } from '@/app/monitorActions';
 import { useViews } from '@/app/hooks';
-import { MonitorBody } from '@/containers/MonitorBody';
+import { Icon } from '@/components/common/Icon';
+import { canMergeMonitor } from '@/desktop';
+import { MonitorFrame } from '@/containers/MonitorFrame';
 import { translate } from '@/locales';
 import { useT } from '@/locales/useT';
 import { useSettingsStore } from '@/stores/settingsStore';
@@ -25,22 +28,9 @@ export function MonitorWindow({ id }: { id: number }) {
     return () => clearTimeout(timer);
   }, [gone]);
 
-  const note = (text?: string) => (
-    <div id="det" className="mwin">
-      <header className="mwh"><h1 /></header> {/* (no title until the instance is known: the app's name would flash before its name) */}
-      {text && <div id="boot" role="status">{text}</div>}
-    </div>
-  );
-  if (!ready) return note(); // (no loading message for now: the header alone, until the instance is known)
-  if (!view) return note(t('im.removed'));
-  // the same header as the main window (title on the left, buttons on the right) that stays while the body scrolls
-  return (
-    <div id="det" className="mwin">
-      <header className="mwh">
-        <h1>{view.name}</h1>
-        <div className="btns" /> {/* (room for buttons that may come: the four parts are no longer switched here) */}
-      </header>
-      <div className="dbody"><MonitorBody id={id} view={view} folds={false} /></div>
-    </div>
-  );
+  // "Merge": back into the panel of the main window
+  const merge = canMergeMonitor()
+    ? <button type="button" className="inline" aria-label={t('im.merge')} title={t('im.merge')} onClick={() => mergeMonitor(id)}><Icon name="vertical_split" /></button>
+    : null;
+  return <MonitorFrame id={id} view={view} ready={ready} removed={t('im.removed')} buttons={merge} />;
 }

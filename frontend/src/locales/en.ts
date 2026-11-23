@@ -32,7 +32,7 @@ const en: Messages = {
   'new.modelsHint': 'Select at least one model for this instance to use. Requests for models you did not select are rejected.', 'v.models.t': 'Choose models', 'v.models.m': 'Pick at least one model to serve.',
   'btn.monitor': 'Monitor', 'im.title': '{n} monitor', 'im.now': 'Now', 'im.ttft': 'First token', 'im.window': 'Last {m} min', 'im.hour': 'Last hour', 'f.saveReq': 'Save request content', 'f.saveReqHint': 'Prompts and answers are stored as they are in a log file on this PC.', 'rq.client': 'Client', 'rq.asked': 'Request', 'rq.answered': 'Answer', 'rq.notSaved': 'The content of this request was not saved (the instance option "Save request content" was off).', 'rq.noDetail': 'Could not load the details.', 'im.total': 'Requests (total/failed)', 'im.tokIn': 'Input tokens', 'im.tokOut': 'Output tokens', 'im.reqs': 'Requests per minute', 'im.speed': 'Token speed per minute', 'im.latency': 'Average response per minute', 'im.live': 'Live resources', 'im.collecting': 'Collecting data. The graphs appear in a moment.', 'im.span': '{m} min ago', 'im.nowEdge': 'now', 'im.hourAgo': '60 min ago', 'im.conc': 'Concurrent requests (running + queued)',
   'im.history': 'History', 'im.log': 'Log', 'im.logNone': 'No log lines yet.',
-  'im.removed': 'This instance was deleted. The window closes.',
+  'im.removed': 'This instance was deleted. The window closes.', 'im.removedPanel': 'This instance was deleted. The panel closes.', 'im.detach': 'Open in a window', 'im.merge': 'Move to the panel of the main window',
   'new.models': 'Served models', 'new.toggle': 'Expand/collapse {n}', 'new.noModels': 'No models downloaded',
 
   'log.all': 'All', 'log.app': 'App',

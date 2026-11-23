@@ -6,10 +6,10 @@ import { app, BrowserWindow, nativeImage } from 'electron';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import { fitPicture, takeScreenshot } from '../../../electron/screenshot.js';
-import { startShotServer } from '../../../electron/mcp-shot.js';
-import { unthrottled } from '../../../electron/mcp-monitor.js';
-import { parseUiRequest, runUiAction } from '../../../electron/mcp-ui.js';
+import { fitPicture, JPEG_QUALITY, takeScreenshot } from '../../../electron/screenshot.js';
+import { startDevServer } from '../../../electron/dev/listener.js';
+import { unthrottled } from '../../../electron/dev/monitor.js';
+import { parseUiRequest, runUiAction } from '../../../electron/dev/ui.js';
 import { overlay } from '../../../electron/overlay.js';
 
 const failures = [];
@@ -91,22 +91,27 @@ app.whenReady().then(async () => {
     check('tall: and the page has none of it left', await noteText(), null);
 
     // what an MCP client asks for, through the listener (the element is named by a selector, the picture comes back scaled down, the file is whole)
-    const listener = await startShotServer({
-      capture: async ({ kind, selector, depth, maxSide }) => {
-        const shot = await unthrottled(tall.webContents, () => takeScreenshot(tall.webContents, kind, { dir, label: 'mcp', selector, depth, feedback: { clear: ui.clear } }));
-        const fit = fitPicture(shot.png, maxSide, nativeImage);
-        return { file: shot.file, png: fit.png, width: fit.width, height: fit.height, fullWidth: shot.width, fullHeight: shot.height };
+    const listener = await startDevServer({
+      capture: async ({ kind, selector, depth, maxSide, quality }) => {
+        // as dev/handlers.js takes it: reduced = scale 1 and JPEG 85, full = the screen's scale and PNG; nothing is saved
+        const taking = quality === 'full' ? { format: 'png', useDeviceScale: true } : { format: 'jpeg', quality: JPEG_QUALITY, useDeviceScale: false };
+        const shot = await unthrottled(tall.webContents, () => takeScreenshot(tall.webContents, kind, { selector, depth, feedback: { clear: ui.clear }, save: false, ...taking }));
+        const fit = fitPicture(shot.png, maxSide, nativeImage, taking);
+        return { png: fit.png, mime: shot.mime, width: fit.width, height: fit.height, fullWidth: shot.width, fullHeight: shot.height };
       },
     });
     try {
       const ask = async body => (await fetch(`${listener.url}/capture`, { method: 'POST', headers: { Authorization: `Bearer ${listener.token}` }, body: JSON.stringify(body) })).json();
-      const element = await ask({ kind: 'element', selector: '#target', max_side: 4096 });
-      check('mcp: an element named by a selector is the same picture as the one that was clicked', [element.ok, element.full_width, element.full_height], [true, 420 * dpr, 140 * dpr]);
-      check('mcp: the picture is a PNG', Buffer.from(element.data, 'base64').subarray(1, 4).toString(), 'PNG');
+      const element = await ask({ kind: 'element', selector: '#target', max_side: 4096, quality: 'full' });
+      check('mcp: full quality, an element named by a selector is the same picture as the one that was clicked', [element.ok, element.full_width, element.full_height], [true, 420 * dpr, 140 * dpr]);
+      check('mcp: full quality is a PNG', [element.mime, Buffer.from(element.data, 'base64').subarray(1, 4).toString()], ['image/png', 'PNG']);
+      const reduced = await ask({ kind: 'element', selector: '#target', max_side: 4096 });
+      const jpegBytes = Buffer.from(reduced.data, 'base64');
+      check('mcp: reduced (the default) is a JPEG at scale 1 (CSS pixels)', [reduced.mime, jpegBytes[0], jpegBytes[1], reduced.full_width, reduced.full_height], ['image/jpeg', 0xff, 0xd8, 420, 140]);
+      check('mcp: and it is smaller than the same picture at full quality', jpegBytes.length < Buffer.from(element.data, 'base64').length, true);
       const small = await ask({ kind: 'full', max_side: 500 });
-      check('mcp: a long picture is scaled down to the longer side asked for', [small.ok, Math.max(small.width, small.height)], [true, 500]);
-      check('mcp: the file saved is the whole picture', size(small.file), [small.full_width, small.full_height]);
-      check('mcp: the picture handed over is what the file is, scaled', size(small.file)[1] > small.height, true);
+      check('mcp: a long picture is scaled down to the longer side asked for, still a JPEG', [small.ok, Math.max(small.width, small.height), small.mime, Buffer.from(small.data, 'base64')[0]], [true, 500, 'image/jpeg', 0xff]);
+      check('mcp: nothing was saved on disk for it', 'file' in small, false);
       await ui.done('Saved: earlier.png'); // a note on the page, as after every picture
       const next = await ask({ kind: 'element', selector: 'header' });
       check('mcp: a note an earlier picture left is not in the next one, and is gone from the page', [next.ok, await noteText()], [true, null]);

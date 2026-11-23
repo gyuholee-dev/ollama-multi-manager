@@ -80,7 +80,7 @@ export interface McpStatus {
   enabled: boolean;
   port: number;
   control: boolean;
-  screenshot: boolean; // the screenshot tool is offered (the app can take a picture: today in developer mode)
+  dev: boolean; // the developer's tools (screen, screenshots) are offered: the app runs in developer mode
   token_set: boolean;
   path: string; // "/mcp"
   active: boolean;

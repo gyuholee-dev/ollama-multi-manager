@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { hiddenWindowError, resolveMonitor, unthrottled, waitForContent, windowState } from '../../electron/mcp-monitor.js';
-import { ShotRequestError } from '../../electron/mcp-shot.js';
+import { hiddenWindowError, resolveMonitor, unthrottled, waitForContent, windowState } from '../../../electron/dev/monitor.js';
+import { DevRequestError } from '../../../electron/dev/listener.js';
 
 const fakeWindow = (texts = []) => ({
   destroyed: false,
@@ -30,7 +30,7 @@ test('an open monitor is used as it is and is left open', async () => {
 
 test('a monitor that is not open is an error that says how to get one, unless opening it was asked for', async () => {
   const p = parts();
-  await assert.rejects(resolveMonitor(4, { ...p }), e => e instanceof ShotRequestError && e.code === 'NO_WINDOW' && e.status === 404 && /open_monitor/.test(e.message));
+  await assert.rejects(resolveMonitor(4, { ...p }), e => e instanceof DevRequestError && e.code === 'NO_WINDOW' && e.status === 404 && /open_monitor/.test(e.message));
   assert.deepEqual(p.log, ['find 4']); // nothing was opened for a request that did not ask for it
 });
 
@@ -97,7 +97,7 @@ test('a hidden window can only be photographed as it is on screen: the other kin
   assert.equal(hiddenWindowError('element', null, 'The main window'), null);
   for (const kind of ['full', 'element']) {
     const e = hiddenWindowError(kind, hidden, 'The main window');
-    assert.ok(e instanceof ShotRequestError);
+    assert.ok(e instanceof DevRequestError);
     assert.deepEqual([e.code, e.status], ['WINDOW_HIDDEN', 409]);
     assert.match(e.message, new RegExp(`The main window is hidden.*only kind "viewport".*"${kind}".*get_app_state`));
   }

@@ -1,8 +1,12 @@
 import { useEffect } from 'react';
 import { startApp } from '@/app/bootstrap';
+import { openPanel } from '@/app/monitorActions';
+import { onShowPanel } from '@/desktop';
+import { usePanelFits } from '@/lib/panel';
 import { DialogHost } from '@/containers/DialogHost';
 import { Footer } from '@/containers/Footer';
 import { Header } from '@/containers/Header';
+import { MonitorPanel } from '@/containers/MonitorPanel';
 import { MonitorWindow } from '@/containers/MonitorWindow';
 import { PageHost } from '@/containers/PageHost';
 import { Logs } from '@/containers/Logs';
@@ -22,8 +26,15 @@ export default function App({ monitor }: { monitor?: number }) {
   const page = useDialogStore((s) => s.page);
   const closePage = useDialogStore((s) => s.close);
   const slide = useDialogStore((s) => s.slide);
+  const monitorShown = useDialogStore((s) => s.monitor);
+  const fits = usePanelFits();
+  // the monitor of an instance in the main window: a panel beside the main view where there is room for it, else a page over the main view
+  const panelId = fits ? monitorShown : null;
+  const monitorPageId = fits ? null : monitorShown;
 
   useEffect(() => startApp(), []);
+  // a monitor window merged into the panel (by the shell, or from a popup of this page): the panel is the way monitors open from now on
+  useEffect(() => monitor ? undefined : onShowPanel((id) => { useUiStore.getState().setMonitorMode('panel'); openPanel(id); }), [monitor]);
   useEffect(() => { document.documentElement.dataset.theme = theme; }, [theme]);
   useEffect(() => {
     document.documentElement.lang = lang;
@@ -43,15 +54,19 @@ export default function App({ monitor }: { monitor?: number }) {
     <>
       <Header />
       {/* the main view and a page (settings, models) side by side: on a narrow window the main view slides out to the left and the page in from the right; on a wide one the page comes in as a panel over the main view (the scrim behind it closes it) */}
-      <div className={`views${page ? ' views--page' : ''}${slide ? ' views--slide' : ''}`}>
-        <div className="views__scrim" onClick={closePage} />
-        <div className="views__track">
-          <div className="view" inert={!!page}>
-            {/* Until the first load is over nothing is shown (no loading note for now), so no empty template and no controls flash by. */}
-            {ready ? <main><Summary /><Monitor /><ServerInstances /><Logs /></main> : null}
+      <div className="workspace">
+        <div className={`views${page || monitorPageId != null ? ' views--page' : ''}${slide ? ' views--slide' : ''}`}>
+          <div className="views__scrim" onClick={closePage} />
+          <div className="views__track">
+            <div className="view" inert={!!page || monitorPageId != null}>
+              {/* Until the first load is over nothing is shown (no loading note for now), so no empty template and no controls flash by. */}
+              {ready ? <main><Summary /><Monitor /><ServerInstances /><Logs /></main> : null}
+            </div>
+            <div className="view" inert={!page && monitorPageId == null}><PageHost monitorAsPage={monitorPageId} /></div>
           </div>
-          <div className="view" inert={!page}><PageHost /></div>
         </div>
+        {/* the monitor panel: beside the main view, not over it; a page (settings) opens over the main view only */}
+        {panelId != null && <aside className="mpanel"><main className="mwm"><MonitorPanel id={panelId} /></main></aside>}
       </div>
       <Footer />
       <DialogHost />

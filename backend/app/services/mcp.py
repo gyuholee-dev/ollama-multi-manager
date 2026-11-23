@@ -11,10 +11,9 @@ page is not meant to open just because a client wants the tools):
   window can show it again to be copied).
 - Requests are counted per sender: more than RATE_LIMIT in RATE_WINDOW seconds are refused (429).
 - What a client may do is what the settings allow: the reading tools always; start/stop/restart only with "control" (mcp_control, off by default);
-  take_screenshot wherever the app can take a picture (today: in developer mode, when the app hands the backend the way to Electron's screenshot
-  listener, see shot_bridge.py); it has no switch of its own, as a developer is meant to be able to take screenshots, and the screenshots meant for
-  users that come later are meant to be reachable through this server too. With it comes get_app_state (which windows are shown): a hidden window can
-  only be photographed as it is on screen, and the others are refused at once.
+  the developer's tools (mcp_dev.py, kept apart from the tools for users): get_app_state and take_screenshot wherever the app hands the backend the
+  way to Electron's listener (developer mode, see dev_bridge.py), with no switch of their own; the ones that operate the screen need "control" too.
+  A screenshot is small by default and is not saved anywhere.
 - A client that starts its servers as programs can use app/mcp_stdio.py, a bridge to this listener (`python -m app mcp-stdio`).
 Started, stopped and rebound whenever the mcp_* settings change (the tools are registered when the server is built, so a switch is a rebind).
 """
@@ -33,11 +32,12 @@ from mcp.server.transport_security import TransportSecuritySettings
 from starlette.responses import JSONResponse
 
 from app.services.instances import InstanceManager, port_free
-from app.services.mcp_tools import instructions, register_control_tools, register_screenshot_tool, register_tools, register_ui_tools
+from app.services.mcp_dev import dev_instructions, register_dev_tools
+from app.services.mcp_tools import instructions, register_control_tools, register_tools
 from app.services.models import ModelService
 from app.services.monitor.collector import Collector
 from app.services.settings import MCP_TOKEN_KEY, SettingsService
-from app.services.shot_bridge import ShotBridge
+from app.services.dev_bridge import DevBridge
 from app.services.webauth import LoginLimiter, verify_token
 
 log = logging.getLogger("omm.mcp")
@@ -107,16 +107,14 @@ class McpGate:
 
 
 def build_app(manager: InstanceManager, collector: Collector, models: ModelService, settings: SettingsService, version: str,
-              control: bool = False, shots: ShotBridge | None = None) -> Any:
+              control: bool = False, dev: DevBridge | None = None) -> Any:
     """A new MCP server and its ASGI app behind the gate (a session manager runs once, so every start builds its own)."""
-    server = MCPServer("ollama-multi-manager", title="Ollama Multi Manager", version=version, instructions=instructions(control, shots is not None))
+    server = MCPServer("ollama-multi-manager", title="Ollama Multi Manager", version=version, instructions=instructions(control) + (dev_instructions(control) if dev is not None else ""))
     register_tools(server, manager, collector, models)
     if control:
         register_control_tools(server, manager)
-    if shots is not None:
-        register_screenshot_tool(server, shots)
-        if control:
-            register_ui_tools(server, shots)  # operating the screen is a control: it needs the switch, as starting an instance does
+    if dev is not None:
+        register_dev_tools(server, dev, control)  # what only a developer's agent gets (mcp_dev.py); operating the screen needs the control switch as well
     # Host and Origin checks (against DNS rebinding) cannot name the addresses the server is reached by: they are the PC's names and addresses on every
     # network, so the token is what stands guard (a page that reaches the server by rebinding does not have it).
     security = TransportSecuritySettings(enable_dns_rebinding_protection=False)
@@ -126,32 +124,31 @@ def build_app(manager: InstanceManager, collector: Collector, models: ModelServi
 
 class McpService:
     def __init__(self, settings: SettingsService, manager: InstanceManager, collector: Collector, models: ModelService, version: str,
-                 shots: ShotBridge | None = None):
+                 dev: DevBridge | None = None):
         self.settings, self.manager, self.collector, self.models, self.version = settings, manager, collector, models, version
-        self.shots = shots or ShotBridge()
+        self.dev = dev or DevBridge()
         self.error: str | None = None
         self._server: uvicorn.Server | None = None
         self._task: asyncio.Task | None = None
-        self._bound: tuple[int, bool, bool] | None = None  # (port, control, screenshot) the running listener was started with
+        self._bound: tuple[int, bool, bool] | None = None  # (port, control, dev tools) the running listener was started with
 
     @property
     def active(self) -> bool:
         return self._server is not None and self._server.started
 
     def _wanted(self) -> tuple[int, bool, bool] | None:
-        """(port, control, screenshot) when the server should run, None when it should not. The tools are registered when the server is built, so a
-        change of a switch is a rebind like a change of the port. The screenshot tool is offered where there is a way to a screenshot."""
+        """(port, control, dev) when the server should run, None when it should not. The tools are registered when the server is built, so a
+        change of a switch is a rebind like a change of the port. The developer's tools (mcp_dev.py) are offered where the app hands the backend the way to its screen (developer mode)."""
         if not self.settings.get("mcp_enabled") or not self.settings.get(MCP_TOKEN_KEY):
             return None
-        shot = bool(self.shots.available)
-        return int(self.settings.get("mcp_port")), bool(self.settings.get("mcp_control")), shot
+        return int(self.settings.get("mcp_port")), bool(self.settings.get("mcp_control")), bool(self.dev.available)
 
     def status(self) -> dict[str, Any]:
         return {
             "enabled": bool(self.settings.get("mcp_enabled")),
             "port": self.settings.get("mcp_port"),
             "control": bool(self.settings.get("mcp_control")),
-            "screenshot": bool(self._bound and self._bound[2]),  # the screenshot tool is offered now (there is a way to a screenshot)
+            "dev": bool(self._bound and self._bound[2]),  # the developer's tools (mcp_dev.py) are offered now
             "token_set": bool(self.settings.get(MCP_TOKEN_KEY)),
             "path": PATH,
             "active": self.active, "error": self.error,
@@ -167,17 +164,17 @@ class McpService:
         elif not want:
             self.error = None
 
-    async def _start(self, port: int, control: bool, shot: bool) -> None:
+    async def _start(self, port: int, control: bool, dev_tools: bool) -> None:
         self.error = None
         if not port_free(port):
             self.error = f"Port {port} is already in use"
             log.warning("MCP server not started: %s", self.error)
             return
         host = os.environ.get("OMM_MCP_HOST") or "0.0.0.0"
-        app = build_app(self.manager, self.collector, self.models, self.settings, self.version, control, self.shots if shot else None)
+        app = build_app(self.manager, self.collector, self.models, self.settings, self.version, control, self.dev if dev_tools else None)
         server = uvicorn.Server(uvicorn.Config(app, host=host, port=port, log_level="warning", lifespan="on", timeout_graceful_shutdown=2))
         server.install_signal_handlers = lambda: None  # the main server owns signal handling
-        self._server, self._bound = server, (port, control, shot)
+        self._server, self._bound = server, (port, control, dev_tools)
         self._task = asyncio.create_task(self._serve(server))
         for _ in range(100):
             if server.started or self._task.done():
